@@ -318,6 +318,31 @@ def test_hierarchical_role_management(setup_database):
     assert response.status_code == 400
     assert "protected" in response.json()["detail"]
 
+def test_create_user_optional_profile_fields(setup_database):
+    # Optional fields (email, department, position, supervisor) can be supplied...
+    payload = {
+        "username": "full_profile_user", "password": "password123", "name": "Full Profile",
+        "role": "user", "email": "full.profile@textron.com", "department": "CAE Engineering",
+        "position": "Senior Engineer", "supervisor": "Jane Boss"
+    }
+    response = client.post("/api/users", json=payload, headers=admin_headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["email"] == "full.profile@textron.com"
+    assert data["department"] == "CAE Engineering"
+    assert data["position"] == "Senior Engineer"
+    assert data["supervisor"] == "Jane Boss"
+
+    # ...and are optional, defaulting to null when omitted
+    payload_minimal = {"username": "minimal_profile_user", "password": "password123", "name": "Minimal Profile", "role": "user"}
+    response = client.post("/api/users", json=payload_minimal, headers=admin_headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["email"] is None
+    assert data["department"] is None
+    assert data["position"] is None
+    assert data["supervisor"] is None
+
     # 6. Admin cannot delete another admin (id 2)
     response = client.delete("/api/users/2", headers=admin_headers)
     assert response.status_code == 400  # Self-deletion check triggers first because admin_headers is user 2

@@ -1614,6 +1614,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 const username = document.getElementById("m-create-username").value.trim();
                 const password = document.getElementById("m-create-password").value;
                 const role = document.getElementById("m-create-role").value;
+                const email = document.getElementById("m-create-email").value.trim() || null;
+                const department = document.getElementById("m-create-department").value.trim() || null;
+                const position = document.getElementById("m-create-position").value.trim() || null;
+                const supervisor = document.getElementById("m-create-supervisor").value.trim() || null;
                 const errDiv = document.getElementById("m-create-error");
                 errDiv.style.display = "none";
 
@@ -1625,7 +1629,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             "Content-Type": "application/json",
                             "Authorization": `Bearer ${token}`
                         },
-                        body: JSON.stringify({ name, username, password, role })
+                        body: JSON.stringify({ name, username, password, role, email, department, position, supervisor })
                     });
                     if (response.ok) {
                         formManageUser.reset();
@@ -1982,8 +1986,18 @@ document.addEventListener("DOMContentLoaded", () => {
                         deleteBtn = `<span style="font-size: 11px; color: var(--text-muted);">Protected</span>`;
                     }
                     
+                    // Optional profile details - shown as a subtitle under the name when present
+                    const subtitleParts = [u.position, u.department].filter(Boolean);
+                    const subtitle = subtitleParts.length
+                        ? `<br><small style="font-weight: normal; color: var(--text-secondary);">${subtitleParts.join(" &middot; ")}</small>`
+                        : "";
+                    const tooltipParts = [];
+                    if (u.email) tooltipParts.push(`Email: ${u.email}`);
+                    if (u.supervisor) tooltipParts.push(`Supervisor: ${u.supervisor}`);
+                    const tooltipAttr = tooltipParts.length ? ` title="${tooltipParts.join(" | ").replace(/"/g, "&quot;")}"` : "";
+
                     tr.innerHTML = `
-                        <td><strong>${u.name}</strong></td>
+                        <td${tooltipAttr}><strong>${u.name}</strong>${subtitle}</td>
                         <td style="font-size: 12px; color: var(--text-secondary);">${u.username}</td>
                         <td><span class="badge ${roleBadgeClass}">${u.role}</span></td>
                         <td>${deleteBtn}</td>

@@ -119,6 +119,10 @@ class UserRegister(BaseModel):
     password: str
     name: str
     role: Optional[str] = "user"  # "master_admin", "admin", or "user"
+    email: Optional[str] = None
+    department: Optional[str] = None
+    position: Optional[str] = None
+    supervisor: Optional[str] = None
 
 
 class UserManageResponse(BaseModel):
@@ -126,6 +130,10 @@ class UserManageResponse(BaseModel):
     username: str
     name: str
     role: str
+    email: Optional[str] = None
+    department: Optional[str] = None
+    position: Optional[str] = None
+    supervisor: Optional[str] = None
 
     class Config:
         from_attributes = True

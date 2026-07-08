@@ -90,6 +90,10 @@ class User(Base):
     password_hash = Column(String, nullable=False)
     role = Column(String, default="user")  # "master_admin", "admin", or "user"
     name = Column(String, nullable=False, default="Unnamed User")
+    email = Column(String, nullable=True)
+    department = Column(String, nullable=True)
+    position = Column(String, nullable=True)
+    supervisor = Column(String, nullable=True)
 
 
 class SystemLog(Base):

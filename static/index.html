@@ -671,6 +671,27 @@
                                     <option value="admin" id="opt-m-create-admin">Admin Manager (Read/Write)</option>
                                 </select>
                             </div>
+
+                            <div style="border-top: 1px solid var(--glass-border); padding-top: 10px; margin-top: 2px;">
+                                <p style="font-size: 11px; color: var(--text-secondary); font-weight: 500; margin: 0 0 8px 0;">Optional Profile Details</p>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                <label for="m-create-email" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;">Email Address</label>
+                                <input type="email" id="m-create-email" placeholder="e.g. jdoe@textron.com" style="padding: 8px 12px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none;">
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                <label for="m-create-department" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;">Department</label>
+                                <input type="text" id="m-create-department" placeholder="e.g. CAE Engineering" style="padding: 8px 12px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none;">
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                <label for="m-create-position" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;">Position in Company</label>
+                                <input type="text" id="m-create-position" placeholder="e.g. Senior Test Engineer" style="padding: 8px 12px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none;">
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                <label for="m-create-supervisor" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;">Supervisor</label>
+                                <input type="text" id="m-create-supervisor" placeholder="e.g. Jane Smith" style="padding: 8px 12px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none;">
+                            </div>
+
                             <div id="m-create-error" style="display: none; color: var(--danger-color); font-size: 11px; margin-top: 4px;"></div>
                             <button type="submit" class="btn btn-primary" style="margin-top: 8px; width: 100%;"><i class="fa-solid fa-user-plus"></i> Create Account</button>
                         </form>

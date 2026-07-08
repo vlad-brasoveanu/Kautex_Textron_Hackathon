@@ -18,6 +18,18 @@ from database import engine, Base, get_db
 # Create DB Tables
 Base.metadata.create_all(bind=engine)
 
+# Lightweight migration: create_all only creates missing tables, it does not add
+# columns to a "users" table that already existed before this fields were introduced.
+def migrate_add_missing_columns():
+    with engine.connect() as conn:
+        existing_cols = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(users)").fetchall()}
+        for col in ("email", "department", "position", "supervisor"):
+            if col not in existing_cols:
+                conn.exec_driver_sql(f"ALTER TABLE users ADD COLUMN {col} VARCHAR")
+        conn.commit()
+
+migrate_add_missing_columns()
+
 app = FastAPI(title="Digital Engineering Planning Dashboard API")
 
 # Password hashing helper
@@ -136,12 +148,16 @@ def create_user(payload: schemas.UserRegister, db: Session = Depends(get_db), cu
         username=payload.username,
         password_hash=hash_password(payload.password),
         name=payload.name,
-        role=target_role
+        role=target_role,
+        email=payload.email or None,
+        department=payload.department or None,
+        position=payload.position or None,
+        supervisor=payload.supervisor or None
     )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    
+
     write_system_log(
         db,
         username=current_user.username,
