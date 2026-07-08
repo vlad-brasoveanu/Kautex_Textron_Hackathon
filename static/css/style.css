@@ -270,17 +270,7 @@ body {
 }
 
 .logo-image, .login-logo-image {
-    transition: filter 0.3s ease;
-}
-
-body:not(.theme-light) .logo-image,
-body:not(.theme-light) .login-logo-image {
-    filter: brightness(0) invert(1) drop-shadow(0px 2px 4px rgba(255,255,255,0.1));
-}
-
-body.theme-light .logo-image,
-body.theme-light .login-logo-image {
-    filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.15));
+    transition: color 0.3s ease;
 }
 
 .logo-text h1 {
@@ -1867,11 +1857,15 @@ th.sortable-emp:hover, th.sortable-topic:hover {
    PRINT MEDIA RULES (slide conversion to high-end PDF pages)
    ========================================================== */
 @media print {
-    body {
+    /* Default light print layouts */
+    body:not(.print-theme-dark) {
         background: #ffffff !important;
         color: #000000 !important;
-        overflow: visible !important;
-        height: auto !important;
+    }
+    
+    body.print-theme-dark {
+        background: #030712 !important;
+        color: #f9fafb !important;
     }
     
     .app-container {
@@ -1884,8 +1878,15 @@ th.sortable-emp:hover, th.sortable-topic:hover {
     
     .app-main {
         padding: 0 !important;
-        background: #ffffff !important;
         overflow: visible !important;
+    }
+    
+    body:not(.print-theme-dark) .app-main {
+        background: #ffffff !important;
+    }
+    
+    body.print-theme-dark .app-main {
+        background: #030712 !important;
     }
     
     .main-section {
@@ -1902,56 +1903,118 @@ th.sortable-emp:hover, th.sortable-topic:hover {
         padding: 0 !important;
     }
     
-    .presentation-slide {
+    /* ==================== LIGHT PRINT THEME ==================== */
+    body:not(.print-theme-dark) .presentation-slide {
         background: #ffffff !important;
         color: #000000 !important;
-        border: none !important;
+        border: 1px solid #cbd5e1 !important;
         box-shadow: none !important;
         aspect-ratio: 16 / 9 !important;
         width: 100% !important;
         page-break-after: always !important;
         padding: 40px !important;
-        border: 1px solid #e2e8f0 !important; /* light line for bounds in print */
         margin-bottom: 20px;
     }
     
-    .slide-body-center h2 {
+    body:not(.print-theme-dark) .slide-body-center h2 {
         color: #0f172a !important;
     }
     
-    .slide-title-bar h3, .pres-kpi-number, .risk-title {
+    body:not(.print-theme-dark) .slide-title-bar h3, 
+    body:not(.print-theme-dark) .pres-kpi-number, 
+    body:not(.print-theme-dark) .risk-title {
         color: #0f172a !important;
     }
     
-    .pres-kpi-item, .pres-chart-box, .pres-notes-box {
+    body:not(.print-theme-dark) .pres-kpi-item, 
+    body:not(.print-theme-dark) .pres-chart-box, 
+    body:not(.print-theme-dark) .pres-notes-box {
         background: #f8fafc !important;
         border-color: #cbd5e1 !important;
     }
     
-    .pres-kpi-label, .pres-chart-box h4 {
+    body:not(.print-theme-dark) .pres-kpi-label, 
+    body:not(.print-theme-dark) .pres-chart-box h4 {
         color: #475569 !important;
     }
     
-    .pres-table th {
+    body:not(.print-theme-dark) .pres-table th {
         background: #f1f5f9 !important;
         color: #0f172a !important;
         border-color: #cbd5e1 !important;
     }
     
-    .pres-table td {
+    body:not(.print-theme-dark) .pres-table td {
         border-color: #e2e8f0 !important;
         color: #334155 !important;
     }
     
-    .risk-list li {
+    body:not(.print-theme-dark) .risk-list li {
         background: #fef2f2 !important;
         border-color: #ef4444 !important;
         color: #991b1b !important;
     }
     
-    .slide-footer {
+    body:not(.print-theme-dark) .slide-footer {
         border-color: #cbd5e1 !important;
         color: #64748b !important;
+    }
+    
+    /* ==================== DARK PRINT THEME ==================== */
+    body.print-theme-dark .presentation-slide {
+        background: #0f172a !important;
+        color: #f1f5f9 !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        box-shadow: none !important;
+        aspect-ratio: 16 / 9 !important;
+        width: 100% !important;
+        page-break-after: always !important;
+        padding: 40px !important;
+        margin-bottom: 20px;
+    }
+    
+    body.print-theme-dark .slide-body-center h2 {
+        color: #ffffff !important;
+    }
+    
+    body.print-theme-dark .slide-title-bar h3, 
+    body.print-theme-dark .pres-kpi-number, 
+    body.print-theme-dark .risk-title {
+        color: #ffffff !important;
+    }
+    
+    body.print-theme-dark .pres-kpi-item, 
+    body.print-theme-dark .pres-chart-box, 
+    body.print-theme-dark .pres-notes-box {
+        background: rgba(255, 255, 255, 0.02) !important;
+        border-color: rgba(255, 255, 255, 0.05) !important;
+    }
+    
+    body.print-theme-dark .pres-kpi-label, 
+    body.print-theme-dark .pres-chart-box h4 {
+        color: #d1d5db !important;
+    }
+    
+    body.print-theme-dark .pres-table th {
+        background: rgba(255, 255, 255, 0.05) !important;
+        color: #ffffff !important;
+        border-color: rgba(255, 255, 255, 0.1) !important;
+    }
+    
+    body.print-theme-dark .pres-table td {
+        border-color: rgba(255, 255, 255, 0.05) !important;
+        color: #cbd5e1 !important;
+    }
+    
+    body.print-theme-dark .risk-list li {
+        background: rgba(239, 68, 68, 0.08) !important;
+        border-color: #ef4444 !important;
+        color: #fca5a5 !important;
+    }
+    
+    body.print-theme-dark .slide-footer {
+        border-color: rgba(255, 255, 255, 0.1) !important;
+        color: #9ca3af !important;
     }
 }
 

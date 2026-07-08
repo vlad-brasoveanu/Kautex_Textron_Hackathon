@@ -2389,6 +2389,23 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
 
+        // PDF Export Theme binding
+        const pdfThemeSelect = document.getElementById("pdf-print-theme");
+        if (pdfThemeSelect) {
+            const savedPrintTheme = localStorage.getItem("pdf-print-theme") || "print-theme-light";
+            pdfThemeSelect.value = savedPrintTheme;
+            setPdfPrintTheme(savedPrintTheme);
+            
+            pdfThemeSelect.addEventListener("change", (e) => {
+                const selected = e.target.value;
+                localStorage.setItem("pdf-print-theme", selected);
+                setPdfPrintTheme(selected);
+                if (activeSection === "presentation-section") {
+                    renderPresentationDeck();
+                }
+            });
+        }
+
         // Scenario Export JSON trigger
         const btnExportScenario = document.getElementById("btn-export-scenario");
         if (btnExportScenario) {
@@ -3333,6 +3350,11 @@ document.addEventListener("DOMContentLoaded", () => {
         if (themeName !== "theme-glass") {
             document.body.classList.add(themeName);
         }
+    }
+
+    function setPdfPrintTheme(themeClass) {
+        document.body.classList.remove("print-theme-light", "print-theme-dark");
+        document.body.classList.add(themeClass);
     }
 
     // Launch Application Init
