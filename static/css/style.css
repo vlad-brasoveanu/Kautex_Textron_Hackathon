@@ -812,6 +812,89 @@ tr.overview-row:hover td {
 }
 
 /* ==========================================================
+   PRESENTATION DECK CUSTOMIZATION LIST
+   ========================================================== */
+.deck-customize-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 50vh;
+    overflow-y: auto;
+}
+
+.deck-customize-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--glass-border);
+}
+
+.deck-customize-item.excluded {
+    opacity: 0.55;
+}
+
+.deck-customize-item input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary-color);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.deck-customize-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.deck-customize-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.deck-customize-desc {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.deck-customize-order-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.deck-customize-order-controls button {
+    width: 24px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--glass-border);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 10px;
+    padding: 0;
+}
+
+.deck-customize-order-controls button:hover:not(:disabled) {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.deck-customize-order-controls button:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* ==========================================================
    DASHBOARD TABS & CHART DESIGN
    ========================================================== */
 .dash-tabs {

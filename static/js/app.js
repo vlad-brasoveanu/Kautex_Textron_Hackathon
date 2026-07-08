@@ -76,6 +76,15 @@ document.addEventListener("DOMContentLoaded", () => {
     let utilizationChart = null;
     let presLocationChart = null;
 
+    // Presentation Deck: last fetched AI predictions, kept around so the deck
+    // can be re-rendered (e.g. after reordering slides) without a re-fetch.
+    let aiPredictionsData = null;
+
+    // Presentation Deck: which template slides are included and in what order.
+    // Persisted to localStorage so a customized deck survives a page reload.
+    const DECK_CONFIG_STORAGE_KEY = "presentationDeckConfig_v1";
+    let deckConfig = null;
+
     // DOM Elements
     const scenarioSelect = document.getElementById("scenario-select");
     const formLogin = document.getElementById("form-login");
@@ -170,7 +179,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const response = await fetch("/api/scenarios/active");
             activeScenario = await response.json();
             scenarioSelect.value = activeScenario.id;
-            document.getElementById("pres-scenario-name").innerText = activeScenario.name;
+            // The presentation deck's title slide reads activeScenario.name directly
+            // at render time (see SLIDE_TEMPLATES.title), so no DOM update is needed here.
         } catch (error) {
             console.error("Error fetching active scenario:", error);
         }
@@ -1157,69 +1167,448 @@ document.addEventListener("DOMContentLoaded", () => {
     // 4. PRESENTATION DECK RENDER
     // ==========================================
     
-    function renderPresentationDeck() {
-        if (!dashboardData) return;
+    // ==========================================
+    // 4B. PRESENTATION DECK - SLIDE TEMPLATE SYSTEM
+    // ==========================================
+    // Each template renders one slide from live data. The deck is a fixed set of
+    // templates the user can include/exclude and reorder (see deckConfig) - this
+    // is what lets someone build, say, a team-level report without ever exposing
+    // individual employee names, just by leaving the "employees" slide unchecked.
 
-        // Slide 2 KPIs
-        document.getElementById("pres-kpi-headcount").innerText = dashboardData.total_headcount;
-        document.getElementById("pres-kpi-internal").innerText = `$${dashboardData.total_internal_employee_cost.toLocaleString(undefined, {maximumFractionDigits: 0})}`;
-        document.getElementById("pres-kpi-additional").innerText = `$${(dashboardData.total_additional_internal_cost + dashboardData.total_external_cost).toLocaleString(undefined, {maximumFractionDigits: 0})}`;
-        document.getElementById("pres-kpi-net").innerText = `$${dashboardData.total_annual_planning_cost.toLocaleString(undefined, {maximumFractionDigits: 0})}`;
+    function slideFooterHTML(idx, total) {
+        return `<div class="slide-footer"><span>Textron Inc. Planning Platform</span><span class="slide-number">Slide ${idx} of ${total}</span></div>`;
+    }
 
-        // Slide 2 Chart.js (Vector presentation pie chart)
-        const ctx = document.getElementById("pres-chart-location-canvas").getContext("2d");
-        if (presLocationChart) presLocationChart.destroy();
+    function csvCell(value) {
+        const str = String(value ?? "");
+        return `"${str.replace(/"/g, '""')}"`;
+    }
 
-        const labels = Object.keys(dashboardData.cost_by_location);
-        const data = Object.values(dashboardData.cost_by_location);
-
-        presLocationChart = new Chart(ctx, {
-            type: "doughnut",
-            data: {
-                labels: labels,
-                datasets: [{
-                    data: data,
-                    backgroundColor: ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"],
-                    borderWidth: 1
-                }]
+    const SLIDE_TEMPLATES = {
+        title: {
+            label: "Title Slide",
+            desc: "Cover slide with report title and planning version name.",
+            render: (ctx, idx, total) => `
+                <div class="presentation-slide slide-title">
+                    <div class="slide-header-brand"><i class="fa-solid fa-layer-group"></i> Textron Digital Engineering</div>
+                    <div class="slide-body-center">
+                        <h2>Engineering Planning & Budget Report</h2>
+                        <p id="pres-scenario-name">${ctx.activeScenario ? ctx.activeScenario.name : "Planning Version"}</p>
+                        <div class="slide-subtitle-divider"></div>
+                        <span class="confidential-stamp">STRICTLY CONFIDENTIAL</span>
+                    </div>
+                    ${slideFooterHTML(idx, total)}
+                </div>
+            `,
+            csv: null
+        },
+        executive: {
+            label: "Executive Summary",
+            desc: "Headcount, cost KPIs, and cost-by-location chart.",
+            render: (ctx, idx, total) => {
+                const d = ctx.dashboardData;
+                return `
+                <div class="presentation-slide">
+                    <div class="slide-title-bar"><h3>Executive Planning Overview</h3><span class="confidential-small">CONFIDENTIAL</span></div>
+                    <div class="slide-content-split">
+                        <div class="slide-col-left">
+                            <div class="pres-kpi-grid">
+                                <div class="pres-kpi-item"><span class="pres-kpi-label">Headcount</span><span class="pres-kpi-number">${d.total_headcount}</span></div>
+                                <div class="pres-kpi-item"><span class="pres-kpi-label">Internal Effort Cost</span><span class="pres-kpi-number">$${d.total_internal_employee_cost.toLocaleString(undefined, {maximumFractionDigits: 0})}</span></div>
+                                <div class="pres-kpi-item"><span class="pres-kpi-label">Additional & Vendor Cost</span><span class="pres-kpi-number">$${(d.total_additional_internal_cost + d.total_external_cost).toLocaleString(undefined, {maximumFractionDigits: 0})}</span></div>
+                                <div class="pres-kpi-item"><span class="pres-kpi-label">Net Fiscal Budget</span><span class="pres-kpi-number text-blue">$${d.total_annual_planning_cost.toLocaleString(undefined, {maximumFractionDigits: 0})}</span></div>
+                            </div>
+                        </div>
+                        <div class="slide-col-right">
+                            <div class="pres-chart-box">
+                                <h4>Annual Planning Cost by Location</h4>
+                                <div class="canvas-wrap"><canvas id="pres-chart-location-canvas"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+                    ${slideFooterHTML(idx, total)}
+                </div>
+                `;
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: "right",
-                        labels: { color: "#e2e8f0", font: { family: "Outfit", size: 10 } }
+            postRender: (ctx) => {
+                const canvas = document.getElementById("pres-chart-location-canvas");
+                if (!canvas) return;
+                if (presLocationChart) presLocationChart.destroy();
+                const labels = Object.keys(ctx.dashboardData.cost_by_location);
+                const data = Object.values(ctx.dashboardData.cost_by_location);
+                presLocationChart = new Chart(canvas.getContext("2d"), {
+                    type: "doughnut",
+                    data: {
+                        labels: labels,
+                        datasets: [{ data: data, backgroundColor: ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"], borderWidth: 1 }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: "right", labels: { color: "#e2e8f0", font: { family: "Outfit", size: 10 } } } }
                     }
+                });
+            },
+            csv: (ctx) => {
+                const d = ctx.dashboardData;
+                const lines = [
+                    "=== Executive Summary ===",
+                    "Metric,Value",
+                    `${csvCell("Headcount")},${d.total_headcount}`,
+                    `${csvCell("Internal Effort Cost")},${d.total_internal_employee_cost}`,
+                    `${csvCell("Additional & Vendor Cost")},${d.total_additional_internal_cost + d.total_external_cost}`,
+                    `${csvCell("Cost Recovery")},${-d.total_recovery_cost}`,
+                    `${csvCell("Net Fiscal Budget")},${d.total_annual_planning_cost}`
+                ];
+                return lines.join("\n");
+            }
+        },
+        topics: {
+            label: "Key Initiatives Budget",
+            desc: "Per-topic cost breakdown table.",
+            render: (ctx, idx, total) => `
+                <div class="presentation-slide">
+                    <div class="slide-title-bar"><h3>Key Strategic Initiatives Budget</h3><span class="confidential-small">CONFIDENTIAL</span></div>
+                    <div class="slide-content-split">
+                        <div class="slide-col-full">
+                            <div class="pres-table-wrapper">
+                                <table class="pres-table">
+                                    <thead><tr><th>Initiative / Topic</th><th>Category</th><th>Category Cost</th><th>Involved Staff</th><th>Total Cost</th></tr></thead>
+                                    <tbody>
+                                        ${ctx.dashboardData.topic_summaries.map(t => `
+                                            <tr>
+                                                <td><strong>${t.name}</strong></td>
+                                                <td>${t.category}</td>
+                                                <td>$${(t.additional_internal_cost + t.external_cost).toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+                                                <td>${t.staff.length} Planned</td>
+                                                <td><strong>$${t.total_cost.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong></td>
+                                            </tr>
+                                        `).join("")}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    ${slideFooterHTML(idx, total)}
+                </div>
+            `,
+            csv: (ctx) => {
+                const lines = ["=== Key Strategic Initiatives Budget ===", "Topic,Category,Category Cost,Involved Staff,Total Cost"];
+                ctx.dashboardData.topic_summaries.forEach(t => {
+                    lines.push(`${csvCell(t.name)},${csvCell(t.category)},${t.additional_internal_cost + t.external_cost},${t.staff.length},${t.total_cost}`);
+                });
+                return lines.join("\n");
+            }
+        },
+        risks: {
+            label: "Resource Allocations & Risks",
+            desc: "Overloaded employees and strategic notes.",
+            render: (ctx, idx, total) => `
+                <div class="presentation-slide">
+                    <div class="slide-title-bar"><h3>Resource Allocations & Overload Alerts</h3><span class="confidential-small">CONFIDENTIAL</span></div>
+                    <div class="slide-content-split">
+                        <div class="slide-col-left">
+                            <h4 class="risk-title"><i class="fa-solid fa-triangle-exclamation"></i> Overloaded Resources (>100% Allocation)</h4>
+                            <ul class="risk-list">
+                                ${ctx.dashboardData.overloaded_employees.map(emp => `
+                                    <li><i class="fa-solid fa-triangle-exclamation"></i> <strong>${emp.name}</strong> (${emp.team}) planned utilization is at <strong>${emp.utilization.toFixed(1)}%</strong>. Immediate risk of burnout/project delay.</li>
+                                `).join("") || "<li><i class='fa-solid fa-circle-check text-green'></i> No overloaded planning risks detected in this scenario.</li>"}
+                            </ul>
+                        </div>
+                        <div class="slide-col-right">
+                            <h4 class="risk-title"><i class="fa-solid fa-list-check"></i> Management Comments & Strategic Notes</h4>
+                            <div class="pres-notes-box">
+                                <p><strong>Planning Version Summary:</strong> Initial draft of resources for engineering hubs. High effort is currently allocated on the Agentic AI prototype development which has an external funding recovery mapped. Key project delivery for Customer Requests (Fuel) requires resource reallocations to cover India testing overload risk.</p>
+                            </div>
+                        </div>
+                    </div>
+                    ${slideFooterHTML(idx, total)}
+                </div>
+            `,
+            csv: (ctx) => {
+                const lines = ["=== Resource Allocations & Overload Alerts ===", "Employee,Team,Utilization %"];
+                ctx.dashboardData.overloaded_employees.forEach(emp => {
+                    lines.push(`${csvCell(emp.name)},${csvCell(emp.team)},${emp.utilization.toFixed(1)}`);
+                });
+                if (ctx.dashboardData.overloaded_employees.length === 0) lines.push("No overloaded planning risks detected in this scenario.");
+                return lines.join("\n");
+            }
+        },
+        ai: {
+            label: "AI Portfolio Predictions",
+            desc: "AI-driven bottleneck predictions and optimization suggestions.",
+            render: (ctx, idx, total) => {
+                const data = ctx.aiPredictionsData || { bottlenecks: [], cost_optimizations: [], reallocations: [] };
+                return `
+                <div class="presentation-slide">
+                    <div class="slide-title-bar"><h3>AI-Driven Portfolio Predictions & Suggestions</h3><span class="confidential-small">CONFIDENTIAL</span></div>
+                    <div class="slide-content-split">
+                        <div class="slide-col-left">
+                            <h4 class="risk-title" style="color: var(--accent-color); font-size: 13px;"><i class="fa-solid fa-brain"></i> Predicted Resource Bottlenecks</h4>
+                            <ul class="risk-list" style="max-height: 180px;">
+                                ${data.bottlenecks.map(b => `
+                                    <li style="padding: 8px 12px; border-radius: 6px; background: rgba(239, 68, 68, 0.04); border-left: 3px solid ${b.severity === 'High' ? 'var(--danger-color)' : 'var(--warning-color)'}; margin-bottom: 6px; font-size: 11px;">
+                                        <strong>[${b.type}]</strong> ${b.description}
+                                    </li>
+                                `).join("")}
+                            </ul>
+                        </div>
+                        <div class="slide-col-right">
+                            <h4 class="risk-title" style="color: var(--warning-color); font-size: 13px;"><i class="fa-solid fa-chart-line"></i> Strategic Optimization Suggestions</h4>
+                            <ul class="risk-list" style="max-height: 180px; gap: 6px;">
+                                ${[...data.cost_optimizations, ...data.reallocations].slice(0, 3).map(s => `
+                                    <li style="padding: 8px 12px; border-radius: 6px; background: rgba(59, 130, 246, 0.04); border-left: 3px solid var(--primary-color); margin-bottom: 6px; font-size: 11px;">
+                                        <strong>[${s.category || s.action}]</strong> ${s.description}
+                                    </li>
+                                `).join("")}
+                            </ul>
+                        </div>
+                    </div>
+                    ${slideFooterHTML(idx, total)}
+                </div>
+                `;
+            },
+            csv: (ctx) => {
+                const data = ctx.aiPredictionsData || { bottlenecks: [], cost_optimizations: [], reallocations: [] };
+                const lines = ["=== AI Portfolio Predictions & Suggestions ===", "Type,Category/Type,Description"];
+                data.bottlenecks.forEach(b => lines.push(`Bottleneck,${csvCell(b.type)},${csvCell(b.description)}`));
+                [...data.cost_optimizations, ...data.reallocations].slice(0, 3).forEach(s => lines.push(`Suggestion,${csvCell(s.category || s.action)},${csvCell(s.description)}`));
+                return lines.join("\n");
+            }
+        },
+        teams: {
+            label: "Team Breakdown",
+            desc: "Aggregate team-level staffing and cost - no individual employee names.",
+            render: (ctx, idx, total) => {
+                const rows = [...ctx.dashboardData.team_summaries].sort((a, b) => b.total_cost - a.total_cost);
+                return `
+                <div class="presentation-slide">
+                    <div class="slide-title-bar"><h3>Team Resourcing & Cost Breakdown</h3><span class="confidential-small">CONFIDENTIAL</span></div>
+                    <div class="slide-content-split">
+                        <div class="slide-col-full">
+                            <div class="pres-table-wrapper">
+                                <table class="pres-table">
+                                    <thead><tr><th>Team</th><th>Members</th><th>Avg Utilization</th><th>Overloaded</th><th>Total Cost</th></tr></thead>
+                                    <tbody>
+                                        ${rows.map(t => `
+                                            <tr>
+                                                <td><strong>${t.team_name}</strong></td>
+                                                <td>${t.member_count}</td>
+                                                <td>${t.average_utilization.toFixed(1)}%</td>
+                                                <td>${t.overloaded_count}</td>
+                                                <td><strong>$${t.total_cost.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong></td>
+                                            </tr>
+                                        `).join("")}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    ${slideFooterHTML(idx, total)}
+                </div>
+                `;
+            },
+            csv: (ctx) => {
+                const lines = ["=== Team Resourcing & Cost Breakdown ===", "Team,Members,Avg Utilization %,Overloaded,Total Cost"];
+                [...ctx.dashboardData.team_summaries].sort((a, b) => b.total_cost - a.total_cost).forEach(t => {
+                    lines.push(`${csvCell(t.team_name)},${t.member_count},${t.average_utilization.toFixed(1)},${t.overloaded_count},${t.total_cost}`);
+                });
+                return lines.join("\n");
+            }
+        },
+        employees: {
+            label: "Employee Breakdown",
+            desc: "Individual employee names, utilization, and cost. Omit this slide to keep the report team-level only.",
+            render: (ctx, idx, total) => {
+                const rows = ctx.employees.map(emp => {
+                    const util = ctx.allocations.filter(a => a.employee_id === emp.id).reduce((acc, a) => acc + a.percentage, 0.0);
+                    const cost = emp.available_hours * emp.hourly_rate * (util / 100.0);
+                    return { name: emp.name, team: emp.team, location: emp.location, util, cost };
+                }).sort((a, b) => b.cost - a.cost);
+                return `
+                <div class="presentation-slide">
+                    <div class="slide-title-bar"><h3>Individual Employee Breakdown</h3><span class="confidential-small">CONFIDENTIAL</span></div>
+                    <div class="slide-content-split">
+                        <div class="slide-col-full">
+                            <div class="pres-table-wrapper">
+                                <table class="pres-table">
+                                    <thead><tr><th>Employee</th><th>Team</th><th>Location</th><th>Utilization</th><th>Total Cost</th></tr></thead>
+                                    <tbody>
+                                        ${rows.map(r => `
+                                            <tr>
+                                                <td><strong>${r.name}</strong></td>
+                                                <td>${r.team}</td>
+                                                <td>${r.location}</td>
+                                                <td>${r.util.toFixed(1)}%</td>
+                                                <td><strong>$${r.cost.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong></td>
+                                            </tr>
+                                        `).join("")}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    ${slideFooterHTML(idx, total)}
+                </div>
+                `;
+            },
+            csv: (ctx) => {
+                const lines = ["=== Individual Employee Breakdown ===", "Employee,Team,Location,Utilization %,Total Cost"];
+                ctx.employees.map(emp => {
+                    const util = ctx.allocations.filter(a => a.employee_id === emp.id).reduce((acc, a) => acc + a.percentage, 0.0);
+                    const cost = emp.available_hours * emp.hourly_rate * (util / 100.0);
+                    return { name: emp.name, team: emp.team, location: emp.location, util, cost };
+                }).sort((a, b) => b.cost - a.cost).forEach(r => {
+                    lines.push(`${csvCell(r.name)},${csvCell(r.team)},${csvCell(r.location)},${r.util.toFixed(1)},${r.cost}`);
+                });
+                return lines.join("\n");
+            }
+        }
+    };
+
+    function getDefaultDeckConfig() {
+        return [
+            { id: "title", included: true },
+            { id: "executive", included: true },
+            { id: "topics", included: true },
+            { id: "risks", included: true },
+            { id: "ai", included: true },
+            { id: "teams", included: false },
+            { id: "employees", included: false }
+        ];
+    }
+
+    function loadDeckConfig() {
+        try {
+            const raw = localStorage.getItem(DECK_CONFIG_STORAGE_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                const knownIds = Object.keys(SLIDE_TEMPLATES);
+                const parsedIds = parsed.map(p => p.id);
+                // Only trust the saved config if it exactly matches the current set of
+                // known templates - guards against a stale config from a previous
+                // version of the app that added/removed template slides.
+                if (Array.isArray(parsed) && knownIds.length === parsedIds.length && knownIds.every(id => parsedIds.includes(id))) {
+                    deckConfig = parsed;
+                    return;
                 }
             }
-        });
+        } catch (e) {
+            console.error("Failed to load deck config, resetting to default:", e);
+        }
+        deckConfig = getDefaultDeckConfig();
+    }
 
-        // Slide 3 Topic summary table
-        const tbody = document.querySelector("#pres-topic-table tbody");
-        tbody.innerHTML = "";
-        dashboardData.topic_summaries.forEach(t => {
-            const tr = document.createElement("tr");
-            tr.innerHTML = `
-                <td><strong>${t.name}</strong></td>
-                <td>${t.category}</td>
-                <td>$${(t.additional_internal_cost + t.external_cost).toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
-                <td>${t.staff.length} Planned</td>
-                <td><strong>$${t.total_cost.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong></td>
+    function saveDeckConfig() {
+        localStorage.setItem(DECK_CONFIG_STORAGE_KEY, JSON.stringify(deckConfig));
+    }
+
+    function buildDeckContext() {
+        return { dashboardData, employees, topics, allocations, activeScenario, aiPredictionsData };
+    }
+
+    function renderPresentationDeck() {
+        if (!dashboardData) return;
+        if (!deckConfig) loadDeckConfig();
+
+        const container = document.getElementById("presentation-deck-container");
+        if (!container) return;
+
+        const ctx = buildDeckContext();
+        const included = deckConfig.filter(c => c.included && SLIDE_TEMPLATES[c.id]);
+
+        container.innerHTML = included.map((cfg, i) => SLIDE_TEMPLATES[cfg.id].render(ctx, i + 1, included.length)).join("");
+
+        included.forEach(cfg => {
+            const template = SLIDE_TEMPLATES[cfg.id];
+            if (template.postRender) template.postRender(ctx);
+        });
+    }
+
+    function renderDeckCustomizeList() {
+        const list = document.getElementById("deck-customize-list");
+        if (!list || !deckConfig) return;
+
+        list.innerHTML = deckConfig.map((cfg, i) => {
+            const template = SLIDE_TEMPLATES[cfg.id];
+            return `
+                <li class="deck-customize-item ${cfg.included ? "" : "excluded"}" data-index="${i}">
+                    <input type="checkbox" class="deck-customize-checkbox" data-index="${i}" ${cfg.included ? "checked" : ""}>
+                    <div class="deck-customize-info">
+                        <div class="deck-customize-title">${template.label}</div>
+                        <div class="deck-customize-desc">${template.desc}</div>
+                    </div>
+                    <div class="deck-customize-order-controls">
+                        <button type="button" class="deck-move-up" data-index="${i}" ${i === 0 ? "disabled" : ""} title="Move up"><i class="fa-solid fa-chevron-up"></i></button>
+                        <button type="button" class="deck-move-down" data-index="${i}" ${i === deckConfig.length - 1 ? "disabled" : ""} title="Move down"><i class="fa-solid fa-chevron-down"></i></button>
+                    </div>
+                </li>
             `;
-            tbody.appendChild(tr);
+        }).join("");
+
+        list.querySelectorAll(".deck-customize-checkbox").forEach(cb => {
+            cb.addEventListener("change", (e) => {
+                const i = parseInt(e.target.getAttribute("data-index"), 10);
+                deckConfig[i].included = e.target.checked;
+                saveDeckConfig();
+                renderDeckCustomizeList();
+                renderPresentationDeck();
+            });
         });
 
-        // Slide 4 Overloaded list
-        const riskList = document.getElementById("pres-overloaded-list");
-        riskList.innerHTML = "";
-        dashboardData.overloaded_employees.forEach(emp => {
-            const li = document.createElement("li");
-            li.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <strong>${emp.name}</strong> (${emp.team}) planned utilization is at <strong>${emp.utilization.toFixed(1)}%</strong>. Immediate risk of burnout/project delay.`;
-            riskList.appendChild(li);
+        list.querySelectorAll(".deck-move-up").forEach(btn => {
+            btn.addEventListener("click", () => {
+                const i = parseInt(btn.getAttribute("data-index"), 10);
+                if (i > 0) {
+                    [deckConfig[i - 1], deckConfig[i]] = [deckConfig[i], deckConfig[i - 1]];
+                    saveDeckConfig();
+                    renderDeckCustomizeList();
+                    renderPresentationDeck();
+                }
+            });
         });
-        if (dashboardData.overloaded_employees.length === 0) {
-            riskList.innerHTML = "<li><i class='fa-solid fa-circle-check text-green'></i> No overloaded planning risks detected in this scenario.</li>";
+
+        list.querySelectorAll(".deck-move-down").forEach(btn => {
+            btn.addEventListener("click", () => {
+                const i = parseInt(btn.getAttribute("data-index"), 10);
+                if (i < deckConfig.length - 1) {
+                    [deckConfig[i + 1], deckConfig[i]] = [deckConfig[i], deckConfig[i + 1]];
+                    saveDeckConfig();
+                    renderDeckCustomizeList();
+                    renderPresentationDeck();
+                }
+            });
+        });
+    }
+
+    async function exportPresentationReportToCSV() {
+        if (!dashboardData) return;
+        const ctx = buildDeckContext();
+        const included = deckConfig.filter(c => c.included && SLIDE_TEMPLATES[c.id] && SLIDE_TEMPLATES[c.id].csv);
+
+        const sections = included.map(cfg => SLIDE_TEMPLATES[cfg.id].csv(ctx));
+        const csvContent = sections.join("\n\n");
+
+        const scenarioName = activeScenario ? activeScenario.name : "Planning Version";
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `Presentation_Report_${scenarioName.replace(/\s+/g, "_")}.csv`);
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        try {
+            const token = localStorage.getItem("token");
+            await fetch("/api/reports/log-export", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                body: JSON.stringify({ report_name: `Presentation Report (${scenarioName})`, format: "CSV" })
+            });
+        } catch (err) {
+            console.error("Failed to log presentation report export:", err);
         }
     }
 
@@ -1270,6 +1659,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function renderAIPredictions(data) {
+        aiPredictionsData = data;
+
         const bList = document.getElementById("ai-insight-bottlenecks-list");
         const cList = document.getElementById("ai-insight-costs-list");
         const rList = document.getElementById("ai-insight-reallocations-list");
@@ -1310,23 +1701,9 @@ document.addEventListener("DOMContentLoaded", () => {
             `).join("") || "<p class='ai-insight-desc' style='opacity:0.6;'>No load balancing needed.</p>";
         }
 
-        const slideB = document.getElementById("pres-ai-bottlenecks-list");
-        const slideS = document.getElementById("pres-ai-suggestions-list");
-        
-        if (slideB) {
-            slideB.innerHTML = data.bottlenecks.map(b => `
-                <li style="padding: 8px 12px; border-radius: 6px; background: rgba(239, 68, 68, 0.04); border-left: 3px solid ${b.severity === 'High' ? 'var(--danger-color)' : 'var(--warning-color)'}; margin-bottom: 6px; font-size: 11px;">
-                    <strong>[${b.type}]</strong> ${b.description}
-                </li>
-            `).join("");
-        }
-        if (slideS) {
-            slideS.innerHTML = [...data.cost_optimizations, ...data.reallocations].slice(0, 3).map(s => `
-                <li style="padding: 8px 12px; border-radius: 6px; background: rgba(59, 130, 246, 0.04); border-left: 3px solid var(--primary-color); margin-bottom: 6px; font-size: 11px;">
-                    <strong>[${s.category || s.action}]</strong> ${s.description}
-                </li>
-            `).join("");
-        }
+        // The AI Portfolio Predictions slide template reads aiPredictionsData
+        // directly, so re-render the deck now that fresh predictions are in.
+        renderPresentationDeck();
     }
 
     function renderCRUDTables() {
@@ -1870,6 +2247,32 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             window.print();
         });
+
+        // Presentation Deck customization modal
+        const btnCustomizeDeck = document.getElementById("btn-customize-deck");
+        if (btnCustomizeDeck) {
+            btnCustomizeDeck.addEventListener("click", () => {
+                if (!deckConfig) loadDeckConfig();
+                renderDeckCustomizeList();
+                document.getElementById("modal-deck-customize").classList.add("active");
+            });
+        }
+
+        const btnDeckReset = document.getElementById("btn-deck-reset-default");
+        if (btnDeckReset) {
+            btnDeckReset.addEventListener("click", () => {
+                deckConfig = getDefaultDeckConfig();
+                saveDeckConfig();
+                renderDeckCustomizeList();
+                renderPresentationDeck();
+            });
+        }
+
+        // Presentation report CSV export
+        const btnExportDeckCsv = document.getElementById("btn-export-deck-csv");
+        if (btnExportDeckCsv) {
+            btnExportDeckCsv.addEventListener("click", exportPresentationReportToCSV);
+        }
 
         // Export Matrix CSV trigger
         const btnExportCSV = document.getElementById("btn-export-matrix-csv");

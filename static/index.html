@@ -410,153 +410,16 @@
             <section id="presentation-section" class="main-section">
                 <div class="section-header no-print">
                     <h2><i class="fa-solid fa-display"></i> Visual Presentation Deck</h2>
-                    <p class="section-desc">Formatted slides suitable for presenting directly to Textron executive leadership.</p>
-                    <button id="btn-print-deck" class="btn btn-primary"><i class="fa-solid fa-print"></i> Export Presentation to PDF</button>
+                    <p class="section-desc">Formatted slides suitable for presenting directly to Textron executive leadership. Customize which slides are included and their order.</p>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="btn-customize-deck" class="btn btn-secondary"><i class="fa-solid fa-sliders"></i> Customize Slides</button>
+                        <button id="btn-export-deck-csv" class="btn btn-secondary"><i class="fa-solid fa-file-csv"></i> Export Report to CSV</button>
+                        <button id="btn-print-deck" class="btn btn-primary"><i class="fa-solid fa-print"></i> Export Presentation to PDF</button>
+                    </div>
                 </div>
 
-                <div class="presentation-deck">
-                    
-                    <!-- SLIDE 1: Title Slide -->
-                    <div class="presentation-slide slide-title">
-                        <div class="slide-header-brand">
-                            <i class="fa-solid fa-layer-group"></i> Textron Digital Engineering
-                        </div>
-                        <div class="slide-body-center">
-                            <h2>Engineering Planning & Budget Report</h2>
-                            <p id="pres-scenario-name">Baseline Scenario (2027 Planning)</p>
-                            <div class="slide-subtitle-divider"></div>
-                            <span class="confidential-stamp">STRICTLY CONFIDENTIAL</span>
-                        </div>
-                        <div class="slide-footer">
-                            <span>Textron Inc. Planning Platform</span>
-                            <span class="slide-number">Slide 1 of 5</span>
-                        </div>
-                    </div>
-
-                    <!-- SLIDE 2: Executive Summary KPIs -->
-                    <div class="presentation-slide">
-                        <div class="slide-title-bar">
-                            <h3>Executive Planning Overview</h3>
-                            <span class="confidential-small">CONFIDENTIAL</span>
-                        </div>
-                        <div class="slide-content-split">
-                            <div class="slide-col-left">
-                                <div class="pres-kpi-grid">
-                                    <div class="pres-kpi-item">
-                                        <span class="pres-kpi-label">Headcount</span>
-                                        <span class="pres-kpi-number" id="pres-kpi-headcount">-</span>
-                                    </div>
-                                    <div class="pres-kpi-item">
-                                        <span class="pres-kpi-label">Internal Effort Cost</span>
-                                        <span class="pres-kpi-number" id="pres-kpi-internal">-</span>
-                                    </div>
-                                    <div class="pres-kpi-item">
-                                        <span class="pres-kpi-label">Additional & Vendor Cost</span>
-                                        <span class="pres-kpi-number" id="pres-kpi-additional">-</span>
-                                    </div>
-                                    <div class="pres-kpi-item">
-                                        <span class="pres-kpi-label">Net Fiscal Budget</span>
-                                        <span class="pres-kpi-number text-blue" id="pres-kpi-net">-</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="slide-col-right">
-                                <div class="pres-chart-box">
-                                    <h4>Annual Planning Cost by Location</h4>
-                                    <div class="canvas-wrap"><canvas id="pres-chart-location-canvas"></canvas></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="slide-footer">
-                            <span>Textron Inc. Planning Platform</span>
-                            <span class="slide-number">Slide 2 of 5</span>
-                        </div>
-                    </div>
-
-                    <!-- SLIDE 3: Key Initiatives Breakdown -->
-                    <div class="presentation-slide">
-                        <div class="slide-title-bar">
-                            <h3>Key Strategic Initiatives Budget</h3>
-                            <span class="confidential-small">CONFIDENTIAL</span>
-                        </div>
-                        <div class="slide-content-split">
-                            <div class="slide-col-full">
-                                <div class="pres-table-wrapper">
-                                    <table class="pres-table" id="pres-topic-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Initiative / Topic</th>
-                                                <th>Category</th>
-                                                <th>Category Cost</th>
-                                                <th>Involved Staff</th>
-                                                <th>Total Cost</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <!-- Dynamically populated -->
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="slide-footer">
-                            <span>Textron Inc. Planning Platform</span>
-                            <span class="slide-number">Slide 3 of 5</span>
-                        </div>
-                    </div>
-
-                    <!-- SLIDE 4: Staffing Overload & Risks -->
-                    <div class="presentation-slide">
-                        <div class="slide-title-bar">
-                            <h3>Resource Allocations & Overload Alerts</h3>
-                            <span class="confidential-small">CONFIDENTIAL</span>
-                        </div>
-                        <div class="slide-content-split">
-                            <div class="slide-col-left">
-                                <h4 class="risk-title"><i class="fa-solid fa-triangle-exclamation"></i> Overloaded Resources (>100% Allocation)</h4>
-                                <ul class="risk-list" id="pres-overloaded-list">
-                                    <!-- Dynamic -->
-                                </ul>
-                            </div>
-                            <div class="slide-col-right">
-                                <h4 class="risk-title"><i class="fa-solid fa-list-check"></i> Management Comments & Strategic Notes</h4>
-                                <div class="pres-notes-box" id="pres-notes-box">
-                                    <p><strong>Planning Version Summary:</strong> Initial draft of resources for engineering hubs. High effort is currently allocated on the Agentic AI prototype development which has an external funding recovery mapped. Key project delivery for Customer Requests (Fuel) requires resource reallocations to cover India testing overload risk.</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="slide-footer">
-                            <span>Textron Inc. Planning Platform</span>
-                            <span class="slide-number">Slide 4 of 5</span>
-                        </div>
-                    </div>
-
-                    <!-- SLIDE 5: AI Portfolio Predictions & Suggestions -->
-                    <div class="presentation-slide">
-                        <div class="slide-title-bar">
-                            <h3>AI-Driven Portfolio Predictions & Suggestions</h3>
-                            <span class="confidential-small">CONFIDENTIAL</span>
-                        </div>
-                        <div class="slide-content-split">
-                            <div class="slide-col-left">
-                                <h4 class="risk-title" style="color: var(--accent-color); font-size: 13px;"><i class="fa-solid fa-brain"></i> Predicted Resource Bottlenecks</h4>
-                                <ul class="risk-list" id="pres-ai-bottlenecks-list" style="max-height: 180px;">
-                                    <!-- Dynamic -->
-                                </ul>
-                            </div>
-                            <div class="slide-col-right">
-                                <h4 class="risk-title" style="color: var(--warning-color); font-size: 13px;"><i class="fa-solid fa-chart-line"></i> Strategic Optimization Suggestions</h4>
-                                <ul class="risk-list" id="pres-ai-suggestions-list" style="max-height: 180px; gap: 6px;">
-                                    <!-- Dynamic -->
-                                </ul>
-                            </div>
-                        </div>
-                        <div class="slide-footer">
-                            <span>Textron Inc. Planning Platform</span>
-                            <span class="slide-number">Slide 5 of 5</span>
-                        </div>
-                    </div>
-
+                <div class="presentation-deck" id="presentation-deck-container">
+                    <!-- Slides rendered dynamically based on the current deck configuration -->
                 </div>
             </section>
 
@@ -1044,6 +907,26 @@
                     <button type="submit" class="btn btn-primary">Clone Version</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- MODAL 6: CUSTOMIZE PRESENTATION DECK -->
+    <div id="modal-deck-customize" class="modal">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h3>Customize Presentation Deck</h3>
+                <button class="modal-close btn-close" data-modal="modal-deck-customize"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-form">
+                <p class="section-desc" style="margin: 0 0 14px 0;">Check the slides to include, and use the arrows to reorder them. For example, include Team Breakdown for aggregate staffing info without exposing individual employees - just leave Employee Breakdown unchecked.</p>
+                <ul id="deck-customize-list" class="deck-customize-list">
+                    <!-- Populated dynamically -->
+                </ul>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="btn-deck-reset-default">Reset to Default</button>
+                    <button type="button" class="btn btn-primary modal-close" data-modal="modal-deck-customize">Done</button>
+                </div>
+            </div>
         </div>
     </div>
 
