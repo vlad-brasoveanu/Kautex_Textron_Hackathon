@@ -31,16 +31,25 @@ def seed():
     db.refresh(scenario)
 
     # Create default users
+    master_user = models.User(
+        username="master",
+        password_hash=hash_password("master123"),
+        name="Master Manager",
+        role="master_admin"
+    )
     admin_user = models.User(
         username="admin",
         password_hash=hash_password("admin123"),
+        name="Admin Director",
         role="admin"
     )
     regular_user = models.User(
         username="user",
         password_hash=hash_password("user123"),
+        name="Staff Analyst",
         role="user"
     )
+    db.add(master_user)
     db.add(admin_user)
     db.add(regular_user)
     db.commit()

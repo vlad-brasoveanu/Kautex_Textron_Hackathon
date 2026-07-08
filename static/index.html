@@ -106,6 +106,9 @@
                     <li class="nav-item admin-only" data-target="logs-section" style="display: none;">
                         <i class="fa-solid fa-list-check"></i> Audit Logs (Admin)
                     </li>
+                    <li class="nav-item admin-only" data-target="users-section" style="display: none;">
+                        <i class="fa-solid fa-users-gear"></i> User Settings (Admin)
+                    </li>
                 </ul>
             </nav>
 
@@ -605,6 +608,68 @@
                                 <!-- Populated dynamically -->
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 7: USER MANAGEMENT (ADMIN ONLY) -->
+            <section id="users-section" class="main-section admin-only" style="display: none;">
+                <div class="section-header" style="border-bottom: 1px solid var(--glass-border); padding-bottom: 15px; margin-bottom: 20px;">
+                    <h2><i class="fa-solid fa-users-gear"></i> User Settings & Management</h2>
+                    <p class="section-desc">Add new administrators or users, manage profile names, and delete accounts according to system access policies.</p>
+                </div>
+                
+                <div class="dashboard-grid" style="grid-template-columns: 2fr 1fr; gap: 20px; align-items: start;">
+                    <!-- Left: User Accounts Table -->
+                    <div class="crud-card" style="width: 100%;">
+                        <div class="crud-card-header">
+                            <h3>Active System User Accounts</h3>
+                        </div>
+                        <div class="crud-table-wrapper">
+                            <table class="crud-table" id="admin-users-table">
+                                <thead>
+                                    <tr>
+                                        <th>Name Profile</th>
+                                        <th>Username</th>
+                                        <th>Role / Privilege</th>
+                                        <th style="width: 100px;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Right: Add New User Form -->
+                    <div class="crud-card" style="width: 100%;">
+                        <div class="crud-card-header">
+                            <h3>Create New Account</h3>
+                        </div>
+                        <form id="form-manage-create-user" style="display: flex; flex-direction: column; gap: 12px; padding: 15px 5px;">
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                <label for="m-create-name" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;">Full Name</label>
+                                <input type="text" id="m-create-name" required placeholder="e.g. John Doe" style="padding: 8px 12px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none;">
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                <label for="m-create-username" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;">Username</label>
+                                <input type="text" id="m-create-username" required placeholder="e.g. jdoe" style="padding: 8px 12px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none;">
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                <label for="m-create-password" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;">Password</label>
+                                <input type="password" id="m-create-password" required placeholder="••••••••" style="padding: 8px 12px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none;">
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                <label for="m-create-role" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;">Access Privilege</label>
+                                <select id="m-create-role" required style="padding: 8px 12px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none;">
+                                    <option value="user">Standard User (Read-Only)</option>
+                                    <option value="admin" id="opt-m-create-admin">Admin Manager (Read/Write)</option>
+                                </select>
+                            </div>
+                            <div id="m-create-error" style="display: none; color: var(--danger-color); font-size: 11px; margin-top: 4px;"></div>
+                            <button type="submit" class="btn btn-primary" style="margin-top: 8px; width: 100%;"><i class="fa-solid fa-user-plus"></i> Create Account</button>
+                        </form>
                     </div>
                 </div>
             </section>

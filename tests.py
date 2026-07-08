@@ -25,6 +25,7 @@ app.dependency_overrides[get_db] = override_get_db
 client = TestClient(app)
 
 # Helper headers
+master_headers = {"Authorization": "Bearer token_master_master_admin"}
 admin_headers = {"Authorization": "Bearer token_admin_admin"}
 user_headers = {"Authorization": "Bearer token_user_user"}
 invalid_headers = {"Authorization": "Bearer token_invalid_user"}
@@ -45,16 +46,25 @@ def setup_database():
     db.commit()
     
     # Seed default users
+    master_user = models.User(
+        username="master",
+        password_hash=hash_password("master123"),
+        name="Master Manager",
+        role="master_admin"
+    )
     admin_user = models.User(
         username="admin",
         password_hash=hash_password("admin123"),
+        name="Admin Director",
         role="admin"
     )
     regular_user = models.User(
         username="user",
         password_hash=hash_password("user123"),
+        name="Staff Analyst",
         role="user"
     )
+    db.add(master_user)
     db.add(admin_user)
     db.add(regular_user)
     
@@ -247,7 +257,7 @@ def test_local_ai_conversation_memory(setup_database):
 
 def test_audit_logging_scenarios(setup_database):
     # 1. Test Registration
-    reg_payload = {"username": "newaudituser", "password": "securepass123", "role": "user"}
+    reg_payload = {"username": "newaudituser", "password": "securepass123", "name": "Audit User", "role": "user"}
     response = client.post("/api/auth/register", json=reg_payload)
     assert response.status_code == 200
     assert response.json()["username"] == "newaudituser"
@@ -271,6 +281,37 @@ def test_audit_logging_scenarios(setup_database):
     # 4. General user cannot read logs
     response = client.get("/api/admin/logs", headers=user_headers)
     assert response.status_code == 403
+
+def test_hierarchical_role_management(setup_database):
+    # 1. Master admin can create an admin
+    payload = {"username": "new_admin", "password": "password123", "name": "New Admin Name", "role": "admin"}
+    response = client.post("/api/users", json=payload, headers=master_headers)
+    assert response.status_code == 200
+    assert response.json()["username"] == "new_admin"
+    assert response.json()["role"] == "admin"
+
+    # 2. Admin cannot create another admin
+    payload_bad = {"username": "bad_admin", "password": "password123", "name": "Bad Admin Name", "role": "admin"}
+    response = client.post("/api/users", json=payload_bad, headers=admin_headers)
+    assert response.status_code == 403
+
+    # 3. Admin can create a standard user
+    payload_ok = {"username": "new_user_by_admin", "password": "password123", "name": "User Name", "role": "user"}
+    response = client.post("/api/users", json=payload_ok, headers=admin_headers)
+    assert response.status_code == 200
+
+    # 4. Standard user cannot create anyone
+    response = client.post("/api/users", json=payload_ok, headers=user_headers)
+    assert response.status_code == 403
+
+    # 5. Cannot delete master admin (id 1)
+    response = client.delete("/api/users/1", headers=master_headers)
+    assert response.status_code == 400
+    assert "protected" in response.json()["detail"]
+
+    # 6. Admin cannot delete another admin (id 2)
+    response = client.delete("/api/users/2", headers=admin_headers)
+    assert response.status_code == 400  # Self-deletion check triggers first because admin_headers is user 2
 
 def test_csv_importer(setup_database):
     csv_data = [

@@ -111,12 +111,24 @@ class UserResponse(BaseModel):
     username: str
     role: str
     access_token: str
+    name: str
 
 
 class UserRegister(BaseModel):
     username: str
     password: str
-    role: Optional[str] = "user"  # "admin" or "user"
+    name: str
+    role: Optional[str] = "user"  # "master_admin", "admin", or "user"
+
+
+class UserManageResponse(BaseModel):
+    id: int
+    username: str
+    name: str
+    role: str
+
+    class Config:
+        from_attributes = True
 
 
 class AuditLogResponse(BaseModel):

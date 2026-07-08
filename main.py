@@ -38,7 +38,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         raise HTTPException(status_code=401, detail="Malformed session token")
         
     username = parts[1]
-    role = parts[2]
+    role = "_".join(parts[2:])
     
     # Verify in DB
     user = db.query(models.User).filter(models.User.username == username).first()
@@ -48,7 +48,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     return user
 
 def require_admin(user: models.User = Depends(get_current_user)):
-    if user.role != "admin":
+    if user.role not in ["admin", "master_admin"]:
         raise HTTPException(status_code=403, detail="Admin privileges required for this action")
     return user
 
@@ -75,7 +75,8 @@ def login(payload: schemas.UserLogin, db: Session = Depends(get_db)):
     return {
         "username": user.username,
         "role": user.role,
-        "access_token": token
+        "access_token": token,
+        "name": user.name
     }
 
 
@@ -89,6 +90,7 @@ def register(payload: schemas.UserRegister, db: Session = Depends(get_db)):
     new_user = models.User(
         username=payload.username,
         password_hash=hash_password(payload.password),
+        name=payload.name,
         role=payload.role or "user"
     )
     db.add(new_user)
@@ -100,8 +102,83 @@ def register(payload: schemas.UserRegister, db: Session = Depends(get_db)):
     return {
         "username": new_user.username,
         "role": new_user.role,
-        "access_token": token
+        "access_token": token,
+        "name": new_user.name
     }
+
+
+# Get all users (Admin/Master Admin only)
+@app.get("/api/users", response_model=List[schemas.UserManageResponse])
+def list_users(db: Session = Depends(get_db), current_user: models.User = Depends(require_admin)):
+    return db.query(models.User).all()
+
+
+# Create User (Admin/Master Admin only, subject to role hierarchy)
+@app.post("/api/users", response_model=schemas.UserManageResponse)
+def create_user(payload: schemas.UserRegister, db: Session = Depends(get_db), current_user: models.User = Depends(require_admin)):
+    existing = db.query(models.User).filter(models.User.username == payload.username).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Username already exists")
+        
+    target_role = payload.role or "user"
+    
+    # Role validation
+    if current_user.role == "admin":
+        if target_role != "user":
+            raise HTTPException(status_code=403, detail="Admins are only authorized to create standard users")
+    elif current_user.role == "master_admin":
+        if target_role not in ["admin", "user"]:
+            raise HTTPException(status_code=403, detail="Cannot create master admin accounts")
+    else:
+        raise HTTPException(status_code=403, detail="Unauthorized role creation")
+        
+    new_user = models.User(
+        username=payload.username,
+        password_hash=hash_password(payload.password),
+        name=payload.name,
+        role=target_role
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    write_system_log(
+        db,
+        username=current_user.username,
+        action="Registration",
+        details=f"Created user '{new_user.username}' with role '{new_user.role}' and name '{new_user.name}'"
+    )
+    return new_user
+
+
+# Delete User (Admin/Master Admin only, subject to deletion safeguards)
+@app.delete("/api/users/{user_id}")
+def delete_user(user_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(require_admin)):
+    target_user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User account not found")
+        
+    if target_user.role == "master_admin":
+        raise HTTPException(status_code=400, detail="Master admin accounts are protected and cannot be deleted")
+        
+    if target_user.id == current_user.id:
+        raise HTTPException(status_code=400, detail="You cannot delete your own active session account")
+        
+    if current_user.role == "admin":
+        if target_user.role != "user":
+            raise HTTPException(status_code=403, detail="Admins can only delete regular user accounts")
+            
+    # Delete user
+    db.delete(target_user)
+    db.commit()
+    
+    write_system_log(
+        db,
+        username=current_user.username,
+        action="User Deletion",
+        details=f"Deleted user '{target_user.username}' (Name: '{target_user.name}', Role: '{target_user.role}')"
+    )
+    return {"status": "success", "message": f"Successfully deleted user '{target_user.username}'"}
 
 
 class ExportLogPayload(BaseModel):

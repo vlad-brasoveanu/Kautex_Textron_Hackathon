@@ -110,11 +110,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const token = localStorage.getItem("token");
         const role = localStorage.getItem("role");
         const username = localStorage.getItem("username");
+        const name = localStorage.getItem("name") || username;
 
         if (token && role && username) {
             activeRole = role;
             document.body.classList.add("authenticated");
-            userDisplayName.innerHTML = `<i class="fa-solid fa-user-circle" style="color: var(--primary-color);"></i> ${username}`;
+            userDisplayName.innerHTML = `<i class="fa-solid fa-user-circle" style="color: var(--primary-color);"></i> ${name}`;
             await fetchScenarios();
             await fetchActiveScenario();
             await refreshAllData();
@@ -345,7 +346,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 span.innerText = allocVal > 0 ? `${allocVal}%` : "-";
                 
                 // Event cell edit handlers
-                if (activeRole === "admin") {
+                if (activeRole === "admin" || activeRole === "master_admin") {
                     tdCell.addEventListener("dblclick", () => {
                         openAllocationModal(emp.id, emp.name, topic.id, topic.name, allocVal, comment);
                     });
@@ -1132,7 +1133,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         // Show or hide admin-only elements
-        if (activeRole === "admin") {
+        if (activeRole === "admin" || activeRole === "master_admin") {
             document.querySelectorAll(".admin-only").forEach(el => el.style.display = "");
         } else {
             document.querySelectorAll(".admin-only").forEach(el => el.style.display = "none");
@@ -1208,6 +1209,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     renderPresentationDeck();
                 } else if (activeSection === "logs-section") {
                     fetchAndRenderAdminLogs();
+                } else if (activeSection === "users-section") {
+                    fetchAndRenderUsers();
                 }
             });
         });
@@ -1547,6 +1550,44 @@ document.addEventListener("DOMContentLoaded", () => {
             btnRefreshLogs.addEventListener("click", fetchAndRenderAdminLogs);
         }
 
+        // Create user form submission handler
+        const formManageUser = document.getElementById("form-manage-create-user");
+        if (formManageUser) {
+            formManageUser.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const name = document.getElementById("m-create-name").value.trim();
+                const username = document.getElementById("m-create-username").value.trim();
+                const password = document.getElementById("m-create-password").value;
+                const role = document.getElementById("m-create-role").value;
+                const errDiv = document.getElementById("m-create-error");
+                errDiv.style.display = "none";
+
+                try {
+                    const token = localStorage.getItem("token");
+                    const response = await fetch("/api/users", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ name, username, password, role })
+                    });
+                    if (response.ok) {
+                        formManageUser.reset();
+                        fetchAndRenderUsers();
+                    } else {
+                        const errData = await response.json();
+                        errDiv.innerText = errData.detail || "Failed to create user account.";
+                        errDiv.style.display = "block";
+                    }
+                } catch (err) {
+                    console.error("Create user error:", err);
+                    errDiv.innerText = "Network error creating user.";
+                    errDiv.style.display = "block";
+                }
+            });
+        }
+
         // AI Chat Drawer Toggle Actions
         btnToggleAI.addEventListener("click", () => {
             aiDrawer.classList.add("active");
@@ -1824,6 +1865,101 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (err) {
             console.error("Error fetching logs:", err);
             tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--danger-color);">Failed to connect to backend server.</td></tr>';
+        }
+    }
+
+    async function fetchAndRenderUsers() {
+        const tbody = document.querySelector("#admin-users-table tbody");
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;"><i class="fa-solid fa-spinner fa-spin"></i> Loading users...</td></tr>';
+        
+        // Setup Create Role selector options based on user privilege
+        const optAdmin = document.getElementById("opt-m-create-admin");
+        if (optAdmin) {
+            if (activeRole === "master_admin") {
+                optAdmin.style.display = "";
+            } else {
+                optAdmin.style.display = "none";
+                document.getElementById("m-create-role").value = "user";
+            }
+        }
+        
+        try {
+            const token = localStorage.getItem("token");
+            const response = await fetch("/api/users", {
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            });
+            if (response.ok) {
+                const users = await response.json();
+                tbody.innerHTML = "";
+                if (users.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-secondary);">No user accounts found.</td></tr>';
+                    return;
+                }
+                users.forEach(u => {
+                    const tr = document.createElement("tr");
+                    
+                    let roleBadgeClass = "badge-secondary";
+                    if (u.role === "master_admin") roleBadgeClass = "badge-danger";
+                    else if (u.role === "admin") roleBadgeClass = "badge-primary";
+                    
+                    // Only show delete option for accounts we are authorized to delete
+                    const currentUsername = localStorage.getItem("username");
+                    let deleteBtn = "";
+                    
+                    const canDeleteMaster = activeRole === "master_admin" && u.role !== "master_admin" && u.username !== currentUsername;
+                    const canDeleteAdmin = activeRole === "admin" && u.role === "user" && u.username !== currentUsername;
+                    
+                    if (canDeleteMaster || canDeleteAdmin) {
+                        deleteBtn = `<button class="btn btn-secondary btn-sm btn-delete-user" data-id="${u.id}" style="color: var(--danger-color); padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(239, 68, 68, 0.2);"><i class="fa-solid fa-trash-can"></i> Delete</button>`;
+                    } else {
+                        deleteBtn = `<span style="font-size: 11px; color: var(--text-muted);">Protected</span>`;
+                    }
+                    
+                    tr.innerHTML = `
+                        <td><strong>${u.name}</strong></td>
+                        <td style="font-size: 12px; color: var(--text-secondary);">${u.username}</td>
+                        <td><span class="badge ${roleBadgeClass}">${u.role}</span></td>
+                        <td>${deleteBtn}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                
+                // Add event listeners to delete buttons
+                document.querySelectorAll(".btn-delete-user").forEach(b => {
+                    b.addEventListener("click", async () => {
+                        const id = b.getAttribute("data-id");
+                        const userRow = users.find(u => u.id == id);
+                        if (!userRow) return;
+                        if (confirm(`Are you sure you want to delete user account '${userRow.name}' (${userRow.username})?`)) {
+                            try {
+                                const response = await fetch(`/api/users/${id}`, {
+                                    method: "DELETE",
+                                    headers: {
+                                        "Authorization": `Bearer ${token}`
+                                    }
+                                });
+                                if (response.ok) {
+                                    fetchAndRenderUsers();
+                                } else {
+                                    const err = await response.json();
+                                    alert(err.detail || "Failed to delete user account.");
+                                }
+                            } catch (err) {
+                                console.error("Error deleting user:", err);
+                                alert("Connection error.");
+                            }
+                        }
+                    });
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--danger-color);"><i class="fa-solid fa-triangle-exclamation"></i> Error loading user accounts.</td></tr>';
+            }
+        } catch (err) {
+            console.error("Error loading users:", err);
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--danger-color);">Connection error.</td></tr>';
         }
     }
 
