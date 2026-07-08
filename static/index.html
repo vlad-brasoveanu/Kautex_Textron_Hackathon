@@ -236,6 +236,11 @@
                         </div>
                     </div>
 
+                    <!-- Risk / Alert Strip -->
+                    <div class="exec-alert-strip" id="exec-alert-strip">
+                        <!-- Populated dynamically -->
+                    </div>
+
                     <!-- Layout splits -->
                     <div class="dashboard-grid">
                         <div class="chart-box">
@@ -248,6 +253,36 @@
                             <h3>Cost Distribution by Category</h3>
                             <div class="chart-canvas-container">
                                 <canvas id="chart-category"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-grid" style="margin-top: 20px;">
+                        <div class="chart-box">
+                            <h3>Gross Cost Composition</h3>
+                            <div class="chart-canvas-container">
+                                <canvas id="chart-composition"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-box">
+                            <h3>Cost Distribution by Department</h3>
+                            <div class="chart-canvas-container">
+                                <canvas id="chart-department"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-grid" style="margin-top: 20px;">
+                        <div class="chart-box" style="height: auto; min-height: 350px;">
+                            <h3>Top 5 Cost Drivers</h3>
+                            <div id="exec-top-drivers-list" class="ranked-list">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+                        <div class="chart-box">
+                            <h3>Staff Utilization Distribution</h3>
+                            <div class="chart-canvas-container">
+                                <canvas id="chart-utilization"></canvas>
                             </div>
                         </div>
                     </div>
@@ -266,6 +301,28 @@
 
                 <!-- TAB: TEAM UTILIZATION -->
                 <div id="tab-teams" class="dash-tab-content">
+                    <div class="crud-card" style="margin-bottom: 20px;">
+                        <div class="crud-card-header">
+                            <h3>All Teams Overview</h3>
+                            <p class="section-desc" style="margin: 0;">Click a column to sort, or a row to view that team's detail below.</p>
+                        </div>
+                        <div class="crud-table-wrapper">
+                            <table class="crud-table" id="team-overview-table">
+                                <thead>
+                                    <tr>
+                                        <th class="sortable-teamov" data-sort="team_name">Team <i class="fa-solid fa-sort" style="opacity: 0.4;"></i></th>
+                                        <th class="sortable-teamov" data-sort="member_count">Members <i class="fa-solid fa-sort" style="opacity: 0.4;"></i></th>
+                                        <th class="sortable-teamov" data-sort="average_utilization">Avg Utilization <i class="fa-solid fa-sort" style="opacity: 0.4;"></i></th>
+                                        <th class="sortable-teamov" data-sort="overloaded_count">Overloaded <i class="fa-solid fa-sort" style="opacity: 0.4;"></i></th>
+                                        <th class="sortable-teamov" data-sort="total_cost">Total Cost <i class="fa-solid fa-sort-down"></i></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                     <div class="dashboard-control-header">
                         <label for="select-dash-team">Select Team:</label>
                         <select id="select-dash-team" class="control-dropdown"></select>
@@ -277,6 +334,28 @@
 
                 <!-- TAB: EMPLOYEE PROFILES -->
                 <div id="tab-employees" class="dash-tab-content">
+                    <div class="crud-card" style="margin-bottom: 20px;">
+                        <div class="crud-card-header">
+                            <h3>All Employees Overview</h3>
+                            <p class="section-desc" style="margin: 0;">Click a column to sort, or a row to view that employee's detail below.</p>
+                        </div>
+                        <div class="crud-table-wrapper">
+                            <table class="crud-table" id="employee-overview-table">
+                                <thead>
+                                    <tr>
+                                        <th class="sortable-empov" data-sort="name">Name <i class="fa-solid fa-sort" style="opacity: 0.4;"></i></th>
+                                        <th class="sortable-empov" data-sort="team">Team <i class="fa-solid fa-sort" style="opacity: 0.4;"></i></th>
+                                        <th class="sortable-empov" data-sort="location">Location <i class="fa-solid fa-sort" style="opacity: 0.4;"></i></th>
+                                        <th class="sortable-empov" data-sort="utilization">Utilization <i class="fa-solid fa-sort-down"></i></th>
+                                        <th class="sortable-empov" data-sort="cost">Total Cost <i class="fa-solid fa-sort" style="opacity: 0.4;"></i></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                     <div class="dashboard-control-header">
                         <label for="select-dash-employee">Select Employee:</label>
                         <select id="select-dash-employee" class="control-dropdown"></select>

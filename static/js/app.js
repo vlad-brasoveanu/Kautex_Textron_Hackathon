@@ -62,9 +62,18 @@ document.addEventListener("DOMContentLoaded", () => {
     let topicSortField = "name";
     let topicSortOrder = 1;
 
+    // Executive dashboard overview table sort states
+    let teamOvSortField = "total_cost";
+    let teamOvSortOrder = -1;
+    let empOvSortField = "utilization";
+    let empOvSortOrder = -1;
+
     // Chart.js instances
     let locationChart = null;
     let categoryChart = null;
+    let compositionChart = null;
+    let departmentChart = null;
+    let utilizationChart = null;
     let presLocationChart = null;
 
     // DOM Elements
@@ -555,12 +564,21 @@ document.addEventListener("DOMContentLoaded", () => {
         // Render charts
         renderLocationChart();
         renderCategoryChart();
+        renderCompositionChart();
+        renderDepartmentChart();
+        renderUtilizationChart();
+
+        // Executive risk strip + top cost drivers
+        renderExecAlertStrip();
+        renderTopCostDriversList();
 
         // Populate breakdowns selectors
         populateDashboardSelects();
         renderTopicDashboard();
         renderTeamDashboard();
         renderEmployeeDashboard();
+        renderTeamOverviewTable();
+        renderEmployeeOverviewTable();
     }
 
     function renderLocationChart() {
@@ -631,6 +649,266 @@ document.addEventListener("DOMContentLoaded", () => {
                     legend: { display: false }
                 }
             }
+        });
+    }
+
+    function renderCompositionChart() {
+        const ctx = document.getElementById("chart-composition").getContext("2d");
+
+        if (compositionChart) compositionChart.destroy();
+
+        const values = [
+            dashboardData.total_internal_employee_cost,
+            dashboardData.total_additional_internal_cost,
+            dashboardData.total_external_cost
+        ];
+        if (values.every(v => v === 0)) return;
+
+        compositionChart = new Chart(ctx, {
+            type: "doughnut",
+            data: {
+                labels: ["Internal Staff Cost", "Additional Internal Cost", "External Vendor Cost"],
+                datasets: [{
+                    data: values,
+                    backgroundColor: ["#3b82f6", "#f59e0b", "#ef4444"],
+                    borderWidth: 1,
+                    borderColor: "rgba(255, 255, 255, 0.1)"
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: "62%",
+                plugins: {
+                    legend: {
+                        position: "bottom",
+                        labels: { color: "#f3f4f6", font: { family: "Outfit", size: 11 }, boxWidth: 12 }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderDepartmentChart() {
+        const ctx = document.getElementById("chart-department").getContext("2d");
+
+        if (departmentChart) departmentChart.destroy();
+
+        const entries = Object.entries(dashboardData.cost_by_department).sort((a, b) => b[1] - a[1]);
+        const labels = entries.map(e => e[0]);
+        const data = entries.map(e => e[1]);
+
+        if (labels.length === 0) return;
+
+        departmentChart = new Chart(ctx, {
+            type: "bar",
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: "Budget ($)",
+                    data: data,
+                    backgroundColor: "rgba(139, 92, 246, 0.75)",
+                    borderColor: "#8b5cf6",
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: "y",
+                scales: {
+                    x: { ticks: { color: "#9ca3af", font: { family: "Outfit" } }, grid: { color: "rgba(255,255,255,0.05)" } },
+                    y: { ticks: { color: "#9ca3af", font: { family: "Outfit" } }, grid: { display: false } }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+
+    // Buckets every currently-loaded employee's total allocation % into ranges,
+    // matching the same overload threshold (>100%) used across the rest of the app.
+    function computeUtilizationBuckets() {
+        const buckets = { "Idle (0%)": 0, "Under-utilized (1-49%)": 0, "Normal (50-99%)": 0, "Full (100%)": 0, "Overloaded (>100%)": 0 };
+        employees.forEach(emp => {
+            const util = allocations.filter(a => a.employee_id === emp.id).reduce((acc, a) => acc + a.percentage, 0.0);
+            if (util <= 0) buckets["Idle (0%)"]++;
+            else if (util < 50) buckets["Under-utilized (1-49%)"]++;
+            else if (util < 100) buckets["Normal (50-99%)"]++;
+            else if (util === 100) buckets["Full (100%)"]++;
+            else buckets["Overloaded (>100%)"]++;
+        });
+        return buckets;
+    }
+
+    function renderUtilizationChart() {
+        const ctx = document.getElementById("chart-utilization").getContext("2d");
+
+        if (utilizationChart) utilizationChart.destroy();
+
+        const buckets = computeUtilizationBuckets();
+        const labels = Object.keys(buckets);
+        const data = Object.values(buckets);
+
+        if (employees.length === 0) return;
+
+        utilizationChart = new Chart(ctx, {
+            type: "bar",
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: "Employees",
+                    data: data,
+                    backgroundColor: ["#6b7280", "#f59e0b", "#10b981", "#3b82f6", "#ef4444"],
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { ticks: { color: "#9ca3af", font: { family: "Outfit", size: 10 } }, grid: { display: false } },
+                    y: { ticks: { color: "#9ca3af", font: { family: "Outfit" }, precision: 0 }, grid: { color: "rgba(255,255,255,0.05)" } }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+
+    function renderTopCostDriversList() {
+        const container = document.getElementById("exec-top-drivers-list");
+        if (!container) return;
+
+        const topTopics = dashboardData.highest_cost_topics || [];
+        if (topTopics.length === 0) {
+            container.innerHTML = "<div class='empty-state-message'>No topic costs to rank yet.</div>";
+            return;
+        }
+
+        container.innerHTML = topTopics.map((t, idx) => `
+            <div class="ranked-list-item">
+                <div class="ranked-list-rank">${idx + 1}</div>
+                <div class="ranked-list-info">
+                    <div class="ranked-list-name">${t.name}</div>
+                    <div class="ranked-list-meta">${t.category} &middot; ${t.staff.length} staff planned</div>
+                </div>
+                <div class="ranked-list-value">$${t.total_cost.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
+            </div>
+        `).join("");
+    }
+
+    function renderExecAlertStrip() {
+        const container = document.getElementById("exec-alert-strip");
+        if (!container) return;
+
+        const overloaded = dashboardData.overloaded_employees || [];
+
+        // Under-resourced: topics with some allocation but under 50% total staffing,
+        // mirroring the threshold the AI predictions endpoint already uses.
+        const underResourced = (dashboardData.topic_summaries || []).filter(t => {
+            const totalPct = t.staff.reduce((acc, s) => acc + s.percentage, 0.0);
+            return totalPct > 0 && totalPct < 50.0;
+        });
+
+        const chips = [];
+
+        chips.push(overloaded.length > 0
+            ? `<div class="exec-alert-chip danger" data-jump="tab-teams"><i class="fa-solid fa-triangle-exclamation"></i> ${overloaded.length} employee${overloaded.length === 1 ? "" : "s"} overloaded (&gt;100%)</div>`
+            : `<div class="exec-alert-chip ok"><i class="fa-solid fa-circle-check"></i> No overloaded employees</div>`);
+
+        chips.push(underResourced.length > 0
+            ? `<div class="exec-alert-chip warn" data-jump="tab-topics"><i class="fa-solid fa-battery-quarter"></i> ${underResourced.length} topic${underResourced.length === 1 ? "" : "s"} under-resourced (&lt;50% staffed)</div>`
+            : `<div class="exec-alert-chip ok"><i class="fa-solid fa-circle-check"></i> All active topics adequately staffed</div>`);
+
+        container.innerHTML = chips.join("");
+
+        container.querySelectorAll(".exec-alert-chip[data-jump]").forEach(chip => {
+            chip.addEventListener("click", () => {
+                const target = chip.getAttribute("data-jump");
+                document.querySelectorAll(".dash-tab").forEach(t => t.classList.toggle("active", t.getAttribute("data-tab") === target));
+                document.querySelectorAll(".dash-tab-content").forEach(c => c.classList.toggle("active", c.id === target));
+                activeDashTab = target;
+            });
+        });
+    }
+
+    function renderTeamOverviewTable() {
+        const tbody = document.querySelector("#team-overview-table tbody");
+        if (!tbody || !dashboardData) return;
+
+        const rows = [...dashboardData.team_summaries].sort((a, b) => {
+            const valA = a[teamOvSortField];
+            const valB = b[teamOvSortField];
+            if (typeof valA === "string") return valA.localeCompare(valB) * teamOvSortOrder;
+            return (valA - valB) * teamOvSortOrder;
+        });
+
+        if (rows.length === 0) {
+            tbody.innerHTML = "<tr><td colspan='5' style='text-align:center;'>No teams planned yet.</td></tr>";
+            return;
+        }
+
+        tbody.innerHTML = rows.map(t => `
+            <tr class="overview-row" data-team="${t.team_name}">
+                <td><strong>${t.team_name}</strong></td>
+                <td>${t.member_count}</td>
+                <td>${t.average_utilization.toFixed(1)}%</td>
+                <td><span class="${t.overloaded_count > 0 ? "text-danger" : "text-green"}" style="font-weight:600;">${t.overloaded_count}</span></td>
+                <td>$${t.total_cost.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+            </tr>
+        `).join("");
+
+        tbody.querySelectorAll("tr.overview-row").forEach(tr => {
+            tr.addEventListener("click", () => {
+                document.getElementById("select-dash-team").value = tr.getAttribute("data-team");
+                renderTeamDashboard();
+                document.getElementById("team-dash-details").scrollIntoView({ behavior: "smooth", block: "nearest" });
+            });
+        });
+    }
+
+    function renderEmployeeOverviewTable() {
+        const tbody = document.querySelector("#employee-overview-table tbody");
+        if (!tbody) return;
+
+        const enriched = employees.map(emp => {
+            const util = allocations.filter(a => a.employee_id === emp.id).reduce((acc, a) => acc + a.percentage, 0.0);
+            const cost = emp.available_hours * emp.hourly_rate * (util / 100.0);
+            return { id: emp.id, name: emp.name, team: emp.team, location: emp.location, utilization: util, cost: cost };
+        });
+
+        enriched.sort((a, b) => {
+            const valA = a[empOvSortField];
+            const valB = b[empOvSortField];
+            if (typeof valA === "string") return valA.localeCompare(valB) * empOvSortOrder;
+            return (valA - valB) * empOvSortOrder;
+        });
+
+        if (enriched.length === 0) {
+            tbody.innerHTML = "<tr><td colspan='5' style='text-align:center;'>No employees planned yet.</td></tr>";
+            return;
+        }
+
+        tbody.innerHTML = enriched.map(e => `
+            <tr class="overview-row" data-emp="${e.id}">
+                <td><strong>${e.name}</strong></td>
+                <td>${e.team}</td>
+                <td>${e.location}</td>
+                <td><span class="${e.utilization > 100.0 ? "text-danger" : "text-green"}" style="font-weight:600;">${e.utilization.toFixed(1)}%</span></td>
+                <td>$${e.cost.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+            </tr>
+        `).join("");
+
+        tbody.querySelectorAll("tr.overview-row").forEach(tr => {
+            tr.addEventListener("click", () => {
+                document.getElementById("select-dash-employee").value = tr.getAttribute("data-emp");
+                renderEmployeeDashboard();
+                document.getElementById("employee-dash-details").scrollIntoView({ behavior: "smooth", block: "nearest" });
+            });
         });
     }
 
@@ -1754,6 +2032,52 @@ document.addEventListener("DOMContentLoaded", () => {
                     icon.style.opacity = "1";
                 }
                 renderCRUDTables();
+            });
+        });
+
+        // Click sorting Executive dashboard's Team Overview headers
+        document.querySelectorAll("th.sortable-teamov").forEach(th => {
+            th.addEventListener("click", () => {
+                const field = th.getAttribute("data-sort");
+                if (teamOvSortField === field) {
+                    teamOvSortOrder = -teamOvSortOrder;
+                } else {
+                    teamOvSortField = field;
+                    teamOvSortOrder = 1;
+                }
+                document.querySelectorAll("th.sortable-teamov i").forEach(icon => {
+                    icon.className = "fa-solid fa-sort";
+                    icon.style.opacity = "0.4";
+                });
+                const icon = th.querySelector("i");
+                if (icon) {
+                    icon.className = teamOvSortOrder === 1 ? "fa-solid fa-sort-up" : "fa-solid fa-sort-down";
+                    icon.style.opacity = "1";
+                }
+                renderTeamOverviewTable();
+            });
+        });
+
+        // Click sorting Executive dashboard's Employee Overview headers
+        document.querySelectorAll("th.sortable-empov").forEach(th => {
+            th.addEventListener("click", () => {
+                const field = th.getAttribute("data-sort");
+                if (empOvSortField === field) {
+                    empOvSortOrder = -empOvSortOrder;
+                } else {
+                    empOvSortField = field;
+                    empOvSortOrder = 1;
+                }
+                document.querySelectorAll("th.sortable-empov i").forEach(icon => {
+                    icon.className = "fa-solid fa-sort";
+                    icon.style.opacity = "0.4";
+                });
+                const icon = th.querySelector("i");
+                if (icon) {
+                    icon.className = empOvSortOrder === 1 ? "fa-solid fa-sort-up" : "fa-solid fa-sort-down";
+                    icon.style.opacity = "1";
+                }
+                renderEmployeeOverviewTable();
             });
         });
     }

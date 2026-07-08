@@ -610,6 +610,111 @@ body.role-user-active .matrix-cell-pct:hover {
 
 .text-green { color: var(--success-color); }
 .text-blue { color: var(--primary-color); }
+.text-danger { color: var(--danger-color); }
+
+/* ==========================================================
+   EXECUTIVE ALERT STRIP
+   ========================================================== */
+.exec-alert-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.exec-alert-chip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid var(--glass-border);
+    background: var(--glass-bg);
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.exec-alert-chip:hover {
+    transform: translateY(-1px);
+}
+
+.exec-alert-chip i {
+    font-size: 14px;
+}
+
+.exec-alert-chip.ok { border-color: rgba(16, 185, 129, 0.3); color: var(--success-color); }
+.exec-alert-chip.warn { border-color: rgba(245, 158, 11, 0.35); color: var(--warning-color); }
+.exec-alert-chip.danger { border-color: rgba(239, 68, 68, 0.35); color: var(--danger-color); }
+
+/* ==========================================================
+   RANKED LIST (Top Cost Drivers)
+   ========================================================== */
+.ranked-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ranked-list-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--glass-border);
+}
+
+.ranked-list-rank {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.ranked-list-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.ranked-list-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ranked-list-meta {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.ranked-list-value {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    flex-shrink: 0;
+}
+
+/* Clickable overview table rows (Team / Employee dashboards) */
+tr.overview-row {
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+tr.overview-row:hover td {
+    background: rgba(255, 255, 255, 0.04);
+}
 
 /* ==========================================================
    DASHBOARD TABS & CHART DESIGN
