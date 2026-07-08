@@ -128,6 +128,7 @@ document.addEventListener("DOMContentLoaded", () => {
         localStorage.removeItem("token");
         localStorage.removeItem("role");
         localStorage.removeItem("username");
+        localStorage.removeItem("name");
         document.body.classList.remove("authenticated");
         
         // Reset local variables
@@ -1170,11 +1171,12 @@ document.addEventListener("DOMContentLoaded", () => {
                         localStorage.setItem("token", data.access_token);
                         localStorage.setItem("role", data.role);
                         localStorage.setItem("username", data.username);
-                        
+                        localStorage.setItem("name", data.name);
+
                         activeRole = data.role;
-                        
+
                         document.body.classList.add("authenticated");
-                        userDisplayName.innerHTML = `<i class="fa-solid fa-user-circle" style="color: var(--primary-color);"></i> ${data.username}`;
+                        userDisplayName.innerHTML = `<i class="fa-solid fa-user-circle" style="color: var(--primary-color);"></i> ${data.name}`;
                         
                         await fetchScenarios();
                         await fetchActiveScenario();
