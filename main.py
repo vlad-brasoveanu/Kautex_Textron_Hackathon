@@ -1481,6 +1481,105 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
         
     prefix = "[Local Heuristic Engine Fallback] "
 
+    # Check for reset/clear filters first
+    q_clean = q_lower.replace("rate higher than", "rate >").replace("rate lower than", "rate <").replace("hourly rate >", "rate >").replace("hourly rate <", "rate <").replace("rate above", "rate >").replace("rate below", "rate <").replace("rate more than", "rate >").replace("rate less than", "rate <")
+    
+    if "clear filter" in q_clean or "reset filter" in q_clean or "show all" in q_clean:
+        return {
+            "answer": prefix + "I have reset all matrix filters to display the full dataset.",
+            "filters": {
+                "location": "",
+                "team": "",
+                "department": "",
+                "category": "",
+                "minRate": 0,
+                "maxRate": 999999
+            }
+        }
+
+    # Extract location, team, department, category, rate filters
+    filter_loc = None
+    unique_locs = list(set(e.location for e in employees))
+    for loc in unique_locs:
+        if loc.lower() in q_clean:
+            filter_loc = loc
+            break
+            
+    filter_team = None
+    unique_teams = list(set(e.team for e in employees))
+    for team in unique_teams:
+        if team.lower() in q_clean:
+            filter_team = team
+            break
+            
+    filter_dept = None
+    unique_depts = list(set(e.department for e in employees))
+    for dept in unique_depts:
+        if dept.lower() in q_clean:
+            filter_dept = dept
+            break
+            
+    filter_cat = None
+    unique_cats = list(set(t.category for t in topics))
+    for cat in unique_cats:
+        if cat.lower() in q_clean:
+            filter_cat = cat
+            break
+            
+    filter_min_rate = None
+    filter_max_rate = None
+    
+    # check rate > X or rate higher than X
+    rate_gt = re.search(r"rate\s*>\s*(\d+)", q_clean)
+    if rate_gt:
+        filter_min_rate = float(rate_gt.group(1))
+    else:
+        # Check text: "higher than 70" or "above 70" or "more than 70" or "greater than 70"
+        rate_gt_text = re.search(r"(?:higher than|above|greater than|more than|over)\s*(\d+)", q_clean)
+        if rate_gt_text and ("rate" in q_clean or "hourly" in q_clean or "cost" in q_clean):
+            filter_min_rate = float(rate_gt_text.group(1))
+            
+    rate_lt = re.search(r"rate\s*<\s*(\d+)", q_clean)
+    if rate_lt:
+        filter_max_rate = float(rate_lt.group(1))
+    else:
+        # Check text: "lower than 70" or "below 70" or "less than 70" or "under 70"
+        rate_lt_text = re.search(r"(?:lower than|below|less than|under)\s*(\d+)", q_clean)
+        if rate_lt_text and ("rate" in q_clean or "hourly" in q_clean or "cost" in q_clean):
+            filter_max_rate = float(rate_lt_text.group(1))
+
+    # Check if this is an explicit filtering instruction
+    is_filter_instruction = any(x in q_clean for x in ["filter", "show only", "see only", "view only", "only the", "limit to", "matrix for"])
+    
+    if is_filter_instruction and (filter_loc or filter_team or filter_dept or filter_cat or filter_min_rate is not None or filter_max_rate is not None):
+        filters_to_apply = {}
+        msg_parts = []
+        if filter_loc:
+            filters_to_apply["location"] = filter_loc
+            msg_parts.append(f"**Location**: {filter_loc}")
+        if filter_team:
+            filters_to_apply["team"] = filter_team
+            msg_parts.append(f"**Team**: {filter_team}")
+        if filter_dept:
+            filters_to_apply["department"] = filter_dept
+            msg_parts.append(f"**Department**: {filter_dept}")
+        if filter_cat:
+            filters_to_apply["category"] = filter_cat
+            msg_parts.append(f"**Topic Category**: {filter_cat}")
+        if filter_min_rate is not None:
+            filters_to_apply["minRate"] = filter_min_rate
+            msg_parts.append(f"**Hourly Rate**: > {filter_min_rate} USD")
+        if filter_max_rate is not None:
+            filters_to_apply["maxRate"] = filter_max_rate
+            msg_parts.append(f"**Hourly Rate**: < {filter_max_rate} USD")
+            
+        bullet_list = "\n".join(f"* {part}" for part in msg_parts)
+        return {
+            "answer": prefix + f"I have applied the requested filters to the Allocation Matrix:\n\n{bullet_list}\n\n"
+                               f"The grid has been updated accordingly. You can now use the **Export Matrix (CSV)** button at the bottom of the grid to export this filtered view.",
+            "filters": filters_to_apply
+        }
+
     # Check conversation history for follow-up choice questions
     if history:
         last_assistant_msg = ""

@@ -48,7 +48,9 @@ document.addEventListener("DOMContentLoaded", () => {
         location: "",
         team: "",
         department: "",
-        category: ""
+        category: "",
+        minRate: 0,
+        maxRate: 999999
     };
 
     // Management Panel CRUD states
@@ -153,6 +155,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
             document.body.classList.remove("authenticated");
         }
+        updateSidebarFiltersVisibility();
     }
 
     function logout() {
@@ -250,6 +253,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (filters.location && emp.location !== filters.location) return false;
             if (filters.team && emp.team !== filters.team) return false;
             if (filters.department && emp.department !== filters.department) return false;
+            if (filters.minRate !== undefined && emp.hourly_rate < filters.minRate) return false;
+            if (filters.maxRate !== undefined && emp.hourly_rate > filters.maxRate) return false;
             return true;
         });
 
@@ -1973,6 +1978,15 @@ document.addEventListener("DOMContentLoaded", () => {
                         document.body.classList.add("authenticated");
                         userDisplayName.innerHTML = `<i class="fa-solid fa-user-circle" style="color: var(--primary-color);"></i> ${data.name}`;
                         
+                        activeSection = "matrix-section";
+                        navItems.forEach(n => n.classList.remove("active"));
+                        const defaultNavItem = document.querySelector('[data-target="matrix-section"]');
+                        if (defaultNavItem) defaultNavItem.classList.add("active");
+                        mainSections.forEach(s => s.classList.remove("active"));
+                        const defaultSec = document.getElementById("matrix-section");
+                        if (defaultSec) defaultSec.classList.add("active");
+                        updateSidebarFiltersVisibility();
+
                         await fetchScenarios();
                         await fetchActiveScenario();
                         await refreshAllData();
@@ -1998,6 +2012,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 activeSection = item.getAttribute("data-target");
                 mainSections.forEach(s => s.classList.remove("active"));
                 document.getElementById(activeSection).classList.add("active");
+
+                updateSidebarFiltersVisibility();
 
                 // Workaround chart redraws
                 if (activeSection === "dashboards-section") {
@@ -2031,6 +2047,8 @@ document.addEventListener("DOMContentLoaded", () => {
             filterTeam.value = "";
             filterDept.value = "";
             filterCategory.value = "";
+            filters.minRate = 0;
+            filters.maxRate = 999999;
             triggerFilter();
         });
 
@@ -3138,15 +3156,29 @@ document.addEventListener("DOMContentLoaded", () => {
     async function exportMatrixToCSV() {
         const activeScenarioName = activeScenario ? activeScenario.name : "Scenario";
         
+        const filteredEmployees = employees.filter(emp => {
+            if (filters.location && emp.location !== filters.location) return false;
+            if (filters.team && emp.team !== filters.team) return false;
+            if (filters.department && emp.department !== filters.department) return false;
+            if (filters.minRate !== undefined && emp.hourly_rate < filters.minRate) return false;
+            if (filters.maxRate !== undefined && emp.hourly_rate > filters.maxRate) return false;
+            return true;
+        });
+
+        const filteredTopics = topics.filter(topic => {
+            if (filters.category && topic.category !== filters.category) return false;
+            return true;
+        });
+
         let csvContent = "Employee,Team,Location,Hours/Year,Hourly Rate";
-        topics.forEach(t => {
+        filteredTopics.forEach(t => {
             csvContent += `,"${t.name.replace(/"/g, '""')}"`;
         });
         csvContent += "\n";
         
-        employees.forEach(emp => {
+        filteredEmployees.forEach(emp => {
             csvContent += `"${emp.name.replace(/"/g, '""')}","${emp.team.replace(/"/g, '""')}","${emp.location.replace(/"/g, '""')}",${emp.available_hours},${emp.hourly_rate}`;
-            topics.forEach(t => {
+            filteredTopics.forEach(t => {
                 const pct = allocations.find(a => a.employee_id === emp.id && a.topic_id === t.id);
                 const pctVal = pct ? pct.percentage : 0.0;
                 csvContent += `,${pctVal}`;
@@ -3158,21 +3190,21 @@ document.addEventListener("DOMContentLoaded", () => {
         // layout the importer expects, so an exported file can be re-uploaded
         // without losing internal/external costs or recovery amounts.
         const categoryRows = {};
-        topics.forEach(t => {
+        filteredTopics.forEach(t => {
             (t.additional_costs || []).forEach(ac => {
                 if (!categoryRows[ac.category]) categoryRows[ac.category] = {};
                 categoryRows[ac.category][t.id] = (categoryRows[ac.category][t.id] || 0) + ac.amount;
             });
         });
-        const hasRecovery = topics.some(t => t.recovery && t.recovery !== 0);
+        const hasRecovery = filteredTopics.some(t => t.recovery && t.recovery !== 0);
 
         if (Object.keys(categoryRows).length > 0 || hasRecovery) {
-            csvContent += Array(5 + topics.length).fill("").join(",") + "\n";
+            csvContent += Array(5 + filteredTopics.length).fill("").join(",") + "\n";
         }
 
         Object.keys(categoryRows).forEach(category => {
             csvContent += `"${category.replace(/"/g, '""')}",,,,`;
-            topics.forEach(t => {
+            filteredTopics.forEach(t => {
                 const amt = categoryRows[category][t.id];
                 csvContent += `,${amt !== undefined ? amt : ""}`;
             });
@@ -3181,7 +3213,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (hasRecovery) {
             csvContent += `"Recovery",,,,`;
-            topics.forEach(t => {
+            filteredTopics.forEach(t => {
                 csvContent += `,${t.recovery ? t.recovery : ""}`;
             });
             csvContent += "\n";
@@ -3260,6 +3292,35 @@ document.addEventListener("DOMContentLoaded", () => {
                     .replace(/\n/g, "<br>");
                     
                 bubble.innerHTML = formatted;
+            }
+
+            if (resData.filters) {
+                // Apply the filters to the global filters object
+                if (resData.filters.location !== undefined) filters.location = resData.filters.location;
+                if (resData.filters.team !== undefined) filters.team = resData.filters.team;
+                if (resData.filters.department !== undefined) filters.department = resData.filters.department;
+                if (resData.filters.category !== undefined) filters.category = resData.filters.category;
+                if (resData.filters.minRate !== undefined) filters.minRate = resData.filters.minRate;
+                if (resData.filters.maxRate !== undefined) filters.maxRate = resData.filters.maxRate;
+                
+                // Update the sidebar dropdown inputs
+                if (filterLocation) filterLocation.value = filters.location;
+                if (filterTeam) filterTeam.value = filters.team;
+                if (filterDept) filterDept.value = filters.department;
+                if (filterCategory) filterCategory.value = filters.category;
+                
+                // Navigate to matrix grid
+                activeSection = "matrix-section";
+                navItems.forEach(n => n.classList.remove("active"));
+                const defaultNavItem = document.querySelector('[data-target="matrix-section"]');
+                if (defaultNavItem) defaultNavItem.classList.add("active");
+                mainSections.forEach(s => s.classList.remove("active"));
+                const defaultSec = document.getElementById("matrix-section");
+                if (defaultSec) defaultSec.classList.add("active");
+                updateSidebarFiltersVisibility();
+                
+                // Rerender matrix with the new filters
+                renderAllocationMatrix();
             }
         } catch (err) {
             console.error("Error asking local AI query:", err);
@@ -3343,6 +3404,13 @@ document.addEventListener("DOMContentLoaded", () => {
             filterCategory.appendChild(opt);
         });
         filterCategory.value = categories.includes(prevCat) ? prevCat : "";
+    }
+
+    function updateSidebarFiltersVisibility() {
+        const sidebarFilters = document.querySelector(".sidebar-filters");
+        if (sidebarFilters) {
+            sidebarFilters.style.display = (activeSection === "matrix-section") ? "block" : "none";
+        }
     }
 
     function setAppTheme(themeName) {
