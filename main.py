@@ -449,6 +449,165 @@ def delete_scenario(scenario_id: int, db: Session = Depends(get_db), admin: mode
             db.commit()
             
     return {"message": "Scenario deleted successfully"}
+    
+
+@app.get("/api/scenarios/{scenario_id}/backup")
+def backup_scenario(scenario_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(require_admin)):
+    scenario = db.query(models.Scenario).filter(models.Scenario.id == scenario_id).first()
+    if not scenario:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+        
+    employees = db.query(models.Employee).filter(models.Employee.scenario_id == scenario_id).all()
+    topics = db.query(models.Topic).filter(models.Topic.scenario_id == scenario_id).all()
+    
+    emp_ids = [e.id for e in employees]
+    topic_ids = [t.id for t in topics]
+    
+    allocations = db.query(models.Allocation).filter(
+        models.Allocation.employee_id.in_(emp_ids) if emp_ids else False
+    ).all()
+    
+    additional_costs = db.query(models.AdditionalCost).filter(
+        models.AdditionalCost.topic_id.in_(topic_ids) if topic_ids else False
+    ).all()
+    
+    data = {
+        "version": "1.0",
+        "name": scenario.name,
+        "description": scenario.description or "",
+        "employees": [
+            {
+                "name": e.name,
+                "team": e.team,
+                "department": e.department,
+                "location": e.location,
+                "available_hours": e.available_hours,
+                "hourly_rate": e.hourly_rate,
+                "manager": e.manager,
+                "status": e.status,
+                "notes": e.notes
+            } for e in employees
+        ],
+        "topics": [
+            {
+                "name": t.name,
+                "category": t.category
+            } for t in topics
+        ],
+        "allocations": [
+            {
+                "employee_name": next((e.name for e in employees if e.id == a.employee_id), None),
+                "topic_name": next((t.name for t in topics if t.id == a.topic_id), None),
+                "percentage": a.percentage,
+                "comment": a.comment
+            } for a in allocations
+        ],
+        "additional_costs": [
+            {
+                "topic_name": next((t.name for t in topics if t.id == c.topic_id), None),
+                "cost_type": c.cost_type,
+                "cost_value": c.cost_value,
+                "description": c.description
+            } for c in additional_costs
+        ]
+    }
+    
+    write_system_log(
+        db,
+        username=current_user.username,
+        action="Export Report",
+        details=f"Exported JSON backup for scenario '{scenario.name}'"
+    )
+    return data
+
+
+@app.post("/api/scenarios/{scenario_id}/restore")
+def restore_scenario(scenario_id: int, payload: schemas.RestorePayload, db: Session = Depends(get_db), current_user: models.User = Depends(require_admin)):
+    scenario = db.query(models.Scenario).filter(models.Scenario.id == scenario_id).first()
+    if not scenario:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+        
+    db_employees = db.query(models.Employee).filter(models.Employee.scenario_id == scenario_id).all()
+    db_topics = db.query(models.Topic).filter(models.Topic.scenario_id == scenario_id).all()
+    
+    emp_ids = [e.id for e in db_employees]
+    topic_ids = [t.id for t in db_topics]
+    
+    if emp_ids:
+        db.query(models.Allocation).filter(models.Allocation.employee_id.in_(emp_ids)).delete(synchronize_session=False)
+    if topic_ids:
+        db.query(models.AdditionalCost).filter(models.AdditionalCost.topic_id.in_(topic_ids)).delete(synchronize_session=False)
+        
+    db.query(models.Employee).filter(models.Employee.scenario_id == scenario_id).delete(synchronize_session=False)
+    db.query(models.Topic).filter(models.Topic.scenario_id == scenario_id).delete(synchronize_session=False)
+    db.commit()
+    
+    scenario.name = payload.name
+    scenario.description = payload.description
+    db.commit()
+    
+    emp_name_map = {}
+    for emp_data in payload.employees:
+        emp = models.Employee(
+            name=emp_data["name"],
+            team=emp_data.get("team", "General"),
+            department=emp_data.get("department", "General"),
+            location=emp_data.get("location", "US"),
+            available_hours=emp_data.get("available_hours", 1800.0),
+            hourly_rate=emp_data.get("hourly_rate", 50.0),
+            manager=emp_data.get("manager"),
+            status=emp_data.get("status", "Active"),
+            notes=emp_data.get("notes"),
+            scenario_id=scenario_id
+        )
+        db.add(emp)
+        db.commit()
+        db.refresh(emp)
+        emp_name_map[emp.name] = emp.id
+        
+    topic_name_map = {}
+    for topic_data in payload.topics:
+        topic = models.Topic(
+            name=topic_data["name"],
+            category=topic_data.get("category", "General"),
+            scenario_id=scenario_id
+        )
+        db.add(topic)
+        db.commit()
+        db.refresh(topic)
+        topic_name_map[topic.name] = topic.id
+        
+    for alloc_data in payload.allocations:
+        emp_id = emp_name_map.get(alloc_data["employee_name"])
+        topic_id = topic_name_map.get(alloc_data["topic_name"])
+        if emp_id and topic_id:
+            alloc = models.Allocation(
+                employee_id=emp_id,
+                topic_id=topic_id,
+                percentage=alloc_data["percentage"],
+                comment=alloc_data.get("comment", "")
+            )
+            db.add(alloc)
+            
+    for cost_data in payload.additional_costs:
+        topic_id = topic_name_map.get(cost_data["topic_name"])
+        if topic_id:
+            ac = models.AdditionalCost(
+                topic_id=topic_id,
+                cost_type=cost_data["cost_type"],
+                cost_value=cost_data["cost_value"],
+                description=cost_data.get("description", "")
+            )
+            db.add(ac)
+            
+    db.commit()
+    write_system_log(
+        db,
+        username=current_user.username,
+        action="Import CSV",
+        details=f"Restored scenario '{scenario.name}' from JSON backup"
+    )
+    return {"status": "success", "message": f"Successfully restored scenario '{scenario.name}'"}
 
 # ==========================================
 # 2. EMPLOYEES API (CRUD + Scenario-Scoped)

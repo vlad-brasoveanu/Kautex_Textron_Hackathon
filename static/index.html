@@ -71,6 +71,20 @@
                     <button id="btn-clone-scenario" title="Clone Active Planning Version" class="btn btn-secondary btn-icon-only"><i class="fa-solid fa-copy"></i></button>
                     <button id="btn-create-scenario" title="New Planning Version" class="btn btn-secondary btn-icon-only"><i class="fa-solid fa-plus"></i></button>
                     <button id="btn-delete-scenario" title="Delete Planning Version" class="btn btn-danger btn-icon-only"><i class="fa-solid fa-trash"></i></button>
+                    <button id="btn-export-scenario" title="Backup Scenario (JSON)" class="btn btn-secondary btn-icon-only admin-only" style="display: none;"><i class="fa-solid fa-file-export"></i></button>
+                    <button id="btn-import-scenario" title="Restore Scenario (JSON)" class="btn btn-secondary btn-icon-only admin-only" style="display: none;"><i class="fa-solid fa-file-import"></i></button>
+                    <input type="file" id="import-scenario-file" accept=".json" style="display: none;">
+                </div>
+
+                <!-- Theme Toggler Widget -->
+                <div class="control-group" style="margin-right: 4px;">
+                    <label for="theme-select"><i class="fa-solid fa-circle-half-stroke"></i> Theme:</label>
+                    <select id="theme-select" class="theme-dropdown" style="padding: 6px 10px; font-size: 11px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none; cursor: pointer;">
+                        <option value="theme-glass">Glass (Default)</option>
+                        <option value="theme-light">Light Mode</option>
+                        <option value="theme-dark">Midnight Dark</option>
+                        <option value="theme-high-contrast">High Contrast</option>
+                    </select>
                 </div>
 
                 <!-- Divider -->

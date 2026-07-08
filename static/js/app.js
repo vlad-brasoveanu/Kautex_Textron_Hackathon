@@ -367,7 +367,25 @@ document.addEventListener("DOMContentLoaded", () => {
             // Meta cells
             const tdName = document.createElement("td");
             tdName.className = "sticky-col";
-            tdName.innerText = emp.name;
+            
+            const nameText = document.createElement("span");
+            nameText.innerText = emp.name;
+            tdName.appendChild(nameText);
+            
+            const totalAlloc = empAllocSums[emp.id] || 0.0;
+            if (totalAlloc > 100.0) {
+                tdName.classList.add("matrix-overloaded-name");
+                
+                const warningIcon = document.createElement("i");
+                warningIcon.className = "fa-solid fa-triangle-exclamation matrix-warning-icon";
+                warningIcon.title = `Overloaded! Total allocation is ${totalAlloc.toFixed(1)}%`;
+                warningIcon.style.color = "var(--danger-color)";
+                warningIcon.style.marginLeft = "6px";
+                tdName.appendChild(warningIcon);
+                
+                tr.classList.add("tr-overloaded");
+            }
+            
             if (canEditGrid) {
                 const removeBtn = document.createElement("i");
                 removeBtn.className = "fa-solid fa-circle-xmark matrix-row-remove";
@@ -2352,6 +2370,114 @@ document.addEventListener("DOMContentLoaded", () => {
             btnRefreshLogs.addEventListener("click", fetchAndRenderAdminLogs);
         }
 
+        // Theme selector binding
+        const themeSelect = document.getElementById("theme-select");
+        if (themeSelect) {
+            const savedTheme = localStorage.getItem("app-theme") || "theme-glass";
+            themeSelect.value = savedTheme;
+            setAppTheme(savedTheme);
+            
+            themeSelect.addEventListener("change", (e) => {
+                const selected = e.target.value;
+                localStorage.setItem("app-theme", selected);
+                setAppTheme(selected);
+            });
+        }
+
+        // Scenario Export JSON trigger
+        const btnExportScenario = document.getElementById("btn-export-scenario");
+        if (btnExportScenario) {
+            btnExportScenario.addEventListener("click", async () => {
+                if (!activeScenario) {
+                    alert("No active scenario to backup.");
+                    return;
+                }
+                try {
+                    const token = localStorage.getItem("token");
+                    const response = await fetch(`/api/scenarios/${activeScenario.id}/backup`, {
+                        headers: { "Authorization": `Bearer ${token}` }
+                    });
+                    if (response.ok) {
+                        const backupData = await response.json();
+                        const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: "application/json" });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        const filename = `${activeScenario.name.toLowerCase().replace(/\s+/g, "_")}_backup.json`;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    } else {
+                        const err = await response.json();
+                        alert(err.detail || "Failed to download scenario backup.");
+                    }
+                } catch (err) {
+                    console.error("Backup scenario failed:", err);
+                    alert("Connection error.");
+                }
+            });
+        }
+
+        // Scenario Import JSON triggers
+        const btnImportScenario = document.getElementById("btn-import-scenario");
+        const importScenarioFile = document.getElementById("import-scenario-file");
+        if (btnImportScenario && importScenarioFile) {
+            btnImportScenario.addEventListener("click", () => {
+                importScenarioFile.click();
+            });
+            
+            importScenarioFile.addEventListener("change", async (e) => {
+                if (importScenarioFile.files.length === 0) return;
+                const file = importScenarioFile.files[0];
+                
+                if (!confirm(`Are you sure you want to restore scenario '${activeScenario.name}' from backup file '${file.name}'? This will completely overwrite all employees, topics, allocations, and costs for this scenario!`)) {
+                    importScenarioFile.value = "";
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = async (evt) => {
+                    try {
+                        const payload = JSON.parse(evt.target.result);
+                        if (!payload.name || !Array.isArray(payload.employees) || !Array.isArray(payload.topics)) {
+                            alert("Invalid backup file structure. Missing name, employees or topics properties.");
+                            importScenarioFile.value = "";
+                            return;
+                        }
+                        
+                        const token = localStorage.getItem("token");
+                        const response = await fetch(`/api/scenarios/${activeScenario.id}/restore`, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "Authorization": `Bearer ${token}`
+                            },
+                            body: JSON.stringify(payload)
+                        });
+                        
+                        if (response.ok) {
+                            alert("Scenario restored successfully!");
+                            importScenarioFile.value = "";
+                            await fetchScenarios();
+                            await fetchActiveScenario();
+                            await refreshAllData();
+                        } else {
+                            const err = await response.json();
+                            alert(err.detail || "Failed to restore scenario backup.");
+                            importScenarioFile.value = "";
+                        }
+                    } catch (err) {
+                        console.error("Failed to parse or restore scenario:", err);
+                        alert("Error parsing backup file or server communication issue.");
+                        importScenarioFile.value = "";
+                    }
+                };
+                reader.readAsText(file);
+            });
+        }
+
         // Audit Logs search + filters (client-side, re-filters the cached log list)
         const searchAuditLogs = document.getElementById("search-audit-logs");
         if (searchAuditLogs) {
@@ -3195,6 +3321,13 @@ document.addEventListener("DOMContentLoaded", () => {
             filterCategory.appendChild(opt);
         });
         filterCategory.value = categories.includes(prevCat) ? prevCat : "";
+    }
+
+    function setAppTheme(themeName) {
+        document.body.classList.remove("theme-glass", "theme-light", "theme-dark", "theme-high-contrast");
+        if (themeName !== "theme-glass") {
+            document.body.classList.add(themeName);
+        }
     }
 
     // Launch Application Init

@@ -149,3 +149,12 @@ class AuditLogResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
+class RestorePayload(BaseModel):
+    name: str
+    description: Optional[str] = ""
+    employees: List[dict]
+    topics: List[dict]
+    allocations: List[dict]
+    additional_costs: List[dict]
+

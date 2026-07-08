@@ -416,3 +416,43 @@ def test_csv_importer_new_manager_column(setup_database):
     emp_resp = client.get("/api/employees", headers=admin_headers)
     employee = next(e for e in emp_resp.json() if e["name"] == "Managed User")
     assert employee["manager"] == "Jane Boss"
+
+
+def test_scenario_backup_restore(setup_database):
+    # 1. Add some mock data to scenario 1
+    emp_payload = {"name": "Backup Employee", "team": "QA", "department": "Engineering", "location": "Romania", "available_hours": 1600, "hourly_rate": 45.0}
+    response = client.post("/api/employees", json=emp_payload, headers=admin_headers)
+    assert response.status_code == 200
+    
+    topic_payload = {"name": "Backup Topic", "category": "Testing"}
+    response = client.post("/api/topics", json=topic_payload, headers=admin_headers)
+    assert response.status_code == 200
+    
+    # Get backup of scenario 1
+    response = client.get("/api/scenarios/1/backup", headers=admin_headers)
+    assert response.status_code == 200
+    backup_data = response.json()
+    assert backup_data["name"] == "Test Scenario"
+    assert len(backup_data["employees"]) > 0
+    assert len(backup_data["topics"]) > 0
+    
+    # 2. Restore scenario 1 from backup_data
+    restore_payload = {
+        "name": "Restored Scenario",
+        "description": "Successfully restored scenario",
+        "employees": backup_data["employees"],
+        "topics": backup_data["topics"],
+        "allocations": backup_data["allocations"],
+        "additional_costs": backup_data["additional_costs"]
+    }
+    
+    response = client.post("/api/scenarios/1/restore", json=restore_payload, headers=admin_headers)
+    assert response.status_code == 200
+    assert response.json()["status"] == "success"
+    
+    # Verify scenario was updated
+    response = client.get("/api/scenarios", headers=admin_headers)
+    assert response.status_code == 200
+    active_scenario = next(s for s in response.json() if s["is_active"])
+    assert active_scenario["name"] == "Restored Scenario"
+    assert active_scenario["description"] == "Successfully restored scenario"

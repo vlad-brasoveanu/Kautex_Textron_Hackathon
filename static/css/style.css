@@ -27,6 +27,108 @@
     --header-height: 80px;
 }
 
+/* Matrix Overloaded rows highlighting */
+.matrix-table tr.tr-overloaded {
+    background: rgba(239, 68, 68, 0.08) !important;
+}
+
+.matrix-table td.matrix-overloaded-name {
+    color: #fca5a5 !important;
+    font-weight: bold;
+    border-left: 4px solid var(--danger-color) !important;
+}
+
+/* Theme Override classes */
+body.theme-light {
+    --bg-primary: #f8fafc;
+    --bg-secondary: #f1f5f9;
+    --glass-bg: rgba(255, 255, 255, 0.85);
+    --glass-border: rgba(15, 23, 42, 0.12);
+    --glass-highlight: rgba(255, 255, 255, 0.5);
+    
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    
+    --primary-color: #0284c7;
+    --primary-hover: #0369a1;
+    --accent-color: #6d28d9;
+    --danger-color: #dc2626;
+    --warning-color: #d97706;
+    --success-color: #16a34a;
+    
+    --card-shadow: 0 4px 20px 0 rgba(15, 23, 42, 0.08);
+}
+
+body.theme-light .matrix-table td.matrix-overloaded-name {
+    color: #b91c1c !important;
+}
+
+body.theme-dark {
+    --bg-primary: #030712;
+    --bg-secondary: #0b0f19;
+    --glass-bg: rgba(17, 24, 39, 0.85);
+    --glass-border: rgba(255, 255, 255, 0.05);
+    --glass-highlight: rgba(255, 255, 255, 0.01);
+    
+    --text-primary: #f9fafb;
+    --text-secondary: #d1d5db;
+    --text-muted: #9ca3af;
+    
+    --primary-color: #2563eb;
+    --primary-hover: #1d4ed8;
+    --accent-color: #7c3aed;
+    --danger-color: #dc2626;
+    --warning-color: #d97706;
+    --success-color: #059669;
+    
+    --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6);
+}
+
+body.theme-high-contrast {
+    --bg-primary: #000000;
+    --bg-secondary: #000000;
+    --glass-bg: #000000;
+    --glass-border: #ffffff;
+    --glass-highlight: #000000;
+    
+    --text-primary: #ffffff;
+    --text-secondary: #ffffff;
+    --text-muted: #ffffff;
+    
+    --primary-color: #00ff00;
+    --primary-hover: #00dd00;
+    --accent-color: #ffff00;
+    --danger-color: #ff0000;
+    --warning-color: #ffaa00;
+    --success-color: #00ffff;
+    
+    --card-shadow: none;
+}
+
+body.theme-high-contrast .crud-card,
+body.theme-high-contrast .app-header,
+body.theme-high-contrast .app-sidebar,
+body.theme-high-contrast .matrix-table th,
+body.theme-high-contrast .matrix-table td,
+body.theme-high-contrast .crud-table th,
+body.theme-high-contrast .crud-table td,
+body.theme-high-contrast select,
+body.theme-high-contrast input {
+    border: 2px solid #ffffff !important;
+    background-color: #000000 !important;
+    color: #ffffff !important;
+}
+body.theme-high-contrast button {
+    border: 2px solid #ffffff !important;
+    background-color: #000000 !important;
+    color: #ffffff !important;
+}
+body.theme-high-contrast button:hover {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+}
+
 * {
     margin: 0;
     padding: 0;
