@@ -270,7 +270,12 @@ body {
 }
 
 .logo-image, .login-logo-image {
-    transition: color 0.3s ease;
+    transition: filter 0.3s ease;
+}
+
+body:not(.theme-light) .logo-image,
+body:not(.theme-light) .login-logo-image {
+    filter: invert(1) hue-rotate(180deg);
 }
 
 .logo-text h1 {
