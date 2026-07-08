@@ -497,6 +497,25 @@ body.role-user-active .matrix-cell-pct:hover {
     cursor: help;
 }
 
+/* Row/Column remove controls (full grid control for admin/master admin) */
+.matrix-row-remove, .matrix-col-remove {
+    color: var(--danger-color);
+    font-size: 13px;
+    margin-left: 8px;
+    cursor: pointer;
+    opacity: 0.55;
+    transition: opacity 0.15s ease;
+    vertical-align: middle;
+}
+
+.matrix-row-remove:hover, .matrix-col-remove:hover {
+    opacity: 1;
+}
+
+.matrix-col-remove {
+    float: right;
+}
+
 /* Utilisation Highlight Classes */
 .cell-normal {
     color: var(--success-color);

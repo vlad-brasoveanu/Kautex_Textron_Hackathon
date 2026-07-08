@@ -158,9 +158,13 @@
                 <div class="section-header" style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
                         <h2><i class="fa-solid fa-table-cells"></i> Resource Allocation Matrix</h2>
-                        <p class="section-desc">Double-click on percentages in the grid to edit. Switch to User mode to prevent changes.</p>
+                        <p class="section-desc">Double-click any cell or column header to edit. Use the row/column controls to add or remove employees and topics. Switch to User mode to prevent changes.</p>
                     </div>
-                    <button id="btn-export-matrix-csv" class="btn btn-secondary"><i class="fa-solid fa-file-csv"></i> Export Matrix to CSV</button>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="btn-matrix-add-employee" class="btn btn-secondary admin-only" style="display: none;"><i class="fa-solid fa-user-plus"></i> Add Row</button>
+                        <button id="btn-matrix-add-topic" class="btn btn-secondary admin-only" style="display: none;"><i class="fa-solid fa-plus"></i> Add Column</button>
+                        <button id="btn-export-matrix-csv" class="btn btn-secondary"><i class="fa-solid fa-file-csv"></i> Export Matrix to CSV</button>
+                    </div>
                 </div>
                 
                 <div class="matrix-wrapper">

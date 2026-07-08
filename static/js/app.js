@@ -263,6 +263,10 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         });
 
+        // Master admin and admin have full control over the matrix: every cell is
+        // editable, and rows/columns can be added or removed directly from the grid.
+        const canEditGrid = activeRole === "admin" || activeRole === "master_admin";
+
         // Create table elements
         const table = document.createElement("table");
         table.className = "matrix-table";
@@ -293,10 +297,25 @@ document.addEventListener("DOMContentLoaded", () => {
         thRate.innerText = "Rate ($)";
         headerRow.appendChild(thRate);
 
-        // Topic column headers
+        // Topic column headers - double-click to edit the topic, or remove the
+        // column entirely with the small close icon (admin/master admin only).
         filteredTopics.forEach(topic => {
             const thTopic = document.createElement("th");
             thTopic.innerHTML = `${topic.name}<br><small style='font-weight:normal;color:#9ca3af;'>${topic.category}</small>`;
+            if (canEditGrid) {
+                thTopic.title = "Double-click to edit this column";
+                thTopic.style.cursor = "pointer";
+                thTopic.addEventListener("dblclick", () => editTopicPrompt(topic.id));
+
+                const removeBtn = document.createElement("i");
+                removeBtn.className = "fa-solid fa-circle-xmark matrix-col-remove";
+                removeBtn.title = "Remove this column (topic)";
+                removeBtn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    deleteTopicPrompt(topic.id);
+                });
+                thTopic.appendChild(removeBtn);
+            }
             headerRow.appendChild(thTopic);
         });
 
@@ -315,11 +334,19 @@ document.addEventListener("DOMContentLoaded", () => {
             const tr = document.createElement("tr");
 
             // Meta cells
-            const canEditGrid = activeRole === "admin" || activeRole === "master_admin";
-
             const tdName = document.createElement("td");
             tdName.className = "sticky-col";
             tdName.innerText = emp.name;
+            if (canEditGrid) {
+                const removeBtn = document.createElement("i");
+                removeBtn.className = "fa-solid fa-circle-xmark matrix-row-remove";
+                removeBtn.title = "Remove this row (employee)";
+                removeBtn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    deleteEmployeePrompt(emp.id);
+                });
+                tdName.appendChild(removeBtn);
+            }
             tr.appendChild(tdName);
 
             const tdTeam = document.createElement("td");
@@ -1283,20 +1310,26 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         });
 
-        // CRUD Modal Add button launches
-        document.getElementById("btn-add-employee").addEventListener("click", () => {
+        // CRUD Modal Add button launches - shared by the Management Panel and the
+        // "Add Row" / "Add Column" controls on the Allocation Matrix itself.
+        function openAddEmployeeModal() {
             formEmployee.reset();
             document.getElementById("emp-id").value = "";
             document.getElementById("employee-modal-title").innerText = "Add New Employee";
             document.getElementById("modal-employee").classList.add("active");
-        });
+        }
 
-        document.getElementById("btn-add-topic").addEventListener("click", () => {
+        function openAddTopicModal() {
             formTopic.reset();
             document.getElementById("topic-id").value = "";
             document.getElementById("topic-modal-title").innerText = "Add New Topic";
             document.getElementById("modal-topic").classList.add("active");
-        });
+        }
+
+        document.getElementById("btn-add-employee").addEventListener("click", openAddEmployeeModal);
+        document.getElementById("btn-add-topic").addEventListener("click", openAddTopicModal);
+        document.getElementById("btn-matrix-add-employee").addEventListener("click", openAddEmployeeModal);
+        document.getElementById("btn-matrix-add-topic").addEventListener("click", openAddTopicModal);
 
         // Submit actions for Employee CRUD Form
         formEmployee.addEventListener("submit", async (e) => {
