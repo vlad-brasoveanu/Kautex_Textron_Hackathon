@@ -1534,9 +1534,9 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
     if rate_gt:
         filter_min_rate = float(rate_gt.group(1))
     else:
-        # Check text: "higher than 70" or "above 70" or "more than 70" or "greater than 70"
+        # Check text: "higher than 70" or "above 70" or "more than 70" or "greater than 70" or "over 70"
         rate_gt_text = re.search(r"(?:higher than|above|greater than|more than|over)\s*(\d+)", q_clean)
-        if rate_gt_text and ("rate" in q_clean or "hourly" in q_clean or "cost" in q_clean):
+        if rate_gt_text:
             filter_min_rate = float(rate_gt_text.group(1))
             
     rate_lt = re.search(r"rate\s*<\s*(\d+)", q_clean)
@@ -1545,38 +1545,65 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
     else:
         # Check text: "lower than 70" or "below 70" or "less than 70" or "under 70"
         rate_lt_text = re.search(r"(?:lower than|below|less than|under)\s*(\d+)", q_clean)
-        if rate_lt_text and ("rate" in q_clean or "hourly" in q_clean or "cost" in q_clean):
+        if rate_lt_text:
             filter_max_rate = float(rate_lt_text.group(1))
 
-    # Check if this is an explicit filtering instruction
-    is_filter_instruction = any(x in q_clean for x in ["filter", "show only", "see only", "view only", "only the", "limit to", "matrix for"])
-    
-    if is_filter_instruction and (filter_loc or filter_team or filter_dept or filter_cat or filter_min_rate is not None or filter_max_rate is not None):
+    # Trigger filter application if any valid planning property is matched
+    if filter_loc or filter_team or filter_dept or filter_cat or filter_min_rate is not None or filter_max_rate is not None:
         filters_to_apply = {}
         msg_parts = []
+        
+        # Calculate matching list to output in chat bubble
+        matching_emps = []
+        for e in employees:
+            if filter_loc and e.location.lower() != filter_loc.lower(): continue
+            if filter_team and e.team.lower() != filter_team.lower(): continue
+            if filter_dept and e.department.lower() != filter_dept.lower(): continue
+            if filter_min_rate is not None and e.hourly_rate < filter_min_rate: continue
+            if filter_max_rate is not None and e.hourly_rate > filter_max_rate: continue
+            matching_emps.append(e)
+            
         if filter_loc:
             filters_to_apply["location"] = filter_loc
-            msg_parts.append(f"**Location**: {filter_loc}")
+            msg_parts.append(f"Location: **{filter_loc}**")
         if filter_team:
             filters_to_apply["team"] = filter_team
-            msg_parts.append(f"**Team**: {filter_team}")
+            msg_parts.append(f"Team: **{filter_team}**")
         if filter_dept:
             filters_to_apply["department"] = filter_dept
-            msg_parts.append(f"**Department**: {filter_dept}")
+            msg_parts.append(f"Department: **{filter_dept}**")
         if filter_cat:
             filters_to_apply["category"] = filter_cat
-            msg_parts.append(f"**Topic Category**: {filter_cat}")
+            msg_parts.append(f"Topic Category: **{filter_cat}**")
         if filter_min_rate is not None:
             filters_to_apply["minRate"] = filter_min_rate
-            msg_parts.append(f"**Hourly Rate**: > {filter_min_rate} USD")
+            msg_parts.append(f"Hourly Rate: **> {filter_min_rate} USD**")
         if filter_max_rate is not None:
             filters_to_apply["maxRate"] = filter_max_rate
-            msg_parts.append(f"**Hourly Rate**: < {filter_max_rate} USD")
+            msg_parts.append(f"Hourly Rate: **< {filter_max_rate} USD**")
             
-        bullet_list = "\n".join(f"* {part}" for part in msg_parts)
+        filters_list_str = ", ".join(msg_parts)
+        
+        if matching_emps:
+            staff_details = []
+            for e in matching_emps:
+                staff_details.append(f"* **{e.name}** ({e.team}, {e.location}) - Hourly Rate: ${e.hourly_rate}/hr, Utilization: {emp_alloc_sums.get(e.id, 0.0):.1f}%")
+            nl = "\n"
+            answer_text = (
+                f"{prefix}Applied filters to Allocation Matrix: {filters_list_str}.\n\n"
+                f"Here are the **{len(matching_emps)}** matching employees currently visualised in the matrix:\n"
+                f"{nl.join(staff_details)}\n\n"
+                f"The Resource Allocation Matrix has been updated in the background. Use the **Export Matrix (CSV)** button at the bottom of the grid to export this filtered set."
+            )
+        else:
+            answer_text = (
+                f"{prefix}Applied filters to Allocation Matrix: {filters_list_str}.\n\n"
+                f"No employees matched these criteria.\n\n"
+                f"The Allocation Matrix grid has been updated (showing 0 matches)."
+            )
+            
         return {
-            "answer": prefix + f"I have applied the requested filters to the Allocation Matrix:\n\n{bullet_list}\n\n"
-                               f"The grid has been updated accordingly. You can now use the **Export Matrix (CSV)** button at the bottom of the grid to export this filtered view.",
+            "answer": answer_text,
             "filters": filters_to_apply
         }
 
