@@ -62,15 +62,15 @@
             
             <!-- Active Scenario and Role widgets -->
             <div class="header-controls">
-                <!-- Scenario Controls -->
+                <!-- Planning Version Controls -->
                 <div class="control-group">
-                    <label for="scenario-select"><i class="fa-solid fa-database"></i> Scenario:</label>
+                    <label for="scenario-select"><i class="fa-solid fa-database"></i> Planning Version:</label>
                     <select id="scenario-select" class="scenario-dropdown">
                         <!-- Populated dynamically -->
                     </select>
-                    <button id="btn-clone-scenario" title="Clone Active Scenario" class="btn btn-secondary btn-icon-only"><i class="fa-solid fa-copy"></i></button>
-                    <button id="btn-create-scenario" title="Create Blank Scenario" class="btn btn-secondary btn-icon-only"><i class="fa-solid fa-plus"></i></button>
-                    <button id="btn-delete-scenario" title="Delete Active Scenario" class="btn btn-danger btn-icon-only"><i class="fa-solid fa-trash"></i></button>
+                    <button id="btn-clone-scenario" title="Clone Active Planning Version" class="btn btn-secondary btn-icon-only"><i class="fa-solid fa-copy"></i></button>
+                    <button id="btn-create-scenario" title="New Planning Version" class="btn btn-secondary btn-icon-only"><i class="fa-solid fa-plus"></i></button>
+                    <button id="btn-delete-scenario" title="Delete Planning Version" class="btn btn-danger btn-icon-only"><i class="fa-solid fa-trash"></i></button>
                 </div>
 
                 <!-- Divider -->
@@ -100,8 +100,8 @@
                     <li class="nav-item" data-target="crud-section">
                         <i class="fa-solid fa-sliders"></i> Management Panel
                     </li>
-                    <li class="nav-item" data-target="upload-section">
-                        <i class="fa-solid fa-cloud-arrow-up"></i> Upload CSV Sheet
+                    <li class="nav-item admin-only" data-target="upload-section" style="display: none;">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Upload CSV Sheet (Admin)
                     </li>
                     <li class="nav-item admin-only" data-target="logs-section" style="display: none;">
                         <i class="fa-solid fa-list-check"></i> Audit Logs (Admin)
@@ -438,7 +438,7 @@
                             <div class="slide-col-right">
                                 <h4 class="risk-title"><i class="fa-solid fa-list-check"></i> Management Comments & Strategic Notes</h4>
                                 <div class="pres-notes-box" id="pres-notes-box">
-                                    <p><strong>Scenario Summary:</strong> Initial draft of resources for engineering hubs. High effort is currently allocated on the Agentic AI prototype development which has an external funding recovery mapped. Key project delivery for Customer Requests (Fuel) requires resource reallocations to cover India testing overload risk.</p>
+                                    <p><strong>Planning Version Summary:</strong> Initial draft of resources for engineering hubs. High effort is currently allocated on the Agentic AI prototype development which has an external funding recovery mapped. Key project delivery for Customer Requests (Fuel) requires resource reallocations to cover India testing overload risk.</p>
                                 </div>
                             </div>
                         </div>
@@ -550,11 +550,11 @@
                 </div>
             </section>
 
-            <!-- SECTION 5: CSV FILE UPLOAD -->
-            <section id="upload-section" class="main-section">
+            <!-- SECTION 5: CSV FILE UPLOAD (ADMIN ONLY) -->
+            <section id="upload-section" class="main-section admin-only" style="display: none;">
                 <div class="section-header">
                     <h2><i class="fa-solid fa-cloud-arrow-up"></i> Upload Planning Sheet</h2>
-                    <p class="section-desc">Instantly populate the active scenario by uploading an Excel-exported CSV matrix planning sheet.</p>
+                    <p class="section-desc">Instantly populate the active planning version by uploading an Excel-exported CSV matrix planning sheet.</p>
                 </div>
 
                 <div class="upload-container">
@@ -588,7 +588,7 @@
                 <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px; margin-bottom: 20px;">
                     <div>
                         <h2><i class="fa-solid fa-list-check"></i> System Audit Logs</h2>
-                        <p class="section-desc">Real-time audit log of CSV imports, report exports, scenario management, registrations, and login actions.</p>
+                        <p class="section-desc">Real-time audit log of CSV imports, report exports, planning version management, registrations, and login actions.</p>
                     </div>
                     <button id="btn-refresh-logs" class="btn btn-primary"><i class="fa-solid fa-rotate"></i> Refresh Logs</button>
                 </div>
@@ -887,45 +887,45 @@
         </div>
     </div>
 
-    <!-- MODAL 4: CREATE SCENARIO -->
+    <!-- MODAL 4: CREATE PLANNING VERSION -->
     <div id="modal-scenario" class="modal">
         <div class="modal-content glass modal-small">
             <div class="modal-header">
-                <h3>Create Blank Scenario</h3>
+                <h3>New Planning Version</h3>
                 <button class="modal-close btn-close" data-modal="modal-scenario"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <form id="form-create-scenario" class="modal-form">
                 <div class="form-row">
                     <div class="form-col-full">
-                        <label for="new-scenario-name">Scenario Name</label>
-                        <input type="text" id="new-scenario-name" required placeholder="e.g. Scenario FY28">
+                        <label for="new-scenario-name">Planning Version Name</label>
+                        <input type="text" id="new-scenario-name" required placeholder="e.g. Planning Version FY28">
                     </div>
                 </div>
                 <div class="form-row">
                     <div class="form-col-full">
                         <label for="new-scenario-desc">Description</label>
-                        <textarea id="new-scenario-desc" placeholder="Details about this scenario..."></textarea>
+                        <textarea id="new-scenario-desc" placeholder="Details about this planning version..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary modal-close" data-modal="modal-scenario">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Create Scenario</button>
+                    <button type="submit" class="btn btn-primary">Create Version</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- MODAL 5: CLONE SCENARIO -->
+    <!-- MODAL 5: CLONE PLANNING VERSION -->
     <div id="modal-clone" class="modal">
         <div class="modal-content glass modal-small">
             <div class="modal-header">
-                <h3>Clone Active Scenario</h3>
+                <h3>Clone Active Planning Version</h3>
                 <button class="modal-close btn-close" data-modal="modal-clone"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <form id="form-clone-scenario" class="modal-form">
                 <div class="form-row">
                     <div class="form-col-full">
-                        <label for="clone-scenario-name">New Scenario Name</label>
+                        <label for="clone-scenario-name">New Planning Version Name</label>
                         <input type="text" id="clone-scenario-name" required placeholder="e.g. Clone of Baseline 2027">
                     </div>
                 </div>
@@ -937,7 +937,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary modal-close" data-modal="modal-clone">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Clone Scenario</button>
+                    <button type="submit" class="btn btn-primary">Clone Version</button>
                 </div>
             </form>
         </div>

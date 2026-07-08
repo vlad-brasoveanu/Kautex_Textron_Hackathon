@@ -823,36 +823,64 @@ def get_dashboard_reports(db: Session = Depends(get_db), current_user: models.Us
 # 6. SMART EXCEL / CSV IMPORTER
 # ==========================================
 
+COST_ROW_KEYWORDS = ["CAD", "Sampling", "Equipment", "PTF", "Testing", "Tooling", "Prototypes",
+                      "Supplier", "Services", "Recovery", "Engineering", "Internal", "External", "Other"]
+
+def classify_cost_category(cost_category: str) -> str:
+    cat_lower = cost_category.lower()
+    if "recovery" in cat_lower:
+        return "recovery"
+    if cat_lower.startswith("internal") or cat_lower in ("cad", "engineering support", "sampling", "ptf"):
+        return "internal"
+    return "external"
+
 @app.post("/api/import/csv")
 async def import_csv_data(file: UploadFile = File(...), db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
     active_scenario = get_active_scenario_db(db)
-    
+
     contents = await file.read()
     decoded = contents.decode("utf-8")
     csv_file = io.StringIO(decoded)
     reader = csv.reader(csv_file)
-    
+
     rows = list(reader)
     if not rows:
         raise HTTPException(status_code=400, detail="CSV is empty")
-        
+
     # Standard header checking
     headers = [h.strip() for h in rows[0]]
-    
-    # Locate index indices
-    try:
-        emp_idx = headers.index("Employee")
-        team_idx = headers.index("Team")
-        loc_idx = headers.index("Location")
-        hours_idx = headers.index("Hours / Year") if "Hours / Year" in headers else headers.index("Available hours/year (Region 100%)") if "Available hours/year (Region 100%)" in headers else headers.index("Hours/Year")
-        rate_idx = headers.index("Hourly Rate") if "Hourly Rate" in headers else headers.index("Hourly rate")
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"Required header columns missing. Ensure columns: Employee, Team, Location, Hours/Year, Hourly Rate. Missing: {str(e)}")
-        
-    # Topic columns start after Hourly Rate, and ignore any "Total" or "Utilization" columns
+
+    def find_idx(*names):
+        for n in names:
+            if n in headers:
+                return headers.index(n)
+        return -1
+
+    # Only "Employee" is a hard requirement. Every other known column is optional:
+    # if a sheet is missing one, existing records simply keep their current value
+    # for that field instead of the whole import being rejected.
+    emp_idx = find_idx("Employee", "Employee Name", "Name")
+    if emp_idx == -1:
+        raise HTTPException(status_code=400, detail="Required column 'Employee' not found in CSV headers.")
+
+    team_idx = find_idx("Team")
+    loc_idx = find_idx("Location")
+    hours_idx = find_idx("Hours / Year", "Available hours/year (Region 100%)", "Hours/Year")
+    rate_idx = find_idx("Hourly Rate", "Hourly rate")
+    dept_idx = find_idx("Department", "Dept", "Area")
+    manager_idx = find_idx("Manager")
+    notes_idx = find_idx("Notes")
+    status_idx = find_idx("Status")
+
+    known_meta_idxs = {i for i in [emp_idx, team_idx, loc_idx, hours_idx, rate_idx,
+                                    dept_idx, manager_idx, notes_idx, status_idx] if i != -1}
+
+    # Any remaining column is treated as a topic/project allocation column - this is
+    # what lets brand-new columns show up in the platform automatically, and lets
+    # columns be reordered or omitted freely between uploads.
     topic_cols = []
     for idx, h in enumerate(headers):
-        if idx in (emp_idx, team_idx, loc_idx, hours_idx, rate_idx):
+        if idx in known_meta_idxs:
             continue
         if "total" in h.lower() or "utilization" in h.lower() or h == "":
             continue
@@ -883,86 +911,107 @@ async def import_csv_data(file: UploadFile = File(...), db: Session = Depends(ge
     added_allocs = 0
     added_costs = 0
     
+    def cell(row, idx):
+        if idx == -1 or idx >= len(row):
+            return ""
+        return row[idx].strip()
+
     # We will process each row
     for r_idx in range(1, len(rows)):
         row = rows[r_idx]
-        if not row or len(row) <= max(emp_idx, team_idx, loc_idx, hours_idx, rate_idx):
+        if not row or len(row) <= emp_idx:
             continue
-            
-        emp_name = row[emp_idx].strip()
-        team = row[team_idx].strip() if team_idx < len(row) else ""
-        location = row[loc_idx].strip() if loc_idx < len(row) else ""
-        
-        if not emp_name or (not team and not location):
-            # Check if this row is a bottom row for additional costs
-            # Formats: "CAD", "Internal Costs Subtotal", "Tooling", etc.
-            first_cell = row[0].strip()
-            if first_cell and (any(cat in first_cell for cat in ["CAD", "Sampling", "Equipment", "PTF", "Testing", "Tooling", "Prototypes", "Supplier", "Services", "Recovery"])):
-                # Parse additional costs for topics
-                cost_category = first_cell
-                # Determine type
-                if any(x in cost_category.lower() for x in ["cad", "internal equipment", "ptf", "sampling"]):
-                    cost_type = "internal"
-                elif "recovery" in cost_category.lower():
-                    cost_type = "recovery"
-                else:
-                    cost_type = "external"
-                    
-                # Loop through topic columns
-                for col_idx, topic_name in topic_cols:
-                    if col_idx < len(row) and row[col_idx].strip():
-                        val_str = row[col_idx].strip().replace("$", "").replace(",", "").replace("%", "")
-                        try:
-                            amt = float(val_str)
-                            if amt != 0.0:
-                                # Find topic
-                                topic = existing_top.get(topic_name)
-                                if topic:
-                                    if cost_type == "recovery":
-                                        # Recovery is stored positive in DB but subtracted in final cost
-                                        topic.recovery = abs(amt)
-                                    else:
-                                        db_cost = models.AdditionalCost(
-                                            topic_id=topic.id,
-                                            cost_type=cost_type,
-                                            category=cost_category,
-                                            amount=amt,
-                                            notes="Imported from CSV"
-                                        )
-                                        db.add(db_cost)
-                                        added_costs += 1
-                        except ValueError:
-                            pass
+
+        first_cell = cell(row, emp_idx)
+        row_team = cell(row, team_idx)
+        row_location = cell(row, loc_idx)
+
+        # Bottom rows for additional costs / recovery reuse the Employee column to
+        # hold the cost category name (e.g. "CAD", "Tooling", "Recovery") and leave
+        # Team/Location blank - that combination is what tells them apart from a
+        # genuine employee row.
+        is_cost_row = (not row_team and not row_location and first_cell
+                       and any(kw in first_cell for kw in COST_ROW_KEYWORDS))
+
+        if is_cost_row:
+            cost_category = first_cell
+            cost_type = classify_cost_category(cost_category)
+
+            # Loop through topic columns
+            for col_idx, topic_name in topic_cols:
+                if col_idx < len(row) and row[col_idx].strip():
+                    val_str = row[col_idx].strip().replace("$", "").replace(",", "").replace("%", "")
+                    try:
+                        amt = float(val_str)
+                        if amt != 0.0:
+                            # Find topic
+                            topic = existing_top.get(topic_name)
+                            if topic:
+                                if cost_type == "recovery":
+                                    # Recovery is stored positive in DB but subtracted in final cost
+                                    topic.recovery = abs(amt)
+                                else:
+                                    db_cost = models.AdditionalCost(
+                                        topic_id=topic.id,
+                                        cost_type=cost_type,
+                                        category=cost_category,
+                                        amount=amt,
+                                        notes="Imported from CSV"
+                                    )
+                                    db.add(db_cost)
+                                    added_costs += 1
+                    except ValueError:
+                        pass
             continue
-            
-        # Parse standard employee row
-        
-        # Parse hours
-        try:
-            available_hours = float(row[hours_idx].replace(",", "").strip())
-        except ValueError:
-            available_hours = 1800.0
-            
-        # Parse hourly rate
-        try:
-            hourly_rate = float(row[rate_idx].replace("$", "").replace(",", "").strip())
-        except ValueError:
-            hourly_rate = 50.0
-            
+
+        if not first_cell:
+            # Blank separator row
+            continue
+
+        # Parse standard employee row. Every field below is optional: a blank cell,
+        # or a column that doesn't exist in this particular sheet, leaves the
+        # existing value untouched on update, and falls back to a sane default
+        # when creating a brand-new employee.
+        emp_name = first_cell
+        team = row_team
+        location = row_location
+        dept_raw = cell(row, dept_idx)
+        manager_raw = cell(row, manager_idx)
+        notes_raw = cell(row, notes_idx)
+        status_raw = cell(row, status_idx)
+
+        available_hours = None
+        hours_raw = cell(row, hours_idx)
+        if hours_raw:
+            try:
+                available_hours = float(hours_raw.replace(",", "").strip())
+            except ValueError:
+                available_hours = None
+
+        hourly_rate = None
+        rate_raw = cell(row, rate_idx)
+        if rate_raw:
+            try:
+                hourly_rate = float(rate_raw.replace("$", "").replace(",", "").strip())
+            except ValueError:
+                hourly_rate = None
+
         # Create or update Employee
         employee = existing_emp.get(emp_name)
         if not employee:
             # Set default department based on Team or Department field
-            dept = "CAE" if "cae" in team.lower() else "Test" if "test" in team.lower() else "Management"
+            dept = dept_raw if dept_raw else ("CAE" if "cae" in team.lower() else "Test" if "test" in team.lower() else "Management")
             employee = models.Employee(
                 scenario_id=active_scenario.id,
                 name=emp_name,
-                team=team,
+                team=team or "Unassigned",
                 department=dept,
-                location=location,
-                available_hours=available_hours,
-                hourly_rate=hourly_rate,
-                status="Active"
+                location=location or "Unassigned",
+                available_hours=available_hours if available_hours is not None else 1800.0,
+                hourly_rate=hourly_rate if hourly_rate is not None else 50.0,
+                status=status_raw or "Active",
+                manager=manager_raw or None,
+                notes=notes_raw or None
             )
             db.add(employee)
             db.commit()
@@ -970,12 +1019,24 @@ async def import_csv_data(file: UploadFile = File(...), db: Session = Depends(ge
             existing_emp[emp_name] = employee
             added_emps += 1
         else:
-            employee.team = team
-            employee.location = location
-            employee.available_hours = available_hours
-            employee.hourly_rate = hourly_rate
+            if team:
+                employee.team = team
+            if location:
+                employee.location = location
+            if available_hours is not None:
+                employee.available_hours = available_hours
+            if hourly_rate is not None:
+                employee.hourly_rate = hourly_rate
+            if dept_raw:
+                employee.department = dept_raw
+            if manager_raw:
+                employee.manager = manager_raw
+            if notes_raw:
+                employee.notes = notes_raw
+            if status_raw:
+                employee.status = status_raw
             db.commit()
-            
+
         # Loop through Topic Columns for allocations
         for col_idx, topic_name in topic_cols:
             if col_idx < len(row):

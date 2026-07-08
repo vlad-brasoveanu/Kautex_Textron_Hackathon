@@ -336,3 +336,49 @@ def test_csv_importer(setup_database):
     assert res_data["imported_topics"] == 1
     assert res_data["imported_allocations"] == 1
     assert res_data["imported_additional_costs"] == 1
+
+def test_csv_importer_missing_columns_keeps_existing_values(setup_database):
+    # First upload establishes full employee data (team, location, hours, rate)
+    full_csv = [
+        ["Employee", "Team", "Location", "Hours/Year", "Hourly Rate", "Initiative A"],
+        ["Partial Col User", "CAE Team", "Germany", "1800", "75.0", "40%"],
+    ]
+    output = io.StringIO()
+    csv.writer(output).writerows(full_csv)
+    client.post("/api/import/csv", files={"file": ("full.csv", output.getvalue(), "text/csv")}, headers=admin_headers)
+
+    # Second upload only carries Employee + a new topic column - Team/Location/Hours/Rate
+    # are missing entirely and must NOT be wiped out on the existing employee.
+    partial_csv = [
+        ["Employee", "Initiative B"],
+        ["Partial Col User", "20%"],
+    ]
+    output2 = io.StringIO()
+    csv.writer(output2).writerows(partial_csv)
+    response = client.post("/api/import/csv", files={"file": ("partial.csv", output2.getvalue(), "text/csv")}, headers=admin_headers)
+
+    assert response.status_code == 200
+    res_data = response.json()
+    assert res_data["imported_employees"] == 0  # updated existing, not created
+    assert res_data["imported_topics"] == 1  # "Initiative B" is a brand-new column/topic
+
+    emp_resp = client.get("/api/employees", headers=admin_headers)
+    employee = next(e for e in emp_resp.json() if e["name"] == "Partial Col User")
+    assert employee["team"] == "CAE Team"
+    assert employee["location"] == "Germany"
+    assert employee["available_hours"] == 1800.0
+    assert employee["hourly_rate"] == 75.0
+
+def test_csv_importer_new_manager_column(setup_database):
+    csv_data = [
+        ["Employee", "Team", "Location", "Manager", "Initiative A"],
+        ["Managed User", "Test Team", "Romania", "Jane Boss", "30%"],
+    ]
+    output = io.StringIO()
+    csv.writer(output).writerows(csv_data)
+    response = client.post("/api/import/csv", files={"file": ("managers.csv", output.getvalue(), "text/csv")}, headers=admin_headers)
+
+    assert response.status_code == 200
+    emp_resp = client.get("/api/employees", headers=admin_headers)
+    employee = next(e for e in emp_resp.json() if e["name"] == "Managed User")
+    assert employee["manager"] == "Jane Boss"

@@ -314,6 +314,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const tr = document.createElement("tr");
 
             // Meta cells
+            const canEditGrid = activeRole === "admin" || activeRole === "master_admin";
+
             const tdName = document.createElement("td");
             tdName.className = "sticky-col";
             tdName.innerText = emp.name;
@@ -334,6 +336,23 @@ document.addEventListener("DOMContentLoaded", () => {
             const tdRate = document.createElement("td");
             tdRate.innerText = `$${emp.hourly_rate.toFixed(2)}`;
             tr.appendChild(tdRate);
+
+            // Master admin and admin can edit every cell directly from the grid -
+            // double-clicking a metadata cell opens the employee profile focused
+            // on that field, saving through the same endpoint as the Management Panel.
+            if (canEditGrid) {
+                [
+                    [tdName, "emp-name"], [tdTeam, "emp-team"], [tdLoc, "emp-location"],
+                    [tdHours, "emp-hours"], [tdRate, "emp-rate"]
+                ].forEach(([td, focusFieldId]) => {
+                    td.title = "Double-click to edit";
+                    td.style.cursor = "pointer";
+                    td.addEventListener("dblclick", () => {
+                        editEmployeePrompt(emp.id);
+                        setTimeout(() => document.getElementById(focusFieldId)?.focus(), 150);
+                    });
+                });
+            }
 
             // Topic cells (Matrix percentage cells)
             filteredTopics.forEach(topic => {
@@ -1983,7 +2002,40 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             csvContent += "\n";
         });
-        
+
+        // Append additional-cost and recovery rows in the same bottom-of-sheet
+        // layout the importer expects, so an exported file can be re-uploaded
+        // without losing internal/external costs or recovery amounts.
+        const categoryRows = {};
+        topics.forEach(t => {
+            (t.additional_costs || []).forEach(ac => {
+                if (!categoryRows[ac.category]) categoryRows[ac.category] = {};
+                categoryRows[ac.category][t.id] = (categoryRows[ac.category][t.id] || 0) + ac.amount;
+            });
+        });
+        const hasRecovery = topics.some(t => t.recovery && t.recovery !== 0);
+
+        if (Object.keys(categoryRows).length > 0 || hasRecovery) {
+            csvContent += Array(5 + topics.length).fill("").join(",") + "\n";
+        }
+
+        Object.keys(categoryRows).forEach(category => {
+            csvContent += `"${category.replace(/"/g, '""')}",,,,`;
+            topics.forEach(t => {
+                const amt = categoryRows[category][t.id];
+                csvContent += `,${amt !== undefined ? amt : ""}`;
+            });
+            csvContent += "\n";
+        });
+
+        if (hasRecovery) {
+            csvContent += `"Recovery",,,,`;
+            topics.forEach(t => {
+                csvContent += `,${t.recovery ? t.recovery : ""}`;
+            });
+            csvContent += "\n";
+        }
+
         const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
