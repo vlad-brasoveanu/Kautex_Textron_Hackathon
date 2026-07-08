@@ -410,16 +410,26 @@
             <section id="presentation-section" class="main-section">
                 <div class="section-header no-print">
                     <h2><i class="fa-solid fa-display"></i> Visual Presentation Deck</h2>
-                    <p class="section-desc">Formatted slides suitable for presenting directly to Textron executive leadership. Customize which slides are included and their order.</p>
+                    <p class="section-desc">Formatted slides suitable for presenting directly to Textron executive leadership. Customize which slides are included and their order using the panel alongside the deck.</p>
                     <div style="display: flex; gap: 10px;">
-                        <button id="btn-customize-deck" class="btn btn-secondary"><i class="fa-solid fa-sliders"></i> Customize Slides</button>
                         <button id="btn-export-deck-csv" class="btn btn-secondary"><i class="fa-solid fa-file-csv"></i> Export Report to CSV</button>
                         <button id="btn-print-deck" class="btn btn-primary"><i class="fa-solid fa-print"></i> Export Presentation to PDF</button>
                     </div>
                 </div>
 
-                <div class="presentation-deck" id="presentation-deck-container">
-                    <!-- Slides rendered dynamically based on the current deck configuration -->
+                <div class="presentation-layout">
+                    <div class="presentation-deck" id="presentation-deck-container">
+                        <!-- Slides rendered dynamically based on the current deck configuration -->
+                    </div>
+
+                    <aside class="deck-customize-panel no-print">
+                        <h3><i class="fa-solid fa-sliders"></i> Customize Slides</h3>
+                        <p class="section-desc" style="margin: 0 0 14px 0;">Check the slides to include, and use the arrows to reorder them. For example, include Team Breakdown for aggregate staffing info without exposing individual employees - just leave Employee Breakdown unchecked.</p>
+                        <ul id="deck-customize-list" class="deck-customize-list">
+                            <!-- Populated dynamically -->
+                        </ul>
+                        <button type="button" class="btn btn-secondary" id="btn-deck-reset-default" style="width: 100%; margin-top: 14px;">Reset to Default</button>
+                    </aside>
                 </div>
             </section>
 
@@ -907,26 +917,6 @@
                     <button type="submit" class="btn btn-primary">Clone Version</button>
                 </div>
             </form>
-        </div>
-    </div>
-
-    <!-- MODAL 6: CUSTOMIZE PRESENTATION DECK -->
-    <div id="modal-deck-customize" class="modal">
-        <div class="modal-content glass">
-            <div class="modal-header">
-                <h3>Customize Presentation Deck</h3>
-                <button class="modal-close btn-close" data-modal="modal-deck-customize"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div class="modal-form">
-                <p class="section-desc" style="margin: 0 0 14px 0;">Check the slides to include, and use the arrows to reorder them. For example, include Team Breakdown for aggregate staffing info without exposing individual employees - just leave Employee Breakdown unchecked.</p>
-                <ul id="deck-customize-list" class="deck-customize-list">
-                    <!-- Populated dynamically -->
-                </ul>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" id="btn-deck-reset-default">Reset to Default</button>
-                    <button type="button" class="btn btn-primary modal-close" data-modal="modal-deck-customize">Done</button>
-                </div>
-            </div>
         </div>
     </div>
 

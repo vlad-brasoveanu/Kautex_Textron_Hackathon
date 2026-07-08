@@ -1184,51 +1184,68 @@ document.addEventListener("DOMContentLoaded", () => {
         return `"${str.replace(/"/g, '""')}"`;
     }
 
+    // Conservative row/item cap per slide. Instead of letting a long table or
+    // list scroll inside a fixed 16:9 slide (which silently cuts off content
+    // when printed or exported), templates split their data into multiple
+    // slides so every row is always visible and printable.
+    const ROWS_PER_SLIDE = 8;
+
+    function chunkRows(rows, size) {
+        if (rows.length === 0) return [[]];
+        const chunks = [];
+        for (let i = 0; i < rows.length; i += size) chunks.push(rows.slice(i, i + size));
+        return chunks;
+    }
+
+    function pageSuffix(pageNum, pageCount) {
+        return pageCount > 1 ? ` (Page ${pageNum} of ${pageCount})` : "";
+    }
+
     const SLIDE_TEMPLATES = {
         title: {
             label: "Title Slide",
             desc: "Cover slide with report title and planning version name.",
-            render: (ctx, idx, total) => `
-                <div class="presentation-slide slide-title">
+            buildPages: (ctx) => [{
+                wrapperClass: "slide-title",
+                bodyHTML: `
                     <div class="slide-header-brand"><i class="fa-solid fa-layer-group"></i> Textron Digital Engineering</div>
                     <div class="slide-body-center">
                         <h2>Engineering Planning & Budget Report</h2>
-                        <p id="pres-scenario-name">${ctx.activeScenario ? ctx.activeScenario.name : "Planning Version"}</p>
+                        <p>${ctx.activeScenario ? ctx.activeScenario.name : "Planning Version"}</p>
                         <div class="slide-subtitle-divider"></div>
                         <span class="confidential-stamp">STRICTLY CONFIDENTIAL</span>
                     </div>
-                    ${slideFooterHTML(idx, total)}
-                </div>
-            `,
+                `
+            }],
             csv: null
         },
         executive: {
             label: "Executive Summary",
             desc: "Headcount, cost KPIs, and cost-by-location chart.",
-            render: (ctx, idx, total) => {
+            buildPages: (ctx) => {
                 const d = ctx.dashboardData;
-                return `
-                <div class="presentation-slide">
-                    <div class="slide-title-bar"><h3>Executive Planning Overview</h3><span class="confidential-small">CONFIDENTIAL</span></div>
-                    <div class="slide-content-split">
-                        <div class="slide-col-left">
-                            <div class="pres-kpi-grid">
-                                <div class="pres-kpi-item"><span class="pres-kpi-label">Headcount</span><span class="pres-kpi-number">${d.total_headcount}</span></div>
-                                <div class="pres-kpi-item"><span class="pres-kpi-label">Internal Effort Cost</span><span class="pres-kpi-number">$${d.total_internal_employee_cost.toLocaleString(undefined, {maximumFractionDigits: 0})}</span></div>
-                                <div class="pres-kpi-item"><span class="pres-kpi-label">Additional & Vendor Cost</span><span class="pres-kpi-number">$${(d.total_additional_internal_cost + d.total_external_cost).toLocaleString(undefined, {maximumFractionDigits: 0})}</span></div>
-                                <div class="pres-kpi-item"><span class="pres-kpi-label">Net Fiscal Budget</span><span class="pres-kpi-number text-blue">$${d.total_annual_planning_cost.toLocaleString(undefined, {maximumFractionDigits: 0})}</span></div>
+                return [{
+                    wrapperClass: "",
+                    bodyHTML: `
+                        <div class="slide-title-bar"><h3>Executive Planning Overview</h3><span class="confidential-small">CONFIDENTIAL</span></div>
+                        <div class="slide-content-split">
+                            <div class="slide-col-left">
+                                <div class="pres-kpi-grid">
+                                    <div class="pres-kpi-item"><span class="pres-kpi-label">Headcount</span><span class="pres-kpi-number">${d.total_headcount}</span></div>
+                                    <div class="pres-kpi-item"><span class="pres-kpi-label">Internal Effort Cost</span><span class="pres-kpi-number">$${d.total_internal_employee_cost.toLocaleString(undefined, {maximumFractionDigits: 0})}</span></div>
+                                    <div class="pres-kpi-item"><span class="pres-kpi-label">Additional & Vendor Cost</span><span class="pres-kpi-number">$${(d.total_additional_internal_cost + d.total_external_cost).toLocaleString(undefined, {maximumFractionDigits: 0})}</span></div>
+                                    <div class="pres-kpi-item"><span class="pres-kpi-label">Net Fiscal Budget</span><span class="pres-kpi-number text-blue">$${d.total_annual_planning_cost.toLocaleString(undefined, {maximumFractionDigits: 0})}</span></div>
+                                </div>
+                            </div>
+                            <div class="slide-col-right">
+                                <div class="pres-chart-box">
+                                    <h4>Annual Planning Cost by Location</h4>
+                                    <div class="canvas-wrap"><canvas id="pres-chart-location-canvas"></canvas></div>
+                                </div>
                             </div>
                         </div>
-                        <div class="slide-col-right">
-                            <div class="pres-chart-box">
-                                <h4>Annual Planning Cost by Location</h4>
-                                <div class="canvas-wrap"><canvas id="pres-chart-location-canvas"></canvas></div>
-                            </div>
-                        </div>
-                    </div>
-                    ${slideFooterHTML(idx, total)}
-                </div>
-                `;
+                    `
+                }];
             },
             postRender: (ctx) => {
                 const canvas = document.getElementById("pres-chart-location-canvas");
@@ -1266,32 +1283,35 @@ document.addEventListener("DOMContentLoaded", () => {
         topics: {
             label: "Key Initiatives Budget",
             desc: "Per-topic cost breakdown table.",
-            render: (ctx, idx, total) => `
-                <div class="presentation-slide">
-                    <div class="slide-title-bar"><h3>Key Strategic Initiatives Budget</h3><span class="confidential-small">CONFIDENTIAL</span></div>
-                    <div class="slide-content-split">
-                        <div class="slide-col-full">
-                            <div class="pres-table-wrapper">
-                                <table class="pres-table">
-                                    <thead><tr><th>Initiative / Topic</th><th>Category</th><th>Category Cost</th><th>Involved Staff</th><th>Total Cost</th></tr></thead>
-                                    <tbody>
-                                        ${ctx.dashboardData.topic_summaries.map(t => `
-                                            <tr>
-                                                <td><strong>${t.name}</strong></td>
-                                                <td>${t.category}</td>
-                                                <td>$${(t.additional_internal_cost + t.external_cost).toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
-                                                <td>${t.staff.length} Planned</td>
-                                                <td><strong>$${t.total_cost.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong></td>
-                                            </tr>
-                                        `).join("")}
-                                    </tbody>
-                                </table>
+            buildPages: (ctx) => {
+                const pages = chunkRows(ctx.dashboardData.topic_summaries, ROWS_PER_SLIDE);
+                return pages.map((rows, i) => ({
+                    wrapperClass: "",
+                    bodyHTML: `
+                        <div class="slide-title-bar"><h3>Key Strategic Initiatives Budget${pageSuffix(i + 1, pages.length)}</h3><span class="confidential-small">CONFIDENTIAL</span></div>
+                        <div class="slide-content-split">
+                            <div class="slide-col-full">
+                                <div class="pres-table-wrapper">
+                                    <table class="pres-table">
+                                        <thead><tr><th>Initiative / Topic</th><th>Category</th><th>Category Cost</th><th>Involved Staff</th><th>Total Cost</th></tr></thead>
+                                        <tbody>
+                                            ${rows.map(t => `
+                                                <tr>
+                                                    <td><strong>${t.name}</strong></td>
+                                                    <td>${t.category}</td>
+                                                    <td>$${(t.additional_internal_cost + t.external_cost).toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+                                                    <td>${t.staff.length} Planned</td>
+                                                    <td><strong>$${t.total_cost.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong></td>
+                                                </tr>
+                                            `).join("")}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    ${slideFooterHTML(idx, total)}
-                </div>
-            `,
+                    `
+                }));
+            },
             csv: (ctx) => {
                 const lines = ["=== Key Strategic Initiatives Budget ===", "Topic,Category,Category Cost,Involved Staff,Total Cost"];
                 ctx.dashboardData.topic_summaries.forEach(t => {
@@ -1303,28 +1323,31 @@ document.addEventListener("DOMContentLoaded", () => {
         risks: {
             label: "Resource Allocations & Risks",
             desc: "Overloaded employees and strategic notes.",
-            render: (ctx, idx, total) => `
-                <div class="presentation-slide">
-                    <div class="slide-title-bar"><h3>Resource Allocations & Overload Alerts</h3><span class="confidential-small">CONFIDENTIAL</span></div>
-                    <div class="slide-content-split">
-                        <div class="slide-col-left">
-                            <h4 class="risk-title"><i class="fa-solid fa-triangle-exclamation"></i> Overloaded Resources (>100% Allocation)</h4>
-                            <ul class="risk-list">
-                                ${ctx.dashboardData.overloaded_employees.map(emp => `
-                                    <li><i class="fa-solid fa-triangle-exclamation"></i> <strong>${emp.name}</strong> (${emp.team}) planned utilization is at <strong>${emp.utilization.toFixed(1)}%</strong>. Immediate risk of burnout/project delay.</li>
-                                `).join("") || "<li><i class='fa-solid fa-circle-check text-green'></i> No overloaded planning risks detected in this scenario.</li>"}
-                            </ul>
-                        </div>
-                        <div class="slide-col-right">
-                            <h4 class="risk-title"><i class="fa-solid fa-list-check"></i> Management Comments & Strategic Notes</h4>
-                            <div class="pres-notes-box">
-                                <p><strong>Planning Version Summary:</strong> Initial draft of resources for engineering hubs. High effort is currently allocated on the Agentic AI prototype development which has an external funding recovery mapped. Key project delivery for Customer Requests (Fuel) requires resource reallocations to cover India testing overload risk.</p>
+            buildPages: (ctx) => {
+                const pages = chunkRows(ctx.dashboardData.overloaded_employees, ROWS_PER_SLIDE);
+                return pages.map((rows, i) => ({
+                    wrapperClass: "",
+                    bodyHTML: `
+                        <div class="slide-title-bar"><h3>Resource Allocations & Overload Alerts${pageSuffix(i + 1, pages.length)}</h3><span class="confidential-small">CONFIDENTIAL</span></div>
+                        <div class="slide-content-split">
+                            <div class="slide-col-left">
+                                <h4 class="risk-title"><i class="fa-solid fa-triangle-exclamation"></i> Overloaded Resources (>100% Allocation)</h4>
+                                <ul class="risk-list">
+                                    ${rows.map(emp => `
+                                        <li><i class="fa-solid fa-triangle-exclamation"></i> <strong>${emp.name}</strong> (${emp.team}) planned utilization is at <strong>${emp.utilization.toFixed(1)}%</strong>. Immediate risk of burnout/project delay.</li>
+                                    `).join("") || "<li><i class='fa-solid fa-circle-check text-green'></i> No overloaded planning risks detected in this scenario.</li>"}
+                                </ul>
+                            </div>
+                            <div class="slide-col-right">
+                                <h4 class="risk-title"><i class="fa-solid fa-list-check"></i> Management Comments & Strategic Notes</h4>
+                                <div class="pres-notes-box">
+                                    <p><strong>Planning Version Summary:</strong> Initial draft of resources for engineering hubs. High effort is currently allocated on the Agentic AI prototype development which has an external funding recovery mapped. Key project delivery for Customer Requests (Fuel) requires resource reallocations to cover India testing overload risk.</p>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    ${slideFooterHTML(idx, total)}
-                </div>
-            `,
+                    `
+                }));
+            },
             csv: (ctx) => {
                 const lines = ["=== Resource Allocations & Overload Alerts ===", "Employee,Team,Utilization %"];
                 ctx.dashboardData.overloaded_employees.forEach(emp => {
@@ -1337,36 +1360,57 @@ document.addEventListener("DOMContentLoaded", () => {
         ai: {
             label: "AI Portfolio Predictions",
             desc: "AI-driven bottleneck predictions and optimization suggestions.",
-            render: (ctx, idx, total) => {
+            buildPages: (ctx) => {
                 const data = ctx.aiPredictionsData || { bottlenecks: [], cost_optimizations: [], reallocations: [] };
-                return `
-                <div class="presentation-slide">
-                    <div class="slide-title-bar"><h3>AI-Driven Portfolio Predictions & Suggestions</h3><span class="confidential-small">CONFIDENTIAL</span></div>
-                    <div class="slide-content-split">
-                        <div class="slide-col-left">
-                            <h4 class="risk-title" style="color: var(--accent-color); font-size: 13px;"><i class="fa-solid fa-brain"></i> Predicted Resource Bottlenecks</h4>
-                            <ul class="risk-list" style="max-height: 180px;">
-                                ${data.bottlenecks.map(b => `
-                                    <li style="padding: 8px 12px; border-radius: 6px; background: rgba(239, 68, 68, 0.04); border-left: 3px solid ${b.severity === 'High' ? 'var(--danger-color)' : 'var(--warning-color)'}; margin-bottom: 6px; font-size: 11px;">
-                                        <strong>[${b.type}]</strong> ${b.description}
-                                    </li>
-                                `).join("")}
-                            </ul>
+                const suggestions = [...data.cost_optimizations, ...data.reallocations].slice(0, 3);
+                const pages = chunkRows(data.bottlenecks, ROWS_PER_SLIDE);
+
+                return pages.map((rows, i) => {
+                    const isFirst = i === 0;
+                    const bottleneckList = `
+                        <ul class="risk-list">
+                            ${rows.map(b => `
+                                <li style="padding: 8px 12px; border-radius: 6px; background: rgba(239, 68, 68, 0.04); border-left: 3px solid ${b.severity === 'High' ? 'var(--danger-color)' : 'var(--warning-color)'}; margin-bottom: 6px; font-size: 11px;">
+                                    <strong>[${b.type}]</strong> ${b.description}
+                                </li>
+                            `).join("")}
+                        </ul>
+                    `;
+                    // Suggestions only appear once, alongside the first page of bottlenecks;
+                    // continuation pages are a full-width bottleneck list.
+                    const body = isFirst ? `
+                        <div class="slide-content-split">
+                            <div class="slide-col-left">
+                                <h4 class="risk-title" style="color: var(--accent-color); font-size: 13px;"><i class="fa-solid fa-brain"></i> Predicted Resource Bottlenecks</h4>
+                                ${bottleneckList}
+                            </div>
+                            <div class="slide-col-right">
+                                <h4 class="risk-title" style="color: var(--warning-color); font-size: 13px;"><i class="fa-solid fa-chart-line"></i> Strategic Optimization Suggestions</h4>
+                                <ul class="risk-list" style="gap: 6px;">
+                                    ${suggestions.map(s => `
+                                        <li style="padding: 8px 12px; border-radius: 6px; background: rgba(59, 130, 246, 0.04); border-left: 3px solid var(--primary-color); margin-bottom: 6px; font-size: 11px;">
+                                            <strong>[${s.category || s.action}]</strong> ${s.description}
+                                        </li>
+                                    `).join("")}
+                                </ul>
+                            </div>
                         </div>
-                        <div class="slide-col-right">
-                            <h4 class="risk-title" style="color: var(--warning-color); font-size: 13px;"><i class="fa-solid fa-chart-line"></i> Strategic Optimization Suggestions</h4>
-                            <ul class="risk-list" style="max-height: 180px; gap: 6px;">
-                                ${[...data.cost_optimizations, ...data.reallocations].slice(0, 3).map(s => `
-                                    <li style="padding: 8px 12px; border-radius: 6px; background: rgba(59, 130, 246, 0.04); border-left: 3px solid var(--primary-color); margin-bottom: 6px; font-size: 11px;">
-                                        <strong>[${s.category || s.action}]</strong> ${s.description}
-                                    </li>
-                                `).join("")}
-                            </ul>
+                    ` : `
+                        <div class="slide-content-split">
+                            <div class="slide-col-full">
+                                <h4 class="risk-title" style="color: var(--accent-color); font-size: 13px;"><i class="fa-solid fa-brain"></i> Predicted Resource Bottlenecks (continued)</h4>
+                                ${bottleneckList}
+                            </div>
                         </div>
-                    </div>
-                    ${slideFooterHTML(idx, total)}
-                </div>
-                `;
+                    `;
+                    return {
+                        wrapperClass: "",
+                        bodyHTML: `
+                            <div class="slide-title-bar"><h3>AI-Driven Portfolio Predictions & Suggestions${pageSuffix(i + 1, pages.length)}</h3><span class="confidential-small">CONFIDENTIAL</span></div>
+                            ${body}
+                        `
+                    };
+                });
             },
             csv: (ctx) => {
                 const data = ctx.aiPredictionsData || { bottlenecks: [], cost_optimizations: [], reallocations: [] };
@@ -1379,34 +1423,35 @@ document.addEventListener("DOMContentLoaded", () => {
         teams: {
             label: "Team Breakdown",
             desc: "Aggregate team-level staffing and cost - no individual employee names.",
-            render: (ctx, idx, total) => {
-                const rows = [...ctx.dashboardData.team_summaries].sort((a, b) => b.total_cost - a.total_cost);
-                return `
-                <div class="presentation-slide">
-                    <div class="slide-title-bar"><h3>Team Resourcing & Cost Breakdown</h3><span class="confidential-small">CONFIDENTIAL</span></div>
-                    <div class="slide-content-split">
-                        <div class="slide-col-full">
-                            <div class="pres-table-wrapper">
-                                <table class="pres-table">
-                                    <thead><tr><th>Team</th><th>Members</th><th>Avg Utilization</th><th>Overloaded</th><th>Total Cost</th></tr></thead>
-                                    <tbody>
-                                        ${rows.map(t => `
-                                            <tr>
-                                                <td><strong>${t.team_name}</strong></td>
-                                                <td>${t.member_count}</td>
-                                                <td>${t.average_utilization.toFixed(1)}%</td>
-                                                <td>${t.overloaded_count}</td>
-                                                <td><strong>$${t.total_cost.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong></td>
-                                            </tr>
-                                        `).join("")}
-                                    </tbody>
-                                </table>
+            buildPages: (ctx) => {
+                const sorted = [...ctx.dashboardData.team_summaries].sort((a, b) => b.total_cost - a.total_cost);
+                const pages = chunkRows(sorted, ROWS_PER_SLIDE);
+                return pages.map((rows, i) => ({
+                    wrapperClass: "",
+                    bodyHTML: `
+                        <div class="slide-title-bar"><h3>Team Resourcing & Cost Breakdown${pageSuffix(i + 1, pages.length)}</h3><span class="confidential-small">CONFIDENTIAL</span></div>
+                        <div class="slide-content-split">
+                            <div class="slide-col-full">
+                                <div class="pres-table-wrapper">
+                                    <table class="pres-table">
+                                        <thead><tr><th>Team</th><th>Members</th><th>Avg Utilization</th><th>Overloaded</th><th>Total Cost</th></tr></thead>
+                                        <tbody>
+                                            ${rows.map(t => `
+                                                <tr>
+                                                    <td><strong>${t.team_name}</strong></td>
+                                                    <td>${t.member_count}</td>
+                                                    <td>${t.average_utilization.toFixed(1)}%</td>
+                                                    <td>${t.overloaded_count}</td>
+                                                    <td><strong>$${t.total_cost.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong></td>
+                                                </tr>
+                                            `).join("")}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    ${slideFooterHTML(idx, total)}
-                </div>
-                `;
+                    `
+                }));
             },
             csv: (ctx) => {
                 const lines = ["=== Team Resourcing & Cost Breakdown ===", "Team,Members,Avg Utilization %,Overloaded,Total Cost"];
@@ -1419,38 +1464,39 @@ document.addEventListener("DOMContentLoaded", () => {
         employees: {
             label: "Employee Breakdown",
             desc: "Individual employee names, utilization, and cost. Omit this slide to keep the report team-level only.",
-            render: (ctx, idx, total) => {
-                const rows = ctx.employees.map(emp => {
+            buildPages: (ctx) => {
+                const sorted = ctx.employees.map(emp => {
                     const util = ctx.allocations.filter(a => a.employee_id === emp.id).reduce((acc, a) => acc + a.percentage, 0.0);
                     const cost = emp.available_hours * emp.hourly_rate * (util / 100.0);
                     return { name: emp.name, team: emp.team, location: emp.location, util, cost };
                 }).sort((a, b) => b.cost - a.cost);
-                return `
-                <div class="presentation-slide">
-                    <div class="slide-title-bar"><h3>Individual Employee Breakdown</h3><span class="confidential-small">CONFIDENTIAL</span></div>
-                    <div class="slide-content-split">
-                        <div class="slide-col-full">
-                            <div class="pres-table-wrapper">
-                                <table class="pres-table">
-                                    <thead><tr><th>Employee</th><th>Team</th><th>Location</th><th>Utilization</th><th>Total Cost</th></tr></thead>
-                                    <tbody>
-                                        ${rows.map(r => `
-                                            <tr>
-                                                <td><strong>${r.name}</strong></td>
-                                                <td>${r.team}</td>
-                                                <td>${r.location}</td>
-                                                <td>${r.util.toFixed(1)}%</td>
-                                                <td><strong>$${r.cost.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong></td>
-                                            </tr>
-                                        `).join("")}
-                                    </tbody>
-                                </table>
+                const pages = chunkRows(sorted, ROWS_PER_SLIDE);
+                return pages.map((rows, i) => ({
+                    wrapperClass: "",
+                    bodyHTML: `
+                        <div class="slide-title-bar"><h3>Individual Employee Breakdown${pageSuffix(i + 1, pages.length)}</h3><span class="confidential-small">CONFIDENTIAL</span></div>
+                        <div class="slide-content-split">
+                            <div class="slide-col-full">
+                                <div class="pres-table-wrapper">
+                                    <table class="pres-table">
+                                        <thead><tr><th>Employee</th><th>Team</th><th>Location</th><th>Utilization</th><th>Total Cost</th></tr></thead>
+                                        <tbody>
+                                            ${rows.map(r => `
+                                                <tr>
+                                                    <td><strong>${r.name}</strong></td>
+                                                    <td>${r.team}</td>
+                                                    <td>${r.location}</td>
+                                                    <td>${r.util.toFixed(1)}%</td>
+                                                    <td><strong>$${r.cost.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong></td>
+                                                </tr>
+                                            `).join("")}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    ${slideFooterHTML(idx, total)}
-                </div>
-                `;
+                    `
+                }));
             },
             csv: (ctx) => {
                 const lines = ["=== Individual Employee Breakdown ===", "Employee,Team,Location,Utilization %,Total Cost"];
@@ -1517,12 +1563,29 @@ document.addEventListener("DOMContentLoaded", () => {
         const ctx = buildDeckContext();
         const included = deckConfig.filter(c => c.included && SLIDE_TEMPLATES[c.id]);
 
-        container.innerHTML = included.map((cfg, i) => SLIDE_TEMPLATES[cfg.id].render(ctx, i + 1, included.length)).join("");
+        // Each template can expand into multiple physical slides (pagination), so
+        // flatten everything first - the "Slide X of Y" footer numbers the whole
+        // deck, not just one template's own pages.
+        const allPages = [];
+        included.forEach(cfg => {
+            const template = SLIDE_TEMPLATES[cfg.id];
+            template.buildPages(ctx).forEach(page => allPages.push(page));
+        });
+
+        const total = allPages.length;
+        container.innerHTML = allPages.map((page, i) => `
+            <div class="presentation-slide ${page.wrapperClass || ""}">
+                ${page.bodyHTML}
+                ${slideFooterHTML(i + 1, total)}
+            </div>
+        `).join("");
 
         included.forEach(cfg => {
             const template = SLIDE_TEMPLATES[cfg.id];
             if (template.postRender) template.postRender(ctx);
         });
+
+        renderDeckCustomizeList();
     }
 
     function renderDeckCustomizeList() {
@@ -2248,16 +2311,7 @@ document.addEventListener("DOMContentLoaded", () => {
             window.print();
         });
 
-        // Presentation Deck customization modal
-        const btnCustomizeDeck = document.getElementById("btn-customize-deck");
-        if (btnCustomizeDeck) {
-            btnCustomizeDeck.addEventListener("click", () => {
-                if (!deckConfig) loadDeckConfig();
-                renderDeckCustomizeList();
-                document.getElementById("modal-deck-customize").classList.add("active");
-            });
-        }
-
+        // Presentation Deck customization panel (rendered inline next to the deck)
         const btnDeckReset = document.getElementById("btn-deck-reset-default");
         if (btnDeckReset) {
             btnDeckReset.addEventListener("click", () => {

@@ -1401,13 +1401,47 @@ th.sortable-emp:hover, th.sortable-topic:hover {
 /* ==========================================================
    PRESENTATION DECK (SLIDES & PDF EXPORT)
    ========================================================== */
+
+/* Deck + customization panel side by side, filling the available width */
+.presentation-layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+    width: 100%;
+}
+
 .presentation-deck {
     display: flex;
     flex-direction: column;
     gap: 40px;
-    max-width: 900px;
-    margin: 0 auto;
+    flex: 1 1 auto;
+    min-width: 0;
     padding-bottom: 40px;
+}
+
+.deck-customize-panel {
+    flex: 0 0 320px;
+    width: 320px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 18px;
+    position: sticky;
+    top: 20px;
+}
+
+.deck-customize-panel h3 {
+    font-size: 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.deck-customize-panel .deck-customize-list {
+    max-height: calc(100vh - 320px);
 }
 
 .presentation-slide {
@@ -1579,8 +1613,10 @@ th.sortable-emp:hover, th.sortable-topic:hover {
 }
 
 .pres-table-wrapper {
-    overflow-y: auto;
-    max-height: 220px;
+    /* No internal scroll: table row counts are paginated in JS (see
+       ROWS_PER_SLIDE) so content always fits without clipping or scrolling,
+       which matters for print/PDF and CSV export completeness. */
+    overflow: visible;
 }
 
 .pres-table {
@@ -1617,8 +1653,9 @@ th.sortable-emp:hover, th.sortable-topic:hover {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    overflow-y: auto;
-    max-height: 200px;
+    /* No internal scroll: list item counts are paginated in JS so content
+       always fits without clipping or scrolling. */
+    overflow: visible;
 }
 
 .risk-list li {
