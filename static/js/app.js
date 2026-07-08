@@ -50,7 +50,10 @@ document.addEventListener("DOMContentLoaded", () => {
         department: "",
         category: "",
         minRate: 0,
-        maxRate: 999999
+        maxRate: 999999,
+        manager: "",
+        status: "",
+        topicId: ""
     };
 
     // Management Panel CRUD states
@@ -110,10 +113,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const navItems = document.querySelectorAll(".nav-item");
     const mainSections = document.querySelectorAll(".main-section");
     
-    const filterLocation = document.getElementById("filter-location");
-    const filterTeam = document.getElementById("filter-team");
-    const filterDept = document.getElementById("filter-dept");
-    const filterCategory = document.getElementById("filter-category");
     const btnResetFilters = document.getElementById("btn-reset-filters");
 
     // Modal forms
@@ -217,7 +216,7 @@ document.addEventListener("DOMContentLoaded", () => {
             allocations = await allocRes.json();
             dashboardData = await reportRes.json();
             
-            updateFilterDropdowns();
+            renderFiltersPanel();
             renderAllocationMatrix();
             renderDashboards();
             renderPresentationDeck();
@@ -253,8 +252,14 @@ document.addEventListener("DOMContentLoaded", () => {
             if (filters.location && emp.location !== filters.location) return false;
             if (filters.team && emp.team !== filters.team) return false;
             if (filters.department && emp.department !== filters.department) return false;
+            if (filters.manager && emp.manager !== filters.manager) return false;
+            if (filters.status && emp.status !== filters.status) return false;
             if (filters.minRate !== undefined && emp.hourly_rate < filters.minRate) return false;
             if (filters.maxRate !== undefined && emp.hourly_rate > filters.maxRate) return false;
+            if (filters.topicId) {
+                const hasAlloc = allocations.some(a => a.employee_id === emp.id && a.topic_id === parseInt(filters.topicId) && a.percentage > 0.0);
+                if (!hasAlloc) return false;
+            }
             return true;
         });
 
@@ -2028,29 +2033,22 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         });
 
-        // Matrix Filtering event drops
-        const triggerFilter = () => {
-            filters.location = filterLocation.value;
-            filters.team = filterTeam.value;
-            filters.department = filterDept.value;
-            filters.category = filterCategory.value;
-            renderAllocationMatrix();
-        };
-
-        filterLocation.addEventListener("change", triggerFilter);
-        filterTeam.addEventListener("change", triggerFilter);
-        filterDept.addEventListener("change", triggerFilter);
-        filterCategory.addEventListener("change", triggerFilter);
-
-        btnResetFilters.addEventListener("click", () => {
-            filterLocation.value = "";
-            filterTeam.value = "";
-            filterDept.value = "";
-            filterCategory.value = "";
-            filters.minRate = 0;
-            filters.maxRate = 999999;
-            triggerFilter();
-        });
+        // Reset Filters binding
+        if (btnResetFilters) {
+            btnResetFilters.addEventListener("click", () => {
+                filters.location = "";
+                filters.team = "";
+                filters.department = "";
+                filters.category = "";
+                filters.manager = "";
+                filters.status = "";
+                filters.topicId = "";
+                filters.minRate = 0;
+                filters.maxRate = 999999;
+                renderFiltersPanel();
+                renderAllocationMatrix();
+            });
+        }
 
         // Tab switches on Dashboard
         document.querySelectorAll(".dash-tab").forEach(tab => {
@@ -3166,8 +3164,14 @@ document.addEventListener("DOMContentLoaded", () => {
             if (filters.location && emp.location !== filters.location) return false;
             if (filters.team && emp.team !== filters.team) return false;
             if (filters.department && emp.department !== filters.department) return false;
+            if (filters.manager && emp.manager !== filters.manager) return false;
+            if (filters.status && emp.status !== filters.status) return false;
             if (filters.minRate !== undefined && emp.hourly_rate < filters.minRate) return false;
             if (filters.maxRate !== undefined && emp.hourly_rate > filters.maxRate) return false;
+            if (filters.topicId) {
+                const hasAlloc = allocations.some(a => a.employee_id === emp.id && a.topic_id === parseInt(filters.topicId) && a.percentage > 0.0);
+                if (!hasAlloc) return false;
+            }
             return true;
         });
 
@@ -3260,6 +3264,9 @@ document.addEventListener("DOMContentLoaded", () => {
         if (filters.team) queryParams.append("team", filters.team);
         if (filters.department) queryParams.append("department", filters.department);
         if (filters.category) queryParams.append("category", filters.category);
+        if (filters.manager) queryParams.append("manager", filters.manager);
+        if (filters.status) queryParams.append("status", filters.status);
+        if (filters.topicId) queryParams.append("topicId", filters.topicId);
         if (filters.minRate !== undefined && filters.minRate !== 0) queryParams.append("minRate", filters.minRate);
         if (filters.maxRate !== undefined && filters.maxRate !== 999999) queryParams.append("maxRate", filters.maxRate);
         
@@ -3354,6 +3361,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 filters.team = "";
                 filters.department = "";
                 filters.category = "";
+                filters.manager = "";
+                filters.status = "";
+                filters.topicId = "";
                 filters.minRate = 0;
                 filters.maxRate = 999999;
 
@@ -3365,11 +3375,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (resData.filters.minRate !== undefined) filters.minRate = resData.filters.minRate;
                 if (resData.filters.maxRate !== undefined) filters.maxRate = resData.filters.maxRate;
                 
-                // Update the sidebar dropdown inputs
-                if (filterLocation) filterLocation.value = filters.location;
-                if (filterTeam) filterTeam.value = filters.team;
-                if (filterDept) filterDept.value = filters.department;
-                if (filterCategory) filterCategory.value = filters.category;
+                // Re-render dynamic filters panel
+                renderFiltersPanel();
                 
                 // Navigate to matrix grid
                 activeSection = "matrix-section";
@@ -3416,63 +3423,118 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Populate Filters Options based on Seeding Details
-    function updateFilterDropdowns() {
-        const prevLoc = filterLocation.value;
-        const prevTeam = filterTeam.value;
-        const prevDept = filterDept.value;
-        const prevCat = filterCategory.value;
+    // Populate Dynamic Filters Options based on Loaded Scenario Data
+    function renderFiltersPanel() {
+        const container = document.getElementById("dynamic-filters-container");
+        if (!container) return;
 
-        // Locations
-        const locations = [...new Set(employees.map(e => e.location))];
-        filterLocation.innerHTML = "<option value=''>All Locations</option>";
-        locations.forEach(loc => {
-            const opt = document.createElement("option");
-            opt.value = loc;
-            opt.innerText = loc;
-            filterLocation.appendChild(opt);
-        });
-        filterLocation.value = locations.includes(prevLoc) ? prevLoc : "";
+        // Get unique lists
+        const locations = [...new Set(employees.map(e => e.location).filter(Boolean))].sort();
+        const teams = [...new Set(employees.map(e => e.team).filter(Boolean))].sort();
+        const depts = [...new Set(employees.map(e => e.department).filter(Boolean))].sort();
+        const managers = [...new Set(employees.map(e => e.manager).filter(Boolean))].sort();
+        const statuses = [...new Set(employees.map(e => e.status).filter(Boolean))].sort();
+        const categories = [...new Set(topics.map(t => t.category).filter(Boolean))].sort();
 
-        // Teams
-        const teams = [...new Set(employees.map(e => e.team))];
-        filterTeam.innerHTML = "<option value=''>All Teams</option>";
-        teams.forEach(team => {
-            const opt = document.createElement("option");
-            opt.value = team;
-            opt.innerText = team;
-            filterTeam.appendChild(opt);
-        });
-        filterTeam.value = teams.includes(prevTeam) ? prevTeam : "";
+        let html = `
+            <div class="filter-group" style="margin-bottom: 12px;">
+                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">Location</label>
+                <select id="filter-location" class="filter-dropdown" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);">
+                    <option value="">All Locations</option>
+                    ${locations.map(loc => `<option value="${loc}" ${filters.location === loc ? 'selected' : ''}>${loc}</option>`).join('')}
+                </select>
+            </div>
+            <div class="filter-group" style="margin-bottom: 12px;">
+                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">Team</label>
+                <select id="filter-team" class="filter-dropdown" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);">
+                    <option value="">All Teams</option>
+                    ${teams.map(t => `<option value="${t}" ${filters.team === t ? 'selected' : ''}>${t}</option>`).join('')}
+                </select>
+            </div>
+            <div class="filter-group" style="margin-bottom: 12px;">
+                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">Department</label>
+                <select id="filter-dept" class="filter-dropdown" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);">
+                    <option value="">All Departments</option>
+                    ${depts.map(d => `<option value="${d}" ${filters.department === d ? 'selected' : ''}>${d}</option>`).join('')}
+                </select>
+            </div>
+            <div class="filter-group" style="margin-bottom: 12px;">
+                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">Topic Category (columns)</label>
+                <select id="filter-category" class="filter-dropdown" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);">
+                    <option value="">All Categories</option>
+                    ${categories.map(c => `<option value="${c}" ${filters.category === c ? 'selected' : ''}>${c}</option>`).join('')}
+                </select>
+            </div>
+            <div class="filter-group" style="margin-bottom: 12px;">
+                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">Manager</label>
+                <select id="filter-manager" class="filter-dropdown" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);">
+                    <option value="">All Managers</option>
+                    ${managers.map(m => `<option value="${m}" ${filters.manager === m ? 'selected' : ''}>${m}</option>`).join('')}
+                </select>
+            </div>
+            <div class="filter-group" style="margin-bottom: 12px;">
+                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">Status</label>
+                <select id="filter-status" class="filter-dropdown" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);">
+                    <option value="">All Statuses</option>
+                    ${statuses.map(s => `<option value="${s}" ${filters.status === s ? 'selected' : ''}>${s}</option>`).join('')}
+                </select>
+            </div>
+            <div class="filter-group" style="margin-bottom: 12px;">
+                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">Active Project Allocation</label>
+                <select id="filter-active-topic" class="filter-dropdown" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);">
+                    <option value="">Any Project</option>
+                    ${topics.map(t => `<option value="${t.id}" ${filters.topicId === String(t.id) ? 'selected' : ''}>${t.name}</option>`).join('')}
+                </select>
+            </div>
+            <div class="filter-group" style="margin-bottom: 12px;">
+                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">Hourly Rate ($)</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="number" id="filter-min-rate" placeholder="Min" class="filter-dropdown" style="width: 50%; padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);" value="${filters.minRate || ''}">
+                    <input type="number" id="filter-max-rate" placeholder="Max" class="filter-dropdown" style="width: 50%; padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);" value="${filters.maxRate === 999999 ? '' : filters.maxRate}">
+                </div>
+            </div>
+        `;
 
-        // Departments
-        const depts = [...new Set(employees.map(e => e.department))];
-        filterDept.innerHTML = "<option value=''>All Departments</option>";
-        depts.forEach(dept => {
-            const opt = document.createElement("option");
-            opt.value = dept;
-            opt.innerText = dept;
-            filterDept.appendChild(opt);
-        });
-        filterDept.value = depts.includes(prevDept) ? prevDept : "";
+        container.innerHTML = html;
 
-        // Categories
-        const categories = [...new Set(topics.map(t => t.category))];
-        filterCategory.innerHTML = "<option value=''>All Categories</option>";
-        categories.forEach(cat => {
-            const opt = document.createElement("option");
-            opt.value = cat;
-            opt.innerText = cat;
-            filterCategory.appendChild(opt);
-        });
-        filterCategory.value = categories.includes(prevCat) ? prevCat : "";
+        // Bind event listeners
+        const bindListener = (id, prop, isNumeric = false) => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener("change", () => {
+                    if (isNumeric) {
+                        filters[prop] = el.value ? parseFloat(el.value) : (prop === 'minRate' ? 0 : 999999);
+                    } else {
+                        filters[prop] = el.value;
+                    }
+                    renderAllocationMatrix();
+                });
+                if (el.tagName === 'INPUT') {
+                    el.addEventListener("input", () => {
+                        if (isNumeric) {
+                            filters[prop] = el.value ? parseFloat(el.value) : (prop === 'minRate' ? 0 : 999999);
+                        } else {
+                            filters[prop] = el.value;
+                        }
+                        renderAllocationMatrix();
+                    });
+                }
+            }
+        };
+
+        bindListener("filter-location", "location");
+        bindListener("filter-team", "team");
+        bindListener("filter-dept", "department");
+        bindListener("filter-category", "category");
+        bindListener("filter-manager", "manager");
+        bindListener("filter-status", "status");
+        bindListener("filter-active-topic", "topicId");
+        bindListener("filter-min-rate", "minRate", true);
+        bindListener("filter-max-rate", "maxRate", true);
     }
 
     function updateSidebarFiltersVisibility() {
-        const sidebarFilters = document.querySelector(".sidebar-filters");
-        if (sidebarFilters) {
-            sidebarFilters.style.display = (activeSection === "matrix-section") ? "block" : "none";
-        }
+        // Sidebar filters moved to Allocation Grid tab; no operations needed here.
     }
 
     function setAppTheme(themeName) {

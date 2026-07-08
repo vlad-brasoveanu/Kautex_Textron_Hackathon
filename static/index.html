@@ -127,35 +127,7 @@
                 </ul>
             </nav>
 
-            <!-- Filters Section -->
-            <div class="sidebar-filters">
-                <h3><i class="fa-solid fa-filter"></i> Matrix Filters</h3>
-                <div class="filter-group">
-                    <label for="filter-location">Location</label>
-                    <select id="filter-location" class="filter-dropdown">
-                        <option value="">All Locations</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label for="filter-team">Team</label>
-                    <select id="filter-team" class="filter-dropdown">
-                        <option value="">All Teams</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label for="filter-dept">Department</label>
-                    <select id="filter-dept" class="filter-dropdown">
-                        <option value="">All Departments</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label for="filter-category">Topic Category</label>
-                    <select id="filter-category" class="filter-dropdown">
-                        <option value="">All Categories</option>
-                    </select>
-                </div>
-                <button id="btn-reset-filters" class="btn btn-secondary btn-full"><i class="fa-solid fa-filter-circle-xmark"></i> Reset Filters</button>
-            </div>
+            <!-- Filters Section moved inside grid tab -->
 
             <!-- AI Trigger Button -->
             <div class="ai-trigger-container">
@@ -183,9 +155,18 @@
                     </div>
                 </div>
                 
-                <div class="matrix-wrapper">
-                    <!-- Matrix Grid will be rendered dynamically -->
-                    <div id="allocation-matrix-container"></div>
+                <div class="matrix-layout-container" style="display: flex; gap: 20px; align-items: flex-start; width: 100%;">
+                    <div class="matrix-wrapper" style="flex: 1; min-width: 0; overflow-x: auto;">
+                        <!-- Matrix Grid will be rendered dynamically -->
+                        <div id="allocation-matrix-container"></div>
+                    </div>
+                    <div id="matrix-filters-panel" class="matrix-filters-panel" style="width: 280px; flex-shrink: 0; background: var(--glass-bg); backdrop-filter: blur(10px); border: 1px solid var(--glass-border); padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm); max-height: calc(100vh - 180px); overflow-y: auto;">
+                        <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px; color: var(--text-primary);"><i class="fa-solid fa-filter"></i> Matrix Filters</h3>
+                        <div id="dynamic-filters-container">
+                            <!-- Dynamic filters will be rendered here based on columns/rows -->
+                        </div>
+                        <button id="btn-reset-filters" class="btn btn-secondary btn-full" style="margin-top: 15px; width: 100%;"><i class="fa-solid fa-filter-circle-xmark"></i> Reset Filters</button>
+                    </div>
                 </div>
             </section>
 

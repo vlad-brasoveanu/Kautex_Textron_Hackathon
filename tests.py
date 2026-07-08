@@ -442,15 +442,23 @@ def test_excel_importer(setup_database):
     assert res_data["imported_additional_costs"] == 1
 
 def test_scenario_backup_restore(setup_database):
-    # 1. Add some mock data to scenario 1
+    # 1. Add some mock data to scenario 1, including a topic with recovery/
+    # description and an additional cost - these are the fields that a prior
+    # backup/restore bug silently dropped (wrong AdditionalCost field names,
+    # and only name/category were preserved on topics).
     emp_payload = {"name": "Backup Employee", "team": "QA", "department": "Engineering", "location": "Romania", "available_hours": 1600, "hourly_rate": 45.0}
     response = client.post("/api/employees", json=emp_payload, headers=admin_headers)
     assert response.status_code == 200
-    
-    topic_payload = {"name": "Backup Topic", "category": "Testing"}
+
+    topic_payload = {"name": "Backup Topic", "category": "Testing", "description": "Full regression suite", "recovery": 2500.0}
     response = client.post("/api/topics", json=topic_payload, headers=admin_headers)
     assert response.status_code == 200
-    
+    topic_id = response.json()["id"]
+
+    cost_payload = {"cost_type": "external", "category": "Tooling", "amount": 7500.0, "notes": "Rig rental"}
+    response = client.post(f"/api/topics/{topic_id}/costs", json=cost_payload, headers=admin_headers)
+    assert response.status_code == 200
+
     # Get backup of scenario 1
     response = client.get("/api/scenarios/1/backup", headers=admin_headers)
     assert response.status_code == 200
@@ -458,7 +466,16 @@ def test_scenario_backup_restore(setup_database):
     assert backup_data["name"] == "Test Scenario"
     assert len(backup_data["employees"]) > 0
     assert len(backup_data["topics"]) > 0
-    
+
+    backed_up_topic = next(t for t in backup_data["topics"] if t["name"] == "Backup Topic")
+    assert backed_up_topic["description"] == "Full regression suite"
+    assert backed_up_topic["recovery"] == 2500.0
+
+    backed_up_cost = next(c for c in backup_data["additional_costs"] if c["topic_name"] == "Backup Topic")
+    assert backed_up_cost["category"] == "Tooling"
+    assert backed_up_cost["amount"] == 7500.0
+    assert backed_up_cost["notes"] == "Rig rental"
+
     # 2. Restore scenario 1 from backup_data
     restore_payload = {
         "name": "Restored Scenario",
@@ -468,17 +485,28 @@ def test_scenario_backup_restore(setup_database):
         "allocations": backup_data["allocations"],
         "additional_costs": backup_data["additional_costs"]
     }
-    
+
     response = client.post("/api/scenarios/1/restore", json=restore_payload, headers=admin_headers)
     assert response.status_code == 200
     assert response.json()["status"] == "success"
-    
+
     # Verify scenario was updated
     response = client.get("/api/scenarios", headers=admin_headers)
     assert response.status_code == 200
     active_scenario = next(s for s in response.json() if s["is_active"])
     assert active_scenario["name"] == "Restored Scenario"
     assert active_scenario["description"] == "Successfully restored scenario"
+
+    # Verify the restored topic and additional cost kept their full data, not
+    # just name/category.
+    response = client.get("/api/topics", headers=admin_headers)
+    assert response.status_code == 200
+    restored_topic = next(t for t in response.json() if t["name"] == "Backup Topic")
+    assert restored_topic["description"] == "Full regression suite"
+    assert restored_topic["recovery"] == 2500.0
+    restored_cost = next(c for c in restored_topic["additional_costs"] if c["category"] == "Tooling")
+    assert restored_cost["amount"] == 7500.0
+    assert restored_cost["notes"] == "Rig rental"
 
 def test_export_excel_endpoint(setup_database):
     # Verify authentication required

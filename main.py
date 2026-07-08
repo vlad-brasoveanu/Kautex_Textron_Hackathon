@@ -493,7 +493,16 @@ def backup_scenario(scenario_id: int, db: Session = Depends(get_db), current_use
         "topics": [
             {
                 "name": t.name,
-                "category": t.category
+                "category": t.category,
+                "area": t.area,
+                "description": t.description,
+                "objective": t.objective,
+                "deliverables": t.deliverables,
+                "justification": t.justification,
+                "status": t.status,
+                "comments": t.comments,
+                "notes": t.notes,
+                "recovery": t.recovery
             } for t in topics
         ],
         "allocations": [
@@ -508,8 +517,9 @@ def backup_scenario(scenario_id: int, db: Session = Depends(get_db), current_use
             {
                 "topic_name": next((t.name for t in topics if t.id == c.topic_id), None),
                 "cost_type": c.cost_type,
-                "cost_value": c.cost_value,
-                "description": c.description
+                "category": c.category,
+                "amount": c.amount,
+                "notes": c.notes
             } for c in additional_costs
         ]
     }
@@ -572,13 +582,22 @@ def restore_scenario(scenario_id: int, payload: schemas.RestorePayload, db: Sess
         topic = models.Topic(
             name=topic_data["name"],
             category=topic_data.get("category", "General"),
+            area=topic_data.get("area"),
+            description=topic_data.get("description"),
+            objective=topic_data.get("objective"),
+            deliverables=topic_data.get("deliverables"),
+            justification=topic_data.get("justification"),
+            status=topic_data.get("status", "Active"),
+            comments=topic_data.get("comments"),
+            notes=topic_data.get("notes"),
+            recovery=topic_data.get("recovery", 0.0),
             scenario_id=scenario_id
         )
         db.add(topic)
         db.commit()
         db.refresh(topic)
         topic_name_map[topic.name] = topic.id
-        
+
     for alloc_data in payload.allocations:
         emp_id = emp_name_map.get(alloc_data["employee_name"])
         topic_id = topic_name_map.get(alloc_data["topic_name"])
@@ -590,15 +609,16 @@ def restore_scenario(scenario_id: int, payload: schemas.RestorePayload, db: Sess
                 comment=alloc_data.get("comment", "")
             )
             db.add(alloc)
-            
+
     for cost_data in payload.additional_costs:
         topic_id = topic_name_map.get(cost_data["topic_name"])
         if topic_id:
             ac = models.AdditionalCost(
                 topic_id=topic_id,
                 cost_type=cost_data["cost_type"],
-                cost_value=cost_data["cost_value"],
-                description=cost_data.get("description", "")
+                category=cost_data.get("category", "Other"),
+                amount=cost_data.get("amount", 0.0),
+                notes=cost_data.get("notes")
             )
             db.add(ac)
             
@@ -1303,6 +1323,9 @@ def export_excel_data(
     category: Optional[str] = None,
     minRate: Optional[float] = None,
     maxRate: Optional[float] = None,
+    manager: Optional[str] = None,
+    status: Optional[str] = None,
+    topicId: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
@@ -1323,8 +1346,13 @@ def export_excel_data(
         if location and emp.location != location: continue
         if team and emp.team != team: continue
         if department and emp.department != department: continue
+        if manager and emp.manager != manager: continue
+        if status and emp.status != status: continue
         if minRate is not None and emp.hourly_rate < minRate: continue
         if maxRate is not None and emp.hourly_rate > maxRate: continue
+        if topicId is not None:
+            pct = alloc_map.get((emp.id, topicId), 0.0)
+            if pct <= 0.0: continue
         filtered_employees.append(emp)
         
     filtered_topics = []
