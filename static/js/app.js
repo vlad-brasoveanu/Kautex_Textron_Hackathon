@@ -2382,6 +2382,12 @@ document.addEventListener("DOMContentLoaded", () => {
             btnExportCSV.addEventListener("click", exportMatrixToCSV);
         }
 
+        // Export Matrix Excel trigger
+        const btnExportExcel = document.getElementById("btn-export-matrix-excel");
+        if (btnExportExcel) {
+            btnExportExcel.addEventListener("click", exportMatrixToExcel);
+        }
+
         // Refresh Audit Logs trigger
         const btnRefreshLogs = document.getElementById("btn-refresh-logs");
         if (btnRefreshLogs) {
@@ -3247,6 +3253,54 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    async function exportMatrixToExcel() {
+        const token = localStorage.getItem("token");
+        const queryParams = new URLSearchParams();
+        if (filters.location) queryParams.append("location", filters.location);
+        if (filters.team) queryParams.append("team", filters.team);
+        if (filters.department) queryParams.append("department", filters.department);
+        if (filters.category) queryParams.append("category", filters.category);
+        if (filters.minRate !== undefined && filters.minRate !== 0) queryParams.append("minRate", filters.minRate);
+        if (filters.maxRate !== undefined && filters.maxRate !== 999999) queryParams.append("maxRate", filters.maxRate);
+        
+        try {
+            const response = await fetch(`/api/export/excel?${queryParams.toString()}`, {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            });
+            if (!response.ok) {
+                alert("Failed to export matrix to Excel");
+                return;
+            }
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `Allocation_Matrix_${activeScenario ? activeScenario.name.replace(/ /g, "_") : "export"}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+            
+            await fetch("/api/reports/log-export", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    report_name: `Allocation Matrix (${activeScenario ? activeScenario.name : "Scenario"})`,
+                    format: "Excel"
+                })
+            });
+        } catch (err) {
+            console.error("Failed to download Excel file or log export:", err);
+            alert("Error downloading Excel file.");
+        }
+    }
+
     // ==========================================
     // 9. LOCAL AI CHAT LOGIC
     // ==========================================
@@ -3295,6 +3349,14 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             if (resData.filters) {
+                // Reset all filters to default before applying the AI filters
+                filters.location = "";
+                filters.team = "";
+                filters.department = "";
+                filters.category = "";
+                filters.minRate = 0;
+                filters.maxRate = 999999;
+
                 // Apply the filters to the global filters object
                 if (resData.filters.location !== undefined) filters.location = resData.filters.location;
                 if (resData.filters.team !== undefined) filters.team = resData.filters.team;

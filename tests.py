@@ -479,3 +479,32 @@ def test_scenario_backup_restore(setup_database):
     active_scenario = next(s for s in response.json() if s["is_active"])
     assert active_scenario["name"] == "Restored Scenario"
     assert active_scenario["description"] == "Successfully restored scenario"
+
+def test_export_excel_endpoint(setup_database):
+    # Verify authentication required
+    response = client.get("/api/export/excel")
+    assert response.status_code == 401
+    
+    # Query with authentication headers
+    response = client.get("/api/export/excel?location=Romania", headers=user_headers)
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    
+    # Read the streamed bytes using openpyxl
+    file_bytes = io.BytesIO(response.content)
+    wb = openpyxl.load_workbook(file_bytes)
+    assert "Allocation Matrix" in wb.sheetnames
+    
+    ws = wb["Allocation Matrix"]
+    # Check headers
+    headers = [cell.value for cell in ws[1]]
+    assert "Employee" in headers
+    assert "Team" in headers
+    assert "Location" in headers
+    
+    # Check that location is Romania
+    # Row 1 is header, Row 2 is first employee
+    if ws.max_row > 1:
+        loc_idx = headers.index("Location") + 1
+        assert ws.cell(row=2, column=loc_idx).value == "Romania"
+

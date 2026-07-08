@@ -7,6 +7,7 @@ import json
 import urllib.request
 import urllib.error
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Header, status
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -1293,6 +1294,100 @@ async def import_csv_data(file: UploadFile = File(...), db: Session = Depends(ge
         "imported_allocations": added_allocs,
         "imported_additional_costs": added_costs
     }
+
+@app.get("/api/export/excel")
+def export_excel_data(
+    location: Optional[str] = None,
+    team: Optional[str] = None,
+    department: Optional[str] = None,
+    category: Optional[str] = None,
+    minRate: Optional[float] = None,
+    maxRate: Optional[float] = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    active_scenario = get_active_scenario_db(db)
+    
+    # Load data
+    employees = db.query(models.Employee).filter(models.Employee.scenario_id == active_scenario.id).all()
+    topics = db.query(models.Topic).filter(models.Topic.scenario_id == active_scenario.id).all()
+    allocations = db.query(models.Allocation).join(models.Employee).filter(models.Employee.scenario_id == active_scenario.id).all()
+    
+    alloc_map = {}
+    for a in allocations:
+        alloc_map[(a.employee_id, a.topic_id)] = a.percentage
+
+    # Apply filters
+    filtered_employees = []
+    for emp in employees:
+        if location and emp.location != location: continue
+        if team and emp.team != team: continue
+        if department and emp.department != department: continue
+        if minRate is not None and emp.hourly_rate < minRate: continue
+        if maxRate is not None and emp.hourly_rate > maxRate: continue
+        filtered_employees.append(emp)
+        
+    filtered_topics = []
+    for t in topics:
+        if category and t.category != category: continue
+        filtered_topics.append(t)
+        
+    # Create workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Allocation Matrix"
+    
+    # Headers
+    headers = ["Employee", "Team", "Location", "Hours/Year", "Hourly Rate"]
+    for t in filtered_topics:
+        headers.append(t.name)
+    ws.append(headers)
+    
+    # Employee rows
+    for emp in filtered_employees:
+        row = [emp.name, emp.team, emp.location, emp.available_hours, emp.hourly_rate]
+        for t in filtered_topics:
+            pct = alloc_map.get((emp.id, t.id), 0.0)
+            row.append(pct)
+        ws.append(row)
+        
+    # Additional costs
+    category_rows = {}
+    for t in filtered_topics:
+        for ac in t.additional_costs:
+            if ac.category not in category_rows:
+                category_rows[ac.category] = {}
+            category_rows[ac.category][t.id] = category_rows[ac.category].get(t.id, 0.0) + ac.amount
+            
+    has_recovery = any(t.recovery and t.recovery != 0 for t in filtered_topics)
+    
+    if category_rows or has_recovery:
+        # Empty separator row
+        ws.append([])
+        
+    for cat_name, topic_costs in category_rows.items():
+        row = [cat_name, "", "", "", ""]
+        for t in filtered_topics:
+            amt = topic_costs.get(t.id, "")
+            row.append(amt)
+        ws.append(row)
+        
+    if has_recovery:
+        row = ["Recovery", "", "", "", ""]
+        for t in filtered_topics:
+            amt = t.recovery if t.recovery else ""
+            row.append(amt)
+        ws.append(row)
+        
+    # Save workbook to memory stream
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    headers_resp = {
+        'Content-Disposition': f'attachment; filename="Allocation_Matrix_{active_scenario.name.replace(" ", "_")}.xlsx"'
+    }
+    return StreamingResponse(output, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers=headers_resp)
 
 # ==========================================
 # 7. CONFIDENTIAL LOCAL AI ASSISTANT
