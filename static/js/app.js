@@ -69,6 +69,11 @@ document.addEventListener("DOMContentLoaded", () => {
     let auditLogActionFilter = "";
     let auditLogUserFilter = "";
 
+    // User Settings search/filter state - same client-side re-filter pattern.
+    let usersCache = [];
+    let userSearch = "";
+    let userRoleFilter = "";
+
     // Executive dashboard overview table sort states
     let teamOvSortField = "total_cost";
     let teamOvSortOrder = -1;
@@ -2370,6 +2375,22 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
 
+        // User Settings search + role filter (client-side, re-filters the cached user list)
+        const searchUsers = document.getElementById("search-users");
+        if (searchUsers) {
+            searchUsers.addEventListener("input", (e) => {
+                userSearch = e.target.value.trim();
+                renderUsersTable();
+            });
+        }
+        const filterUsersRole = document.getElementById("filter-users-role");
+        if (filterUsersRole) {
+            filterUsersRole.addEventListener("change", (e) => {
+                userRoleFilter = e.target.value;
+                renderUsersTable();
+            });
+        }
+
         // Create user form submission handler
         const formManageUser = document.getElementById("form-manage-create-user");
         if (formManageUser) {
@@ -2814,7 +2835,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const tbody = document.querySelector("#admin-users-table tbody");
         if (!tbody) return;
         tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;"><i class="fa-solid fa-spinner fa-spin"></i> Loading users...</td></tr>';
-        
+
         // Setup Create Role selector options based on user privilege
         const optAdmin = document.getElementById("opt-m-create-admin");
         if (optAdmin) {
@@ -2825,7 +2846,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 document.getElementById("m-create-role").value = "user";
             }
         }
-        
+
         try {
             const token = localStorage.getItem("token");
             const response = await fetch("/api/users", {
@@ -2834,78 +2855,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
             if (response.ok) {
-                const users = await response.json();
-                tbody.innerHTML = "";
-                if (users.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-secondary);">No user accounts found.</td></tr>';
-                    return;
-                }
-                users.forEach(u => {
-                    const tr = document.createElement("tr");
-                    
-                    let roleBadgeClass = "badge-secondary";
-                    if (u.role === "master_admin") roleBadgeClass = "badge-danger";
-                    else if (u.role === "admin") roleBadgeClass = "badge-primary";
-                    
-                    // Only show delete option for accounts we are authorized to delete
-                    const currentUsername = localStorage.getItem("username");
-                    let deleteBtn = "";
-                    
-                    const canDeleteMaster = activeRole === "master_admin" && u.role !== "master_admin" && u.username !== currentUsername;
-                    const canDeleteAdmin = activeRole === "admin" && u.role === "user" && u.username !== currentUsername;
-                    
-                    if (canDeleteMaster || canDeleteAdmin) {
-                        deleteBtn = `<button class="btn btn-secondary btn-sm btn-delete-user" data-id="${u.id}" style="color: var(--danger-color); padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(239, 68, 68, 0.2);"><i class="fa-solid fa-trash-can"></i> Delete</button>`;
-                    } else {
-                        deleteBtn = `<span style="font-size: 11px; color: var(--text-muted);">Protected</span>`;
-                    }
-                    
-                    // Optional profile details - shown as a subtitle under the name when present
-                    const subtitleParts = [u.position, u.department].filter(Boolean);
-                    const subtitle = subtitleParts.length
-                        ? `<br><small style="font-weight: normal; color: var(--text-secondary);">${subtitleParts.join(" &middot; ")}</small>`
-                        : "";
-                    const tooltipParts = [];
-                    if (u.email) tooltipParts.push(`Email: ${u.email}`);
-                    if (u.supervisor) tooltipParts.push(`Supervisor: ${u.supervisor}`);
-                    const tooltipAttr = tooltipParts.length ? ` title="${tooltipParts.join(" | ").replace(/"/g, "&quot;")}"` : "";
-
-                    tr.innerHTML = `
-                        <td${tooltipAttr}><strong>${u.name}</strong>${subtitle}</td>
-                        <td style="font-size: 12px; color: var(--text-secondary);">${u.username}</td>
-                        <td><span class="badge ${roleBadgeClass}">${u.role}</span></td>
-                        <td>${deleteBtn}</td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-                
-                // Add event listeners to delete buttons
-                document.querySelectorAll(".btn-delete-user").forEach(b => {
-                    b.addEventListener("click", async () => {
-                        const id = b.getAttribute("data-id");
-                        const userRow = users.find(u => u.id == id);
-                        if (!userRow) return;
-                        if (confirm(`Are you sure you want to delete user account '${userRow.name}' (${userRow.username})?`)) {
-                            try {
-                                const response = await fetch(`/api/users/${id}`, {
-                                    method: "DELETE",
-                                    headers: {
-                                        "Authorization": `Bearer ${token}`
-                                    }
-                                });
-                                if (response.ok) {
-                                    fetchAndRenderUsers();
-                                } else {
-                                    const err = await response.json();
-                                    alert(err.detail || "Failed to delete user account.");
-                                }
-                            } catch (err) {
-                                console.error("Error deleting user:", err);
-                                alert("Connection error.");
-                            }
-                        }
-                    });
-                });
+                usersCache = await response.json();
+                populateUserRoleFilterDropdown();
+                renderUsersTable();
             } else {
                 tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--danger-color);"><i class="fa-solid fa-triangle-exclamation"></i> Error loading user accounts.</td></tr>';
             }
@@ -2913,6 +2865,126 @@ document.addEventListener("DOMContentLoaded", () => {
             console.error("Error loading users:", err);
             tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--danger-color);">Connection error.</td></tr>';
         }
+    }
+
+    function populateUserRoleFilterDropdown() {
+        const select = document.getElementById("filter-users-role");
+        if (!select) return;
+        const prevVal = select.value;
+        const roles = [...new Set(usersCache.map(u => u.role))].sort();
+        select.innerHTML = '<option value="">All Roles</option>';
+        roles.forEach(r => {
+            const opt = document.createElement("option");
+            opt.value = r;
+            opt.textContent = r;
+            select.appendChild(opt);
+        });
+        select.value = roles.includes(prevVal) ? prevVal : "";
+    }
+
+    function renderUsersTable() {
+        const tbody = document.querySelector("#admin-users-table tbody");
+        const countLabel = document.getElementById("users-result-count");
+        if (!tbody) return;
+
+        let filtered = [...usersCache];
+
+        if (userRoleFilter) {
+            filtered = filtered.filter(u => u.role === userRoleFilter);
+        }
+        if (userSearch) {
+            const q = userSearch.toLowerCase();
+            filtered = filtered.filter(u =>
+                u.name.toLowerCase().includes(q) ||
+                u.username.toLowerCase().includes(q) ||
+                (u.email || "").toLowerCase().includes(q) ||
+                (u.department || "").toLowerCase().includes(q) ||
+                (u.position || "").toLowerCase().includes(q) ||
+                (u.supervisor || "").toLowerCase().includes(q)
+            );
+        }
+
+        if (countLabel) {
+            countLabel.innerText = `Showing ${filtered.length} of ${usersCache.length} accounts.`;
+        }
+
+        tbody.innerHTML = "";
+        if (usersCache.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-secondary);">No user accounts found.</td></tr>';
+            return;
+        }
+        if (filtered.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-secondary);">No accounts match your search/filter.</td></tr>';
+            return;
+        }
+
+        const token = localStorage.getItem("token");
+        const currentUsername = localStorage.getItem("username");
+
+        filtered.forEach(u => {
+            const tr = document.createElement("tr");
+
+            let roleBadgeClass = "badge-secondary";
+            if (u.role === "master_admin") roleBadgeClass = "badge-danger";
+            else if (u.role === "admin") roleBadgeClass = "badge-primary";
+
+            // Only show delete option for accounts we are authorized to delete
+            let deleteBtn = "";
+            const canDeleteMaster = activeRole === "master_admin" && u.role !== "master_admin" && u.username !== currentUsername;
+            const canDeleteAdmin = activeRole === "admin" && u.role === "user" && u.username !== currentUsername;
+
+            if (canDeleteMaster || canDeleteAdmin) {
+                deleteBtn = `<button class="btn btn-secondary btn-sm btn-delete-user" data-id="${u.id}" style="color: var(--danger-color); padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(239, 68, 68, 0.2);"><i class="fa-solid fa-trash-can"></i> Delete</button>`;
+            } else {
+                deleteBtn = `<span style="font-size: 11px; color: var(--text-muted);">Protected</span>`;
+            }
+
+            // Optional profile details - shown as a subtitle under the name when present
+            const subtitleParts = [u.position, u.department].filter(Boolean);
+            const subtitle = subtitleParts.length
+                ? `<br><small style="font-weight: normal; color: var(--text-secondary);">${subtitleParts.join(" &middot; ")}</small>`
+                : "";
+            const tooltipParts = [];
+            if (u.email) tooltipParts.push(`Email: ${u.email}`);
+            if (u.supervisor) tooltipParts.push(`Supervisor: ${u.supervisor}`);
+            const tooltipAttr = tooltipParts.length ? ` title="${tooltipParts.join(" | ").replace(/"/g, "&quot;")}"` : "";
+
+            tr.innerHTML = `
+                <td${tooltipAttr}><strong>${u.name}</strong>${subtitle}</td>
+                <td style="font-size: 12px; color: var(--text-secondary);">${u.username}</td>
+                <td><span class="badge ${roleBadgeClass}">${u.role}</span></td>
+                <td>${deleteBtn}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        // Add event listeners to delete buttons
+        document.querySelectorAll(".btn-delete-user").forEach(b => {
+            b.addEventListener("click", async () => {
+                const id = b.getAttribute("data-id");
+                const userRow = usersCache.find(u => u.id == id);
+                if (!userRow) return;
+                if (confirm(`Are you sure you want to delete user account '${userRow.name}' (${userRow.username})?`)) {
+                    try {
+                        const response = await fetch(`/api/users/${id}`, {
+                            method: "DELETE",
+                            headers: {
+                                "Authorization": `Bearer ${token}`
+                            }
+                        });
+                        if (response.ok) {
+                            fetchAndRenderUsers();
+                        } else {
+                            const err = await response.json();
+                            alert(err.detail || "Failed to delete user account.");
+                        }
+                    } catch (err) {
+                        console.error("Error deleting user:", err);
+                        alert("Connection error.");
+                    }
+                }
+            });
+        });
     }
 
     async function exportMatrixToCSV() {

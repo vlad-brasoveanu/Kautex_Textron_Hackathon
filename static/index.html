@@ -590,8 +590,15 @@
                 <div class="dashboard-grid" style="grid-template-columns: 2fr 1fr; gap: 20px; align-items: start;">
                     <!-- Left: User Accounts Table -->
                     <div class="crud-card" style="width: 100%;">
-                        <div class="crud-card-header">
+                        <div class="crud-card-header" style="flex-direction: column; align-items: stretch; gap: 8px;">
                             <h3>Active System User Accounts</h3>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="text" id="search-users" placeholder="Search by name, username, or profile details..." style="flex: 1; padding: 6px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none;">
+                                <select id="filter-users-role" style="padding: 6px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none; max-width: 160px;">
+                                    <option value="">All Roles</option>
+                                </select>
+                            </div>
+                            <p class="section-desc" id="users-result-count" style="margin: 0;"></p>
                         </div>
                         <div class="crud-table-wrapper">
                             <table class="crud-table" id="admin-users-table">
