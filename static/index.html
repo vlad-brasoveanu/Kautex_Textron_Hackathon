@@ -116,7 +116,7 @@
                         <i class="fa-solid fa-sliders"></i> Management Panel
                     </li>
                     <li class="nav-item admin-only" data-target="upload-section" style="display: none;">
-                        <i class="fa-solid fa-cloud-arrow-up"></i> Upload CSV Sheet (Admin)
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Upload CSV / Excel (Admin)
                     </li>
                     <li class="nav-item admin-only" data-target="logs-section" style="display: none;">
                         <i class="fa-solid fa-list-check"></i> Audit Logs (Admin)
@@ -514,32 +514,65 @@
              <!-- SECTION 5: EXCEL / CSV FILE UPLOAD (ADMIN ONLY) -->
             <section id="upload-section" class="main-section admin-only" style="display: none;">
                 <div class="section-header">
-                    <h2><i class="fa-solid fa-cloud-arrow-up"></i> Upload Planning Sheet</h2>
-                    <p class="section-desc">Instantly populate the active planning version by uploading an Excel (.xlsx/.xls) or CSV matrix planning sheet.</p>
+                    <h2><i class="fa-solid fa-file-arrow-up"></i> Upload CSV / Excel Sheet</h2>
+                    <p class="section-desc">Instantly populate the active planning version by uploading an Excel (.xlsx/.xls) or CSV matrix planning sheet, or re-apply a file from your upload history below.</p>
                 </div>
 
-                <div class="upload-container">
-                    <div class="drag-drop-area" id="csv-drag-drop">
-                        <i class="fa-solid fa-file-excel upload-big-icon" style="color: #107c41;"></i>
-                        <p>Drag and drop your planning CSV or Excel file here, or click to browse</p>
-                        <input type="file" id="csv-file-input" accept=".csv, .xlsx, .xls" style="display: none;">
-                        <button class="btn btn-primary">Browse Files</button>
-                    </div>
+                <div class="dash-tabs">
+                    <button class="upload-tab active" data-upload-tab="tab-upload-new">Upload New File</button>
+                    <button class="upload-tab" data-upload-tab="tab-upload-history">Upload History</button>
+                </div>
 
-                    <!-- Status Display -->
-                    <div id="upload-status" class="upload-status-box" style="display: none;">
-                        <!-- Status results populated dynamically -->
-                    </div>
+                <div id="tab-upload-new" class="upload-tab-content active">
+                    <div class="upload-container">
+                        <div class="drag-drop-area" id="csv-drag-drop">
+                            <i class="fa-solid fa-file-excel upload-big-icon" style="color: #107c41;"></i>
+                            <p>Drag and drop your planning CSV or Excel file here, or click to browse</p>
+                            <input type="file" id="csv-file-input" accept=".csv, .xlsx, .xls" style="display: none;">
+                            <button class="btn btn-primary">Browse Files</button>
+                        </div>
 
-                    <!-- Instructions and Sample Layout -->
-                    <div class="upload-instructions">
-                        <h3><i class="fa-solid fa-circle-info"></i> CSV / Excel Layout Format Instructions</h3>
-                        <p>Your uploaded sheet must match the standard matrix planning layout:</p>
-                        <ul>
-                            <li>The first row must contain columns: <code>Employee</code>, <code>Team</code>, <code>Location</code>, <code>Hours/Year</code> (or <code>Available hours/year (Region 100%)</code>), <code>Hourly Rate</code>, followed by the specific Topic/Project columns (e.g. <code>Agentic AI</code>, <code>Fuel Project</code>).</li>
-                            <li>The rows below should represent employees. The intersection cells represent their allocation percentage (e.g. <code>20%</code>, <code>0.2</code>, or <code>20</code>).</li>
-                            <li>Optional additional costs can be appended at the bottom by adding rows starting with cost names (e.g., <code>CAD</code>, <code>Tooling</code>, <code>Prototypes</code>, <code>Recovery</code>) and entering cost amounts under the corresponding topic columns.</li>
-                        </ul>
+                        <!-- Status Display -->
+                        <div id="upload-status" class="upload-status-box" style="display: none;">
+                            <!-- Status results populated dynamically -->
+                        </div>
+
+                        <!-- Instructions and Sample Layout -->
+                        <div class="upload-instructions">
+                            <h3><i class="fa-solid fa-circle-info"></i> CSV / Excel Layout Format Instructions</h3>
+                            <p>Your uploaded sheet must match the standard matrix planning layout:</p>
+                            <ul>
+                                <li>The first row must contain columns: <code>Employee</code>, <code>Team</code>, <code>Location</code>, <code>Hours/Year</code> (or <code>Available hours/year (Region 100%)</code>), <code>Hourly Rate</code>, followed by the specific Topic/Project columns (e.g. <code>Agentic AI</code>, <code>Fuel Project</code>).</li>
+                                <li>The rows below should represent employees. The intersection cells represent their allocation percentage (e.g. <code>20%</code>, <code>0.2</code>, or <code>20</code>).</li>
+                                <li>Optional additional costs can be appended at the bottom by adding rows starting with cost names (e.g., <code>CAD</code>, <code>Tooling</code>, <code>Prototypes</code>, <code>Recovery</code>) and entering cost amounts under the corresponding topic columns.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-upload-history" class="upload-tab-content">
+                    <div class="crud-card" style="width: 100%;">
+                        <div class="crud-card-header">
+                            <h3>Previously Uploaded Files</h3>
+                            <p class="section-desc" style="margin: 0;">Every CSV/Excel upload is kept here. Select "Apply" to re-import a previous file's data into the active planning version - useful for reverting a bad import or comparing an older sheet.</p>
+                        </div>
+                        <div class="crud-table-wrapper">
+                            <table class="crud-table" id="upload-history-table">
+                                <thead>
+                                    <tr>
+                                        <th>File</th>
+                                        <th style="width: 90px;">Type</th>
+                                        <th style="width: 170px;">Uploaded</th>
+                                        <th style="width: 130px;">By</th>
+                                        <th style="width: 170px;">Rows Imported</th>
+                                        <th style="width: 90px;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </section>

@@ -12,6 +12,9 @@ env/
 *.db
 *.sqlite3
 
+# Stored copies of uploaded planning sheets (see UploadHistory)
+/uploads/
+
 # System files
 .DS_Store
 Thumbs.db

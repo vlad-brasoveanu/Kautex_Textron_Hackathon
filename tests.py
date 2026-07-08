@@ -372,6 +372,52 @@ def test_csv_importer(setup_database):
     assert res_data["imported_allocations"] == 1
     assert res_data["imported_additional_costs"] == 1
 
+def test_upload_history_recorded_and_reapplied(setup_database):
+    # 1. Upload a file - it should show up in Upload History
+    csv_data = [
+        ["Employee", "Team", "Location", "Hours/Year", "Hourly Rate", "Initiative A"],
+        ["History User", "Test Team", "Romania", "1800", "60.0", "50%"],
+    ]
+    output = io.StringIO()
+    csv.writer(output).writerows(csv_data)
+    file_payload = {"file": ("history_test.csv", output.getvalue(), "text/csv")}
+    response = client.post("/api/import/csv", files=file_payload, headers=admin_headers)
+    assert response.status_code == 200
+
+    response = client.get("/api/uploads/history", headers=admin_headers)
+    assert response.status_code == 200
+    history = response.json()
+    assert len(history) == 1
+    record = history[0]
+    assert record["original_filename"] == "history_test.csv"
+    assert record["file_type"] == "csv"
+    assert record["uploaded_by"] == "admin"
+    assert record["imported_employees"] == 1
+
+    # 2. A standard user cannot view or apply upload history
+    response = client.get("/api/uploads/history", headers=user_headers)
+    assert response.status_code == 403
+    response = client.post(f"/api/uploads/history/{record['id']}/apply", headers=user_headers)
+    assert response.status_code == 403
+
+    # 3. Delete the employee that came from the upload, then re-apply the
+    # historical file - it should be recreated, proving the stored file was
+    # actually re-parsed and re-applied, not just relabeled.
+    emp_resp = client.get("/api/employees", headers=admin_headers)
+    hist_emp = next(e for e in emp_resp.json() if e["name"] == "History User")
+    response = client.delete(f"/api/employees/{hist_emp['id']}", headers=admin_headers)
+    assert response.status_code == 200
+
+    emp_resp = client.get("/api/employees", headers=admin_headers)
+    assert not any(e["name"] == "History User" for e in emp_resp.json())
+
+    response = client.post(f"/api/uploads/history/{record['id']}/apply", headers=admin_headers)
+    assert response.status_code == 200
+    assert response.json()["status"] == "success"
+
+    emp_resp = client.get("/api/employees", headers=admin_headers)
+    assert any(e["name"] == "History User" for e in emp_resp.json())
+
 def test_csv_importer_missing_columns_keeps_existing_values(setup_database):
     # First upload establishes full employee data (team, location, hours, rate)
     full_csv = [
@@ -524,15 +570,18 @@ def test_export_excel_endpoint(setup_database):
     assert "Allocation Matrix" in wb.sheetnames
     
     ws = wb["Allocation Matrix"]
-    # Check headers
-    headers = [cell.value for cell in ws[1]]
+    # Row 1 is a branded title banner, row 2 a subtitle (scenario name/export
+    # time/active filters), row 3 a blank spacer, row 4 the column headers.
+    assert "Resource Allocation Matrix" in ws["A1"].value
+    assert "Location=Romania" in ws["A2"].value
+
+    headers = [cell.value for cell in ws[4]]
     assert "Employee" in headers
     assert "Team" in headers
     assert "Location" in headers
-    
-    # Check that location is Romania
-    # Row 1 is header, Row 2 is first employee
-    if ws.max_row > 1:
+
+    # Check that location is Romania - row 4 is header, row 5 is first employee
+    if ws.max_row > 4:
         loc_idx = headers.index("Location") + 1
-        assert ws.cell(row=2, column=loc_idx).value == "Romania"
+        assert ws.cell(row=5, column=loc_idx).value == "Romania"
 

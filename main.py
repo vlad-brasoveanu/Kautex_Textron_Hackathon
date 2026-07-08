@@ -1,8 +1,13 @@
 import io
+import os
 import csv
 import re
+import uuid
+import datetime
 import hashlib
 import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 import json
 import urllib.request
 import urllib.error
@@ -19,6 +24,12 @@ from database import engine, Base, get_db
 
 # Create DB Tables
 Base.metadata.create_all(bind=engine)
+
+# Directory where raw copies of every CSV/Excel upload are kept, so a past
+# upload can be listed in "Upload History" and re-applied later without the
+# user needing to keep the original file around.
+UPLOAD_STORAGE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
+os.makedirs(UPLOAD_STORAGE_DIR, exist_ok=True)
 
 # Lightweight migration: create_all only creates missing tables, it does not add
 # columns to a "users" table that already existed before this fields were introduced.
@@ -1031,15 +1042,15 @@ def classify_cost_category(cost_category: str) -> str:
         return "internal"
     return "external"
 
-@app.post("/api/import/csv")
-async def import_csv_data(file: UploadFile = File(...), db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
-    active_scenario = get_active_scenario_db(db)
-
-    contents = await file.read()
+def parse_uploaded_file_to_rows(contents: bytes, filename: str, content_type: Optional[str]):
+    """Parse raw CSV/Excel bytes into a list of string rows. Returns (rows, file_type)."""
+    filename = (filename or "").lower()
     rows = []
-    filename = file.filename.lower() if file.filename else ""
-    
-    if filename.endswith(".xlsx") or filename.endswith(".xls") or file.content_type in ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel"]:
+
+    is_excel = (filename.endswith(".xlsx") or filename.endswith(".xls")
+                or content_type in ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel"])
+
+    if is_excel:
         try:
             workbook = openpyxl.load_workbook(io.BytesIO(contents), data_only=True)
             sheet = workbook.active
@@ -1056,6 +1067,7 @@ async def import_csv_data(file: UploadFile = File(...), db: Session = Depends(ge
                 rows.append(row_vals)
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Failed to parse Excel file: {str(e)}")
+        file_type = "excel"
     else:
         try:
             decoded = contents.decode("utf-8")
@@ -1064,9 +1076,19 @@ async def import_csv_data(file: UploadFile = File(...), db: Session = Depends(ge
             rows = list(reader)
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Failed to parse CSV file: {str(e)}")
+        file_type = "csv"
 
     if not rows:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+    return rows, file_type
+
+
+def apply_rows_to_scenario(rows, active_scenario, db: Session):
+    """Core matrix-sheet importer: parses header-driven rows into Employees/
+    Topics/Allocations/AdditionalCosts for the given scenario. Shared by the
+    direct file upload endpoint and the "apply from upload history" endpoint,
+    so both behave identically. Returns a dict of import counts."""
 
     # Standard header checking
     headers = [h.strip() for h in rows[0]]
@@ -1300,20 +1322,102 @@ async def import_csv_data(file: UploadFile = File(...), db: Session = Depends(ge
                         pass
                         
     db.commit()
-    write_system_log(
-        db,
-        username=admin.username,
-        action="Import CSV",
-        details=f"Successfully imported planning CSV. Loaded {added_emps} employees, {added_tops} topics, {added_allocs} allocations, {added_costs} costs."
-    )
     return {
-        "status": "success",
-        "message": f"Successfully parsed and loaded planning sheet into '{active_scenario.name}'",
         "imported_employees": added_emps,
         "imported_topics": added_tops,
         "imported_allocations": added_allocs,
         "imported_additional_costs": added_costs
     }
+
+
+@app.post("/api/import/csv")
+async def import_csv_data(file: UploadFile = File(...), db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
+    active_scenario = get_active_scenario_db(db)
+
+    contents = await file.read()
+    rows, file_type = parse_uploaded_file_to_rows(contents, file.filename, file.content_type)
+    counts = apply_rows_to_scenario(rows, active_scenario, db)
+
+    # Keep a copy of the raw file on disk so it shows up in "Upload History"
+    # and can be re-applied later without the user needing the original file.
+    stored_filename = f"{uuid.uuid4().hex}_{os.path.basename(file.filename or 'upload')}"
+    with open(os.path.join(UPLOAD_STORAGE_DIR, stored_filename), "wb") as f:
+        f.write(contents)
+
+    upload_record = models.UploadHistory(
+        scenario_id=active_scenario.id,
+        original_filename=file.filename or "upload",
+        stored_filename=stored_filename,
+        file_type=file_type,
+        size_bytes=len(contents),
+        uploaded_by=admin.username,
+        imported_employees=counts["imported_employees"],
+        imported_topics=counts["imported_topics"],
+        imported_allocations=counts["imported_allocations"],
+        imported_additional_costs=counts["imported_additional_costs"]
+    )
+    db.add(upload_record)
+    db.commit()
+
+    write_system_log(
+        db,
+        username=admin.username,
+        action="Import CSV",
+        details=f"Successfully imported '{file.filename}'. Loaded {counts['imported_employees']} employees, "
+                f"{counts['imported_topics']} topics, {counts['imported_allocations']} allocations, {counts['imported_additional_costs']} costs."
+    )
+    return {
+        "status": "success",
+        "message": f"Successfully parsed and loaded planning sheet into '{active_scenario.name}'",
+        **counts
+    }
+
+
+@app.get("/api/uploads/history", response_model=List[schemas.UploadHistoryResponse])
+def get_upload_history(db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
+    active_scenario = get_active_scenario_db(db)
+    return (
+        db.query(models.UploadHistory)
+        .filter(models.UploadHistory.scenario_id == active_scenario.id)
+        .order_by(models.UploadHistory.uploaded_at.desc())
+        .all()
+    )
+
+
+@app.post("/api/uploads/history/{upload_id}/apply")
+def apply_upload_from_history(upload_id: int, db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
+    record = db.query(models.UploadHistory).filter(models.UploadHistory.id == upload_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="Upload history record not found")
+
+    stored_path = os.path.join(UPLOAD_STORAGE_DIR, record.stored_filename)
+    if not os.path.exists(stored_path):
+        raise HTTPException(status_code=404, detail="The stored file for this upload is no longer available")
+
+    active_scenario = get_active_scenario_db(db)
+
+    with open(stored_path, "rb") as f:
+        contents = f.read()
+
+    content_type = ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                     if record.file_type == "excel" else "text/csv")
+    rows, _ = parse_uploaded_file_to_rows(contents, record.original_filename, content_type)
+    counts = apply_rows_to_scenario(rows, active_scenario, db)
+
+    write_system_log(
+        db,
+        username=admin.username,
+        action="Import CSV",
+        details=f"Re-applied historical upload '{record.original_filename}' (originally uploaded {record.uploaded_at.strftime('%Y-%m-%d %H:%M')} UTC "
+                f"by {record.uploaded_by}) onto '{active_scenario.name}'. Loaded {counts['imported_employees']} employees, "
+                f"{counts['imported_topics']} topics, {counts['imported_allocations']} allocations, {counts['imported_additional_costs']} costs."
+    )
+    return {
+        "status": "success",
+        "message": f"Successfully re-applied '{record.original_filename}' onto '{active_scenario.name}'",
+        **counts
+    }
+
 
 @app.get("/api/export/excel")
 def export_excel_data(
@@ -1360,25 +1464,99 @@ def export_excel_data(
         if category and t.category != category: continue
         filtered_topics.append(t)
         
-    # Create workbook
+    # Build a styled workbook matching the app's own brand look (dark blue
+    # header band, currency/percentage number formats, zebra-striped rows,
+    # a distinct fill for the cost/recovery summary rows) rather than a bare
+    # openpyxl default. The data reflects whatever filters are currently
+    # active in the UI, since filtered_employees/filtered_topics above are
+    # already narrowed by the same query params the matrix uses.
+    BRAND_FILL = PatternFill(start_color="1E3A8A", end_color="1E3A8A", fill_type="solid")
+    HEADER_FILL = PatternFill(start_color="2563EB", end_color="2563EB", fill_type="solid")
+    ZEBRA_FILL = PatternFill(start_color="F1F5F9", end_color="F1F5F9", fill_type="solid")
+    COST_ROW_FILL = PatternFill(start_color="FEF3C7", end_color="FEF3C7", fill_type="solid")
+    RECOVERY_ROW_FILL = PatternFill(start_color="DCFCE7", end_color="DCFCE7", fill_type="solid")
+    THIN_BORDER = Border(*(Side(style="thin", color="CBD5E1") for _ in range(4)))
+    TITLE_FONT = Font(bold=True, size=16, color="FFFFFF")
+    SUBTITLE_FONT = Font(italic=True, size=10, color="E0E7FF")
+    HEADER_FONT = Font(bold=True, color="FFFFFF", size=11)
+    BOLD_FONT = Font(bold=True)
+
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Allocation Matrix"
-    
-    # Headers
+
+    num_cols = 5 + len(filtered_topics)
+    last_col_letter = get_column_letter(num_cols)
+
+    # Row 1: title banner
+    ws.merge_cells(f"A1:{last_col_letter}1")
+    title_cell = ws["A1"]
+    title_cell.value = "Textron Digital Engineering - Resource Allocation Matrix"
+    title_cell.font = TITLE_FONT
+    title_cell.fill = BRAND_FILL
+    title_cell.alignment = Alignment(horizontal="left", vertical="center")
+    ws.row_dimensions[1].height = 26
+
+    # Row 2: subtitle - scenario name, export time, and active filters so the
+    # sheet is self-documenting about which slice of the data it represents.
+    active_filters = []
+    if location: active_filters.append(f"Location={location}")
+    if team: active_filters.append(f"Team={team}")
+    if department: active_filters.append(f"Department={department}")
+    if category: active_filters.append(f"Topic Category={category}")
+    if manager: active_filters.append(f"Manager={manager}")
+    if status: active_filters.append(f"Status={status}")
+    if topicId is not None: active_filters.append(f"Active Project Allocation={topicId}")
+    if minRate is not None: active_filters.append(f"Min Rate={minRate}")
+    if maxRate is not None: active_filters.append(f"Max Rate={maxRate}")
+    filters_text = f" | Filters: {', '.join(active_filters)}" if active_filters else " | No filters applied"
+
+    ws.merge_cells(f"A2:{last_col_letter}2")
+    subtitle_cell = ws["A2"]
+    subtitle_cell.value = f"{active_scenario.name} - Exported {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}{filters_text}"
+    subtitle_cell.font = SUBTITLE_FONT
+    subtitle_cell.fill = BRAND_FILL
+    subtitle_cell.alignment = Alignment(horizontal="left", vertical="center")
+
+    # Row 3: blank spacer
+    header_row_idx = 4
+
+    # Row 4: column headers
     headers = ["Employee", "Team", "Location", "Hours/Year", "Hourly Rate"]
     for t in filtered_topics:
         headers.append(t.name)
-    ws.append(headers)
-    
+    for col_idx, h in enumerate(headers, start=1):
+        cell = ws.cell(row=header_row_idx, column=col_idx, value=h)
+        cell.font = HEADER_FONT
+        cell.fill = HEADER_FILL
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.border = THIN_BORDER
+    ws.row_dimensions[header_row_idx].height = 28
+
     # Employee rows
-    for emp in filtered_employees:
-        row = [emp.name, emp.team, emp.location, emp.available_hours, emp.hourly_rate]
+    row_idx = header_row_idx
+    for i, emp in enumerate(filtered_employees):
+        row_idx += 1
+        values = [emp.name, emp.team, emp.location, emp.available_hours, emp.hourly_rate]
         for t in filtered_topics:
-            pct = alloc_map.get((emp.id, t.id), 0.0)
-            row.append(pct)
-        ws.append(row)
-        
+            values.append(alloc_map.get((emp.id, t.id), 0.0))
+        for col_idx, val in enumerate(values, start=1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=val)
+            cell.border = THIN_BORDER
+            if i % 2 == 1:
+                cell.fill = ZEBRA_FILL
+            if col_idx == 1:
+                cell.font = BOLD_FONT
+            elif col_idx == 4:
+                cell.number_format = "#,##0"
+                cell.alignment = Alignment(horizontal="right")
+            elif col_idx == 5:
+                cell.number_format = "$#,##0.00"
+                cell.alignment = Alignment(horizontal="right")
+            elif col_idx > 5:
+                cell.number_format = '0"%"'
+                cell.alignment = Alignment(horizontal="center")
+
     # Additional costs
     category_rows = {}
     for t in filtered_topics:
@@ -1386,32 +1564,58 @@ def export_excel_data(
             if ac.category not in category_rows:
                 category_rows[ac.category] = {}
             category_rows[ac.category][t.id] = category_rows[ac.category].get(t.id, 0.0) + ac.amount
-            
+
     has_recovery = any(t.recovery and t.recovery != 0 for t in filtered_topics)
-    
+
     if category_rows or has_recovery:
-        # Empty separator row
-        ws.append([])
-        
+        row_idx += 1  # blank separator row
+
     for cat_name, topic_costs in category_rows.items():
-        row = [cat_name, "", "", "", ""]
+        row_idx += 1
+        values = [cat_name, "", "", "", ""]
         for t in filtered_topics:
-            amt = topic_costs.get(t.id, "")
-            row.append(amt)
-        ws.append(row)
-        
+            values.append(topic_costs.get(t.id, ""))
+        for col_idx, val in enumerate(values, start=1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=val)
+            cell.fill = COST_ROW_FILL
+            cell.border = THIN_BORDER
+            if col_idx == 1:
+                cell.font = BOLD_FONT
+            elif col_idx > 5 and val != "":
+                cell.number_format = "$#,##0.00"
+                cell.alignment = Alignment(horizontal="right")
+
     if has_recovery:
-        row = ["Recovery", "", "", "", ""]
+        row_idx += 1
+        values = ["Recovery", "", "", "", ""]
         for t in filtered_topics:
-            amt = t.recovery if t.recovery else ""
-            row.append(amt)
-        ws.append(row)
-        
+            values.append(t.recovery if t.recovery else "")
+        for col_idx, val in enumerate(values, start=1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=val)
+            cell.fill = RECOVERY_ROW_FILL
+            cell.border = THIN_BORDER
+            if col_idx == 1:
+                cell.font = BOLD_FONT
+            elif col_idx > 5 and val != "":
+                cell.number_format = "$#,##0.00"
+                cell.alignment = Alignment(horizontal="right")
+
+    # Column widths sized to content, and freeze the header row + Employee
+    # column so both stay visible while scrolling a large matrix.
+    ws.column_dimensions["A"].width = 24
+    ws.column_dimensions["B"].width = 18
+    ws.column_dimensions["C"].width = 14
+    ws.column_dimensions["D"].width = 12
+    ws.column_dimensions["E"].width = 12
+    for col_idx, t in enumerate(filtered_topics, start=6):
+        ws.column_dimensions[get_column_letter(col_idx)].width = max(14, min(32, len(t.name) // 1.3))
+    ws.freeze_panes = f"B{header_row_idx + 1}"
+
     # Save workbook to memory stream
     output = io.BytesIO()
     wb.save(output)
     output.seek(0)
-    
+
     headers_resp = {
         'Content-Disposition': f'attachment; filename="Allocation_Matrix_{active_scenario.name.replace(" ", "_")}.xlsx"'
     }

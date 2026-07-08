@@ -6,20 +6,22 @@ A state-of-the-art, secure, and confidential resource planning platform built fo
 
 ## 🚀 Key Features
 
-* 📊 **Resource Allocation Matrix**: Live-editable grid detailing percentage allocations of employees across initiatives.
-* 📈 **KPI Dashboard**: Multi-dimensional charts visualizing regional costs, category breakdowns, and recovery offsets (powered by Chart.js).
-* 🖥️ **Visual Presentation Deck**: Executive-ready slide layouts designed for direct reports to upper leadership.
-* 🛠️ **Management Panel**: Advanced search, sort, and filters to manage employees, topics, and scenario configurations on a large scale.
-* ☁️ **Excel/CSV Smart Importer**: Drag-and-drop CSV parser that populates scenarios, employee hours, hourly rates, and initiative metrics on the fly.
-* 🤖 **Confidential Local AI assistant**: Natural language planning chatbot running locally with Jaccard-overlap fuzzy matching, ambiguity prompts, and full conversational memory.
-* 🔒 **Role-Based Security & Audit Logs**: Secure endpoints requiring token authorization with a real-time Audit Log tracking logins, registrations, imports, and exports.
+* 📊 **Resource Allocation Matrix**: Fully editable grid (add/remove employees and topics, double-click-to-edit any cell) with a dynamic filter panel docked beside the grid - filter options are generated from whatever data is actually loaded (Location, Team, Department, Topic Category, Manager, Status, Active Project Allocation, Hourly Rate range), not a fixed list.
+* 📈 **KPI Dashboard**: An Executive Summary tab with a risk/alert strip, Top 5 Cost Drivers, cost-by-department and cost-composition charts, and a staff utilization distribution, plus per-topic/team/employee breakdown tabs with sortable overview tables and an Admin Insights (AI) tab.
+* 🖥️ **Customizable Presentation Deck**: Build a report from 7 template slides (Title, Executive Summary, Key Initiatives Budget, Resource Allocations & Risks, AI Portfolio Predictions, Team Breakdown, Employee Breakdown) - include/exclude and reorder them from a panel next to the deck. Long tables auto-paginate across multiple slides instead of scrolling, so nothing is cut off when printed. Export as PDF (browser print) or as a CSV that mirrors exactly the slides you selected - e.g. include Team Breakdown but leave Employee Breakdown out to keep individual names out of a report.
+* 🛠️ **Management Panel**: Advanced search, sort, and filters to manage employees, topics, users, and audit logs at scale.
+* ☁️ **Excel/CSV Smart Importer & Upload History**: Drag-and-drop importer accepts both CSV and Excel (`.xlsx`/`.xls`) sheets, tolerating missing/reordered columns and picking up brand-new columns as new topics automatically. Every upload is kept in an **Upload History** tab (filename, uploader, timestamp, row counts) - select "Apply" on any past upload to re-import it onto the active planning version without needing the original file again.
+* 📤 **Styled Excel Export**: `/api/export/excel` produces a branded workbook (title banner, formatted currency/percentage columns, frozen header, zebra striping) that reflects whichever matrix filters are currently active, not a bare data dump.
+* 🎨 **Theme System**: Four selectable themes - Glass (default), Midnight Dark (a distinct near-opaque, cyan/teal palette rather than just "darker"), Light Mode, and a High Contrast accessibility mode - persisted per browser.
+* 🤖 **Confidential Local AI assistant**: Natural language planning chatbot running locally (with an optional Ollama LLM fallback), using fuzzy entity matching plus intent detection so it understands varied phrasings, asks a clarifying question when a query is too vague, and keeps conversation memory for as long as the chat drawer stays open.
+* 🔒 **Hierarchical Role-Based Security & Audit Logs**: `master_admin` (protected, cannot be deleted) → `admin` → `user` role hierarchy, searchable/filterable Audit Log and User Settings tables, and full scenario Backup/Restore as portable JSON.
 
 ---
 
 ## 🛠️ Tech Stack
 
-* **Backend**: FastAPI (Python), SQLAlchemy (ORM), SQLite (Confidential Local Storage), Pytest (Automated Tests).
-* **Frontend**: HTML5, Vanilla CSS3 (Custom Responsive layout), ES6 Javascript, Chart.js.
+* **Backend**: FastAPI (Python), SQLAlchemy (ORM), SQLite (Confidential Local Storage), openpyxl (Excel import/export), Pytest (Automated Tests).
+* **Frontend**: HTML5, Vanilla CSS3 (Custom Responsive layout, CSS-variable-driven theming), ES6 Javascript, Chart.js.
 * **Security**: Token Bearer Session Headers (stateless session authentication).
 
 ---
@@ -57,8 +59,9 @@ Use the following credentials to access the platform:
 
 | Role | Username | Password | Access Privileges |
 | :--- | :--- | :--- | :--- |
-| **Admin** | `admin` | `admin123` | Can edit matrix, view AI insights, import CSV, view audit logs |
-| **User** | `user` | `user123` | Read-only matrix, cannot import, view logs, or edit profiles |
+| **Master Admin** | `master` | `master123` | Everything Admin can do, plus create/delete Admin and User accounts. The account itself is protected and cannot be deleted. |
+| **Admin** | `admin` | `admin123` | Can edit the matrix, view AI insights, import/export CSV & Excel, view audit logs, create/delete User accounts |
+| **User** | `user` | `user123` | Read-only matrix, no import/export, no audit logs, no account management |
 
 ---
 

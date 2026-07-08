@@ -150,6 +150,22 @@ class AuditLogResponse(BaseModel):
         from_attributes = True
 
 
+class UploadHistoryResponse(BaseModel):
+    id: int
+    original_filename: str
+    file_type: str
+    size_bytes: int
+    uploaded_by: str
+    uploaded_at: datetime.datetime
+    imported_employees: int
+    imported_topics: int
+    imported_allocations: int
+    imported_additional_costs: int
+
+    class Config:
+        from_attributes = True
+
+
 class RestorePayload(BaseModel):
     name: str
     description: Optional[str] = ""

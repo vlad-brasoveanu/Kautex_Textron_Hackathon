@@ -40,11 +40,17 @@
 
 /* Theme Override classes */
 body.theme-light {
-    --bg-primary: #f8fafc;
-    --bg-secondary: #f1f5f9;
+    /* Brighter, less "grey slate" surface than the original f8fafc/f1f5f9 pair -
+       near-white with just a whisper of cool tint instead of a flat grey cast. */
+    --bg-primary: #fbfcfe;
+    --bg-secondary: #eef2f9;
     --glass-bg: rgba(255, 255, 255, 0.85);
     --glass-border: rgba(15, 23, 42, 0.12);
     --glass-highlight: rgba(255, 255, 255, 0.5);
+    /* .app-main's base rule is a hardcoded dark navy overlay (rgba(11,15,25,0.4))
+       that was never made theme-aware - left as-is it muddies light mode with a
+       dark tint no matter how light --bg-primary/--bg-secondary are. */
+    --app-main-bg: rgba(238, 242, 249, 0.5);
     
     --text-primary: #0f172a;
     --text-secondary: #475569;
@@ -65,12 +71,12 @@ body.theme-light .matrix-table td.matrix-overloaded-name {
 }
 
 body.theme-light select option {
-    background-color: #f1f5f9;
+    background-color: #eef2f9;
     color: #0f172a;
 }
 
 body.theme-light ::-webkit-scrollbar-track {
-    background: rgba(241, 245, 249, 0.5);
+    background: rgba(238, 242, 249, 0.5);
 }
 
 body.theme-light ::-webkit-scrollbar-thumb {
@@ -112,10 +118,10 @@ body.theme-light .risk-title {
     color: #0f172a !important;
 }
 
-body.theme-light .pres-kpi-item, 
-body.theme-light .pres-chart-box, 
+body.theme-light .pres-kpi-item,
+body.theme-light .pres-chart-box,
 body.theme-light .pres-notes-box {
-    background: #f8fafc !important;
+    background: #f4f7fc !important;
     border-color: #cbd5e1 !important;
     color: #0f172a !important;
 }
@@ -126,7 +132,7 @@ body.theme-light .pres-chart-box h4 {
 }
 
 body.theme-light .pres-table th {
-    background: #f1f5f9 !important;
+    background: #eef2f9 !important;
     color: #0f172a !important;
     border-color: #cbd5e1 !important;
 }
@@ -136,25 +142,42 @@ body.theme-light .pres-table td {
     color: #334155 !important;
 }
 
+/* Midnight Dark: a deliberately different mood from the default Glass theme -
+   near-black and almost opaque (little glass transparency) with a cool
+   cyan/teal accent family instead of Glass's blue/violet, so switching
+   between the two reads as a real change, not just "darker". */
 body.theme-dark {
-    --bg-primary: #030712;
-    --bg-secondary: #0b0f19;
-    --glass-bg: rgba(17, 24, 39, 0.85);
-    --glass-border: rgba(255, 255, 255, 0.05);
-    --glass-highlight: rgba(255, 255, 255, 0.01);
-    
-    --text-primary: #f9fafb;
-    --text-secondary: #d1d5db;
-    --text-muted: #9ca3af;
-    
-    --primary-color: #2563eb;
-    --primary-hover: #1d4ed8;
-    --accent-color: #7c3aed;
-    --danger-color: #dc2626;
-    --warning-color: #d97706;
-    --success-color: #059669;
-    
-    --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6);
+    --bg-primary: #05070d;
+    --bg-secondary: #0a0e18;
+    --glass-bg: rgba(8, 12, 22, 0.94);
+    --glass-border: rgba(148, 163, 184, 0.14);
+    --glass-highlight: rgba(255, 255, 255, 0.02);
+
+    --text-primary: #e5e7eb;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+
+    --primary-color: #0ea5e9; /* Sky Cyan */
+    --primary-hover: #0284c7;
+    --accent-color: #14b8a6; /* Teal */
+    --danger-color: #f43f5e;
+    --warning-color: #fb923c;
+    --success-color: #22c55e;
+
+    --card-shadow: 0 8px 36px 0 rgba(0, 0, 0, 0.8);
+    --font-stack: 'Outfit', sans-serif;
+    --app-main-bg: rgba(2, 4, 9, 0.6);
+}
+
+/* Midnight favors flat, low-blur surfaces over Glass's frosted look */
+body.theme-dark .glass,
+body.theme-dark .crud-card,
+body.theme-dark .chart-box,
+body.theme-dark .app-header,
+body.theme-dark .app-sidebar,
+body.theme-dark .modal-content {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 }
 
 body.theme-high-contrast {
@@ -174,8 +197,9 @@ body.theme-high-contrast {
     --danger-color: #ff0000;
     --warning-color: #ffaa00;
     --success-color: #00ffff;
-    
+
     --card-shadow: none;
+    --app-main-bg: #000000;
 }
 
 body.theme-high-contrast .crud-card,
@@ -542,7 +566,7 @@ body:not(.theme-light) .login-logo-image {
     grid-column: 2;
     padding: 24px;
     overflow-y: auto;
-    background: rgba(11, 15, 25, 0.4);
+    background: var(--app-main-bg, rgba(11, 15, 25, 0.4));
 }
 
 .main-section {
@@ -1086,7 +1110,7 @@ tr.overview-row:hover td {
     margin-bottom: 20px;
 }
 
-.dash-tab {
+.dash-tab, .upload-tab {
     background: transparent;
     color: var(--text-secondary);
     border: none;
@@ -1099,21 +1123,21 @@ tr.overview-row:hover td {
     transition: all 0.2s ease;
 }
 
-.dash-tab:hover {
+.dash-tab:hover, .upload-tab:hover {
     color: var(--text-primary);
 }
 
-.dash-tab.active {
+.dash-tab.active, .upload-tab.active {
     color: var(--primary-color);
     border-bottom-color: var(--primary-color);
 }
 
-.dash-tab-content {
+.dash-tab-content, .upload-tab-content {
     display: none;
     animation: fadeIn 0.4s ease forwards;
 }
 
-.dash-tab-content.active {
+.dash-tab-content.active, .upload-tab-content.active {
     display: block;
 }
 

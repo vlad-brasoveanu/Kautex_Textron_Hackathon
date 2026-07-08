@@ -2336,6 +2336,22 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
 
+        // Upload section tabs: "Upload New File" / "Upload History"
+        document.querySelectorAll(".upload-tab").forEach(tab => {
+            tab.addEventListener("click", () => {
+                document.querySelectorAll(".upload-tab").forEach(t => t.classList.remove("active"));
+                tab.classList.add("active");
+
+                const target = tab.getAttribute("data-upload-tab");
+                document.querySelectorAll(".upload-tab-content").forEach(tc => tc.classList.remove("active"));
+                document.getElementById(target).classList.add("active");
+
+                if (target === "tab-upload-history") {
+                    fetchAndRenderUploadHistory();
+                }
+            });
+        });
+
         // Presentation Print Deck trigger
         document.getElementById("btn-print-deck").addEventListener("click", async () => {
             try {
@@ -2792,6 +2808,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 `;
                 // Reload matrix planning data
                 await refreshAllData();
+                // Keep the history tab in sync in case the user switches to it next
+                fetchAndRenderUploadHistory();
             } else {
                 statusBox.innerHTML = `
                     <h4 class="text-danger"><i class="fa-solid fa-circle-exclamation"></i> Import Failed</h4>
@@ -2804,6 +2822,74 @@ document.addEventListener("DOMContentLoaded", () => {
                 <h4 class="text-danger"><i class="fa-solid fa-circle-exclamation"></i> Upload Error</h4>
                 <p>An unexpected network error occurred while uploading. Ensure server is running.</p>
             `;
+        }
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+
+    async function fetchAndRenderUploadHistory() {
+        const tbody = document.querySelector("#upload-history-table tbody");
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;"><i class="fa-solid fa-spinner fa-spin"></i> Loading upload history...</td></tr>';
+
+        try {
+            const response = await fetch("/api/uploads/history");
+            if (!response.ok) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--danger-color);"><i class="fa-solid fa-triangle-exclamation"></i> Error loading upload history.</td></tr>';
+                return;
+            }
+            const history = await response.json();
+            if (history.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-secondary);">No files have been uploaded yet for this planning version.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = history.map(h => {
+                const date = new Date(h.uploaded_at + "Z");
+                const typeBadge = h.file_type === "excel"
+                    ? `<span class="badge badge-success"><i class="fa-solid fa-file-excel"></i> Excel</span>`
+                    : `<span class="badge badge-primary"><i class="fa-solid fa-file-csv"></i> CSV</span>`;
+                return `
+                    <tr>
+                        <td><strong>${h.original_filename}</strong><br><small style="color: var(--text-secondary);">${formatFileSize(h.size_bytes)}</small></td>
+                        <td>${typeBadge}</td>
+                        <td style="font-size: 12px; color: var(--text-secondary);">${date.toLocaleString()}</td>
+                        <td>${h.uploaded_by}</td>
+                        <td style="font-size: 12px;">${h.imported_employees} emp &middot; ${h.imported_topics} topics &middot; ${h.imported_allocations} allocs &middot; ${h.imported_additional_costs} costs</td>
+                        <td><button class="btn btn-secondary btn-sm btn-apply-upload" data-id="${h.id}" data-filename="${h.original_filename}"><i class="fa-solid fa-clock-rotate-left"></i> Apply</button></td>
+                    </tr>
+                `;
+            }).join("");
+
+            document.querySelectorAll(".btn-apply-upload").forEach(btn => {
+                btn.addEventListener("click", async () => {
+                    const id = btn.getAttribute("data-id");
+                    const filename = btn.getAttribute("data-filename");
+                    if (!confirm(`Re-apply '${filename}' onto the active planning version? This will overwrite the current employees, topics, allocations, and additional costs, just like re-uploading it.`)) {
+                        return;
+                    }
+                    try {
+                        const response = await fetch(`/api/uploads/history/${id}/apply`, { method: "POST" });
+                        const resData = await response.json();
+                        if (response.ok && resData.status === "success") {
+                            alert(resData.message);
+                            await refreshAllData();
+                        } else {
+                            alert(resData.detail || "Failed to apply this upload.");
+                        }
+                    } catch (err) {
+                        console.error("Error applying historical upload:", err);
+                        alert("Connection error while applying this upload.");
+                    }
+                });
+            });
+        } catch (err) {
+            console.error("Error fetching upload history:", err);
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--danger-color);">Failed to connect to backend server.</td></tr>';
         }
     }
 

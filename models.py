@@ -104,3 +104,22 @@ class SystemLog(Base):
     username = Column(String, nullable=False, index=True)
     action = Column(String, nullable=False, index=True)  # Login, Failed Login, Import CSV, Export Report, Registration
     details = Column(String, nullable=True)
+
+
+class UploadHistory(Base):
+    __tablename__ = "upload_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    scenario_id = Column(Integer, ForeignKey("scenarios.id"), nullable=False, index=True)
+    original_filename = Column(String, nullable=False)
+    stored_filename = Column(String, nullable=False)  # unique name on disk under UPLOAD_STORAGE_DIR
+    file_type = Column(String, nullable=False)  # "csv" or "excel"
+    size_bytes = Column(Integer, default=0)
+    uploaded_by = Column(String, nullable=False)
+    uploaded_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    imported_employees = Column(Integer, default=0)
+    imported_topics = Column(Integer, default=0)
+    imported_allocations = Column(Integer, default=0)
+    imported_additional_costs = Column(Integer, default=0)
+
+    scenario = relationship("Scenario")
