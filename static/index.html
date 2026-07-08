@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Engineering Planning Dashboard</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <!-- Login Screen Overlay -->
+    <div id="login-overlay" class="login-overlay">
+        <div class="login-card glass animate-login-pop">
+            <div class="login-header">
+                <i class="fa-solid fa-layer-group login-logo-icon"></i>
+                <h2>Textron Planning Portal</h2>
+                <p>Confidential Engineering Resource Dashboard</p>
+            </div>
+            <form id="form-login" class="login-form">
+                <div class="form-col-full" style="gap: 4px; display: flex; flex-direction: column;">
+                    <label for="login-username" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;"><i class="fa-solid fa-user"></i> Username</label>
+                    <input type="text" id="login-username" required placeholder="e.g. admin or user" autocomplete="username">
+                </div>
+                <div class="form-col-full" style="gap: 4px; display: flex; flex-direction: column; margin-top: 10px;">
+                    <label for="login-password" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;"><i class="fa-solid fa-lock"></i> Password</label>
+                    <input type="password" id="login-password" required placeholder="••••••••" autocomplete="current-password">
+                </div>
+                <div id="login-error-alert" class="login-error-alert" style="display: none; color: var(--danger-color); font-size: 12px; margin-top: 10px;">
+                    <i class="fa-solid fa-circle-exclamation"></i> Invalid credentials. Try again.
+                </div>
+                <button type="submit" class="btn btn-primary btn-full" style="margin-top: 18px; padding: 10px;">
+                    Sign In <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                </button>
+            </form>
+            <div class="login-footer" style="margin-top: 15px; text-align: center; font-size: 10px; color: var(--text-muted);">
+                <span>Default credentials: admin / admin123 | user / user123</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Container Grid -->
+    <div class="app-container">
+        
+        <!-- Header: Top bar with Scenario Switcher and Role Switcher -->
+        <header class="app-header">
+            <div class="header-logo">
+                <i class="fa-solid fa-layer-group logo-icon"></i>
+                <div class="logo-text">
+                    <h1>Textron Digital Engineering</h1>
+                    <p>Planning & Cost Management Dashboard</p>
+                </div>
+            </div>
+            
+            <!-- Active Scenario and Role widgets -->
+            <div class="header-controls">
+                <!-- Scenario Controls -->
+                <div class="control-group">
+                    <label for="scenario-select"><i class="fa-solid fa-database"></i> Scenario:</label>
+                    <select id="scenario-select" class="scenario-dropdown">
+                        <!-- Populated dynamically -->
+                    </select>
+                    <button id="btn-clone-scenario" title="Clone Active Scenario" class="btn btn-secondary btn-icon-only"><i class="fa-solid fa-copy"></i></button>
+                    <button id="btn-create-scenario" title="Create Blank Scenario" class="btn btn-secondary btn-icon-only"><i class="fa-solid fa-plus"></i></button>
+                    <button id="btn-delete-scenario" title="Delete Active Scenario" class="btn btn-danger btn-icon-only"><i class="fa-solid fa-trash"></i></button>
+                </div>
+
+                <!-- Divider -->
+                <div class="control-divider"></div>
+
+                <!-- User Profile & Logout -->
+                <div class="user-profile-widget" style="display: flex; align-items: center; gap: 14px;">
+                    <span id="user-display-name" class="user-display-name" style="font-size: 13px; font-weight: 500; color: var(--text-primary); text-transform: capitalize;"><i class="fa-solid fa-user-circle" style="color: var(--primary-color);"></i> admin</span>
+                    <button id="btn-logout" class="btn btn-danger" style="padding: 6px 12px; font-size: 11px;"><i class="fa-solid fa-power-off"></i> Logout</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Sidebar Navigation & Filters -->
+        <aside class="app-sidebar">
+            <nav class="sidebar-nav">
+                <ul>
+                    <li class="nav-item active" data-target="matrix-section">
+                        <i class="fa-solid fa-table-cells"></i> Allocation Grid
+                    </li>
+                    <li class="nav-item" data-target="dashboards-section">
+                        <i class="fa-solid fa-chart-pie"></i> KPI Dashboards
+                    </li>
+                    <li class="nav-item" data-target="presentation-section">
+                        <i class="fa-solid fa-display"></i> Presentation Deck
+                    </li>
+                    <li class="nav-item" data-target="crud-section">
+                        <i class="fa-solid fa-sliders"></i> Management Panel
+                    </li>
+                    <li class="nav-item" data-target="upload-section">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Upload CSV Sheet
+                    </li>
+                    <li class="nav-item admin-only" data-target="logs-section" style="display: none;">
+                        <i class="fa-solid fa-list-check"></i> Audit Logs (Admin)
+                    </li>
+                </ul>
+            </nav>
+
+            <!-- Filters Section -->
+            <div class="sidebar-filters">
+                <h3><i class="fa-solid fa-filter"></i> Matrix Filters</h3>
+                <div class="filter-group">
+                    <label for="filter-location">Location</label>
+                    <select id="filter-location" class="filter-dropdown">
+                        <option value="">All Locations</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filter-team">Team</label>
+                    <select id="filter-team" class="filter-dropdown">
+                        <option value="">All Teams</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filter-dept">Department</label>
+                    <select id="filter-dept" class="filter-dropdown">
+                        <option value="">All Departments</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filter-category">Topic Category</label>
+                    <select id="filter-category" class="filter-dropdown">
+                        <option value="">All Categories</option>
+                    </select>
+                </div>
+                <button id="btn-reset-filters" class="btn btn-secondary btn-full"><i class="fa-solid fa-filter-circle-xmark"></i> Reset Filters</button>
+            </div>
+
+            <!-- AI Trigger Button -->
+            <div class="ai-trigger-container">
+                <button id="btn-toggle-ai" class="btn btn-ai btn-full">
+                    <i class="fa-solid fa-robot"></i> Confidential AI Chat
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Display Content Area -->
+        <main class="app-main">
+            
+            <!-- SECTION 1: ALLOCATION MATRIX -->
+            <section id="matrix-section" class="main-section active">
+                <div class="section-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2><i class="fa-solid fa-table-cells"></i> Resource Allocation Matrix</h2>
+                        <p class="section-desc">Double-click on percentages in the grid to edit. Switch to User mode to prevent changes.</p>
+                    </div>
+                    <button id="btn-export-matrix-csv" class="btn btn-secondary"><i class="fa-solid fa-file-csv"></i> Export Matrix to CSV</button>
+                </div>
+                
+                <div class="matrix-wrapper">
+                    <!-- Matrix Grid will be rendered dynamically -->
+                    <div id="allocation-matrix-container"></div>
+                </div>
+            </section>
+
+            <!-- SECTION 2: DASHBOARDS -->
+            <section id="dashboards-section" class="main-section">
+                <div class="section-header">
+                    <h2><i class="fa-solid fa-chart-pie"></i> KPI Dashboards</h2>
+                </div>
+
+                <!-- Tab system inside Dashboard -->
+                <div class="dash-tabs">
+                    <button class="dash-tab active" data-tab="tab-executive">Executive Summary</button>
+                    <button class="dash-tab" data-tab="tab-topics">Topic Breakdown</button>
+                    <button class="dash-tab" data-tab="tab-teams">Team Utilization</button>
+                    <button class="dash-tab" data-tab="tab-employees">Employee Profiles</button>
+                    <button class="dash-tab admin-only" data-tab="tab-admin-insights" style="display: none;"><i class="fa-solid fa-brain" style="color: var(--accent-color);"></i> Admin Insights (AI)</button>
+                </div>
+
+                <!-- TAB: EXECUTIVE SUMMARY -->
+                <div id="tab-executive" class="dash-tab-content active">
+                    <!-- Stat Cards -->
+                    <div class="kpi-cards">
+                        <div class="kpi-card">
+                            <div class="kpi-icon icon-headcount"><i class="fa-solid fa-users"></i></div>
+                            <div class="kpi-details">
+                                <span class="kpi-val" id="kpi-headcount">-</span>
+                                <span class="kpi-title">Total Headcount</span>
+                            </div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-icon icon-internal"><i class="fa-solid fa-user-tie"></i></div>
+                            <div class="kpi-details">
+                                <span class="kpi-val" id="kpi-internal-cost">-</span>
+                                <span class="kpi-title">Internal Employee Cost</span>
+                            </div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-icon icon-add"><i class="fa-solid fa-circle-plus"></i></div>
+                            <div class="kpi-details">
+                                <span class="kpi-val" id="kpi-add-cost">-</span>
+                                <span class="kpi-title">Additional Cost</span>
+                            </div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-icon icon-external"><i class="fa-solid fa-truck-ramp-box"></i></div>
+                            <div class="kpi-details">
+                                <span class="kpi-val" id="kpi-external-cost">-</span>
+                                <span class="kpi-title">External Vendor Cost</span>
+                            </div>
+                        </div>
+                        <div class="kpi-card kpi-card-recovery">
+                            <div class="kpi-icon icon-recovery"><i class="fa-solid fa-arrow-down-long"></i></div>
+                            <div class="kpi-details">
+                                <span class="kpi-val text-green" id="kpi-recovery">-</span>
+                                <span class="kpi-title">Cost Recovery</span>
+                            </div>
+                        </div>
+                        <div class="kpi-card kpi-card-net">
+                            <div class="kpi-icon icon-net"><i class="fa-solid fa-wallet"></i></div>
+                            <div class="kpi-details">
+                                <span class="kpi-val text-blue" id="kpi-net-cost">-</span>
+                                <span class="kpi-title">Net Planning Budget</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Layout splits -->
+                    <div class="dashboard-grid">
+                        <div class="chart-box">
+                            <h3>Cost Distribution by Location</h3>
+                            <div class="chart-canvas-container">
+                                <canvas id="chart-location"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-box">
+                            <h3>Cost Distribution by Category</h3>
+                            <div class="chart-canvas-container">
+                                <canvas id="chart-category"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB: TOPIC BREAKDOWN -->
+                <div id="tab-topics" class="dash-tab-content">
+                    <div class="dashboard-control-header">
+                        <label for="select-dash-topic">Select Topic/Project:</label>
+                        <select id="select-dash-topic" class="control-dropdown"></select>
+                    </div>
+                    <div class="topic-dashboard-layout" id="topic-dash-details">
+                        <!-- Dynamically generated -->
+                    </div>
+                </div>
+
+                <!-- TAB: TEAM UTILIZATION -->
+                <div id="tab-teams" class="dash-tab-content">
+                    <div class="dashboard-control-header">
+                        <label for="select-dash-team">Select Team:</label>
+                        <select id="select-dash-team" class="control-dropdown"></select>
+                    </div>
+                    <div class="team-dashboard-layout" id="team-dash-details">
+                        <!-- Dynamically generated -->
+                    </div>
+                </div>
+
+                <!-- TAB: EMPLOYEE PROFILES -->
+                <div id="tab-employees" class="dash-tab-content">
+                    <div class="dashboard-control-header">
+                        <label for="select-dash-employee">Select Employee:</label>
+                        <select id="select-dash-employee" class="control-dropdown"></select>
+                    </div>
+                    <div class="employee-dashboard-layout" id="employee-dash-details">
+                        <!-- Dynamically generated -->
+                    </div>
+                </div>
+                <!-- TAB: ADMIN INSIGHTS (AI) -->
+                <div id="tab-admin-insights" class="dash-tab-content admin-only" style="display: none;">
+                    <div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+                        <div class="chart-box" style="height: auto; min-height: 240px; display: flex; flex-direction: column; justify-content: space-between;">
+                            <div>
+                                <h3 style="color: var(--accent-color); display: flex; align-items: center; gap: 8px; font-size: 14px;">
+                                    <i class="fa-solid fa-triangle-exclamation"></i> Staff Bottleneck Predictions
+                                </h3>
+                                <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.6; margin-top: 10px;" id="ai-insight-bottlenecks-list">
+                                    Analyzing allocations load...
+                                </div>
+                            </div>
+                            <span class="local-pill" style="align-self: flex-start; margin-top: 15px;">Local AI Forecast</span>
+                        </div>
+                        
+                        <div class="chart-box" style="height: auto; min-height: 240px; display: flex; flex-direction: column; justify-content: space-between;">
+                            <div>
+                                <h3 style="color: var(--warning-color); display: flex; align-items: center; gap: 8px; font-size: 14px;">
+                                    <i class="fa-solid fa-sack-dollar"></i> Cost Optimization Advice
+                                </h3>
+                                <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.6; margin-top: 10px;" id="ai-insight-costs-list">
+                                    Analyzing project cost margins...
+                                </div>
+                            </div>
+                            <span class="local-pill" style="align-self: flex-start; margin-top: 15px;">Local AI Forecast</span>
+                        </div>
+                        
+                        <div class="chart-box" style="height: auto; min-height: 240px; display: flex; flex-direction: column; justify-content: space-between;">
+                            <div>
+                                <h3 style="color: var(--primary-color); display: flex; align-items: center; gap: 8px; font-size: 14px;">
+                                    <i class="fa-solid fa-shuffle"></i> Overload Mitigation Actions
+                                </h3>
+                                <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.6; margin-top: 10px;" id="ai-insight-reallocations-list">
+                                    Scanning bandwidth levels...
+                                </div>
+                            </div>
+                            <span class="local-pill" style="align-self: flex-start; margin-top: 15px;">Local AI Forecast</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 3: PRESENTATION DECK (High-End visual report) -->
+            <section id="presentation-section" class="main-section">
+                <div class="section-header no-print">
+                    <h2><i class="fa-solid fa-display"></i> Visual Presentation Deck</h2>
+                    <p class="section-desc">Formatted slides suitable for presenting directly to Textron executive leadership.</p>
+                    <button id="btn-print-deck" class="btn btn-primary"><i class="fa-solid fa-print"></i> Export Presentation to PDF</button>
+                </div>
+
+                <div class="presentation-deck">
+                    
+                    <!-- SLIDE 1: Title Slide -->
+                    <div class="presentation-slide slide-title">
+                        <div class="slide-header-brand">
+                            <i class="fa-solid fa-layer-group"></i> Textron Digital Engineering
+                        </div>
+                        <div class="slide-body-center">
+                            <h2>Engineering Planning & Budget Report</h2>
+                            <p id="pres-scenario-name">Baseline Scenario (2027 Planning)</p>
+                            <div class="slide-subtitle-divider"></div>
+                            <span class="confidential-stamp">STRICTLY CONFIDENTIAL</span>
+                        </div>
+                        <div class="slide-footer">
+                            <span>Textron Inc. Planning Platform</span>
+                            <span class="slide-number">Slide 1 of 5</span>
+                        </div>
+                    </div>
+
+                    <!-- SLIDE 2: Executive Summary KPIs -->
+                    <div class="presentation-slide">
+                        <div class="slide-title-bar">
+                            <h3>Executive Planning Overview</h3>
+                            <span class="confidential-small">CONFIDENTIAL</span>
+                        </div>
+                        <div class="slide-content-split">
+                            <div class="slide-col-left">
+                                <div class="pres-kpi-grid">
+                                    <div class="pres-kpi-item">
+                                        <span class="pres-kpi-label">Headcount</span>
+                                        <span class="pres-kpi-number" id="pres-kpi-headcount">-</span>
+                                    </div>
+                                    <div class="pres-kpi-item">
+                                        <span class="pres-kpi-label">Internal Effort Cost</span>
+                                        <span class="pres-kpi-number" id="pres-kpi-internal">-</span>
+                                    </div>
+                                    <div class="pres-kpi-item">
+                                        <span class="pres-kpi-label">Additional & Vendor Cost</span>
+                                        <span class="pres-kpi-number" id="pres-kpi-additional">-</span>
+                                    </div>
+                                    <div class="pres-kpi-item">
+                                        <span class="pres-kpi-label">Net Fiscal Budget</span>
+                                        <span class="pres-kpi-number text-blue" id="pres-kpi-net">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="slide-col-right">
+                                <div class="pres-chart-box">
+                                    <h4>Annual Planning Cost by Location</h4>
+                                    <div class="canvas-wrap"><canvas id="pres-chart-location-canvas"></canvas></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="slide-footer">
+                            <span>Textron Inc. Planning Platform</span>
+                            <span class="slide-number">Slide 2 of 5</span>
+                        </div>
+                    </div>
+
+                    <!-- SLIDE 3: Key Initiatives Breakdown -->
+                    <div class="presentation-slide">
+                        <div class="slide-title-bar">
+                            <h3>Key Strategic Initiatives Budget</h3>
+                            <span class="confidential-small">CONFIDENTIAL</span>
+                        </div>
+                        <div class="slide-content-split">
+                            <div class="slide-col-full">
+                                <div class="pres-table-wrapper">
+                                    <table class="pres-table" id="pres-topic-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Initiative / Topic</th>
+                                                <th>Category</th>
+                                                <th>Category Cost</th>
+                                                <th>Involved Staff</th>
+                                                <th>Total Cost</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <!-- Dynamically populated -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="slide-footer">
+                            <span>Textron Inc. Planning Platform</span>
+                            <span class="slide-number">Slide 3 of 5</span>
+                        </div>
+                    </div>
+
+                    <!-- SLIDE 4: Staffing Overload & Risks -->
+                    <div class="presentation-slide">
+                        <div class="slide-title-bar">
+                            <h3>Resource Allocations & Overload Alerts</h3>
+                            <span class="confidential-small">CONFIDENTIAL</span>
+                        </div>
+                        <div class="slide-content-split">
+                            <div class="slide-col-left">
+                                <h4 class="risk-title"><i class="fa-solid fa-triangle-exclamation"></i> Overloaded Resources (>100% Allocation)</h4>
+                                <ul class="risk-list" id="pres-overloaded-list">
+                                    <!-- Dynamic -->
+                                </ul>
+                            </div>
+                            <div class="slide-col-right">
+                                <h4 class="risk-title"><i class="fa-solid fa-list-check"></i> Management Comments & Strategic Notes</h4>
+                                <div class="pres-notes-box" id="pres-notes-box">
+                                    <p><strong>Scenario Summary:</strong> Initial draft of resources for engineering hubs. High effort is currently allocated on the Agentic AI prototype development which has an external funding recovery mapped. Key project delivery for Customer Requests (Fuel) requires resource reallocations to cover India testing overload risk.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="slide-footer">
+                            <span>Textron Inc. Planning Platform</span>
+                            <span class="slide-number">Slide 4 of 5</span>
+                        </div>
+                    </div>
+
+                    <!-- SLIDE 5: AI Portfolio Predictions & Suggestions -->
+                    <div class="presentation-slide">
+                        <div class="slide-title-bar">
+                            <h3>AI-Driven Portfolio Predictions & Suggestions</h3>
+                            <span class="confidential-small">CONFIDENTIAL</span>
+                        </div>
+                        <div class="slide-content-split">
+                            <div class="slide-col-left">
+                                <h4 class="risk-title" style="color: var(--accent-color); font-size: 13px;"><i class="fa-solid fa-brain"></i> Predicted Resource Bottlenecks</h4>
+                                <ul class="risk-list" id="pres-ai-bottlenecks-list" style="max-height: 180px;">
+                                    <!-- Dynamic -->
+                                </ul>
+                            </div>
+                            <div class="slide-col-right">
+                                <h4 class="risk-title" style="color: var(--warning-color); font-size: 13px;"><i class="fa-solid fa-chart-line"></i> Strategic Optimization Suggestions</h4>
+                                <ul class="risk-list" id="pres-ai-suggestions-list" style="max-height: 180px; gap: 6px;">
+                                    <!-- Dynamic -->
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="slide-footer">
+                            <span>Textron Inc. Planning Platform</span>
+                            <span class="slide-number">Slide 5 of 5</span>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- SECTION 4: CRUD MANAGEMENT -->
+            <section id="crud-section" class="main-section">
+                <div class="section-header">
+                    <h2><i class="fa-solid fa-sliders"></i> Management Panel</h2>
+                    <p class="section-desc">Create, Edit, and Delete planning entities. Locked in User mode.</p>
+                </div>
+
+                <div class="crud-layout">
+                    <!-- Left Column: Employees CRUD -->
+                    <div class="crud-card">
+                        <div class="crud-card-header" style="flex-direction: column; align-items: stretch; gap: 8px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <h3>Employees Manager</h3>
+                                <button id="btn-add-employee" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Add Employee</button>
+                            </div>
+                            <div style="display: flex; gap: 8px; margin-top: 4px;">
+                                <input type="text" id="search-crud-employees" placeholder="Search employees..." style="flex: 1; padding: 6px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none;">
+                                <select id="filter-crud-employees-location" style="padding: 6px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none; max-width: 140px;">
+                                    <option value="">All Locations</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="crud-table-wrapper">
+                            <table class="crud-table" id="crud-employee-table">
+                                <thead>
+                                    <tr>
+                                        <th class="sortable-emp" data-sort="name" style="cursor: pointer; user-select: none;">Name <i class="fa-solid fa-sort" style="font-size: 10px; opacity: 0.6;"></i></th>
+                                        <th class="sortable-emp" data-sort="team" style="cursor: pointer; user-select: none;">Team <i class="fa-solid fa-sort" style="font-size: 10px; opacity: 0.6;"></i></th>
+                                        <th class="sortable-emp" data-sort="location" style="cursor: pointer; user-select: none;">Location <i class="fa-solid fa-sort" style="font-size: 10px; opacity: 0.6;"></i></th>
+                                        <th class="sortable-emp" data-sort="hourly_rate" style="cursor: pointer; user-select: none;">Hourly Rate <i class="fa-solid fa-sort" style="font-size: 10px; opacity: 0.6;"></i></th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Dynamically populated -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Topics CRUD -->
+                    <div class="crud-card">
+                        <div class="crud-card-header" style="flex-direction: column; align-items: stretch; gap: 8px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <h3>Topics Manager</h3>
+                                <button id="btn-add-topic" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Add Topic</button>
+                            </div>
+                            <div style="display: flex; gap: 8px; margin-top: 4px;">
+                                <input type="text" id="search-crud-topics" placeholder="Search topics..." style="flex: 1; padding: 6px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none;">
+                                <select id="filter-crud-topics-category" style="padding: 6px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none; max-width: 140px;">
+                                    <option value="">All Categories</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="crud-table-wrapper">
+                            <table class="crud-table" id="crud-topic-table">
+                                <thead>
+                                    <tr>
+                                        <th class="sortable-topic" data-sort="name" style="cursor: pointer; user-select: none;">Topic Name <i class="fa-solid fa-sort" style="font-size: 10px; opacity: 0.6;"></i></th>
+                                        <th class="sortable-topic" data-sort="category" style="cursor: pointer; user-select: none;">Category <i class="fa-solid fa-sort" style="font-size: 10px; opacity: 0.6;"></i></th>
+                                        <th class="sortable-topic" data-sort="recovery" style="cursor: pointer; user-select: none;">Recovery <i class="fa-solid fa-sort" style="font-size: 10px; opacity: 0.6;"></i></th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Dynamically populated -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 5: CSV FILE UPLOAD -->
+            <section id="upload-section" class="main-section">
+                <div class="section-header">
+                    <h2><i class="fa-solid fa-cloud-arrow-up"></i> Upload Planning Sheet</h2>
+                    <p class="section-desc">Instantly populate the active scenario by uploading an Excel-exported CSV matrix planning sheet.</p>
+                </div>
+
+                <div class="upload-container">
+                    <div class="drag-drop-area" id="csv-drag-drop">
+                        <i class="fa-solid fa-file-csv upload-big-icon"></i>
+                        <p>Drag and drop your planning CSV here, or click to browse</p>
+                        <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
+                        <button class="btn btn-primary">Browse Files</button>
+                    </div>
+
+                    <!-- Status Display -->
+                    <div id="upload-status" class="upload-status-box" style="display: none;">
+                        <!-- Status results populated dynamically -->
+                    </div>
+
+                    <!-- Instructions and Sample Layout -->
+                    <div class="upload-instructions">
+                        <h3><i class="fa-solid fa-circle-info"></i> CSV Layout Format Instructions</h3>
+                        <p>Your uploaded CSV must match the standard matrix planning sheet layout:</p>
+                        <ul>
+                            <li>The first row must contain columns: <code>Employee</code>, <code>Team</code>, <code>Location</code>, <code>Hours/Year</code> (or <code>Available hours/year (Region 100%)</code>), <code>Hourly Rate</code>, followed by the specific Topic/Project columns (e.g. <code>Agentic AI</code>, <code>Fuel Project</code>).</li>
+                            <li>The rows below should represent employees. The intersection cells represent their allocation percentage (e.g. <code>20%</code>, <code>0.2</code>, or <code>20</code>).</li>
+                            <li>Optional additional costs can be appended at the bottom by adding rows starting with cost names (e.g., <code>CAD</code>, <code>Tooling</code>, <code>Prototypes</code>, <code>Recovery</code>) and entering cost amounts under the corresponding topic columns.</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 6: SYSTEM AUDIT LOGS (ADMIN ONLY) -->
+            <section id="logs-section" class="main-section admin-only" style="display: none;">
+                <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px; margin-bottom: 20px;">
+                    <div>
+                        <h2><i class="fa-solid fa-list-check"></i> System Audit Logs</h2>
+                        <p class="section-desc">Real-time audit log of CSV imports, report exports, scenario management, registrations, and login actions.</p>
+                    </div>
+                    <button id="btn-refresh-logs" class="btn btn-primary"><i class="fa-solid fa-rotate"></i> Refresh Logs</button>
+                </div>
+                
+                <div class="crud-card" style="margin-top: 20px; width: 100%;">
+                    <div class="crud-table-wrapper" style="max-height: 500px; overflow-y: auto;">
+                        <table class="crud-table" id="admin-logs-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 180px;">Timestamp (Local)</th>
+                                    <th style="width: 150px;">User</th>
+                                    <th style="width: 150px;">Action Type</th>
+                                    <th>Activity Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- AI Assistant Drawer Slide Out -->
+        <div id="ai-drawer" class="ai-drawer">
+            <div class="ai-drawer-header">
+                <h3><i class="fa-solid fa-robot"></i> Confidential AI Assistant</h3>
+                <span class="local-pill"><i class="fa-solid fa-lock"></i> Completely Local</span>
+                <button id="btn-close-ai" class="btn-close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="ai-chat-body" id="ai-chat-body">
+                <div class="ai-message assistant">
+                    <p>Hello! I am your local planning assistant. All queries are computed inside this system to maintain data confidentiality.</p>
+                    <p>You can ask me questions like:</p>
+                    <ul>
+                        <li><a href="#" class="ai-sample-query">Who is working on Agentic AI?</a></li>
+                        <li><a href="#" class="ai-sample-query">What is the total cost of Fuel Project?</a></li>
+                        <li><a href="#" class="ai-sample-query">List overloaded employees</a></li>
+                        <li><a href="#" class="ai-sample-query">Cost of team CAE Romania</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="ai-chat-footer">
+                <input type="text" id="ai-chat-input" placeholder="Type your query (e.g., Who is working on Fuel?)..." autocomplete="off">
+                <button id="btn-send-ai" class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i></button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- MODAL 1: ADD/EDIT EMPLOYEE -->
+    <div id="modal-employee" class="modal">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h3 id="employee-modal-title">Add New Employee</h3>
+                <button class="modal-close btn-close" data-modal="modal-employee"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="form-employee" class="modal-form">
+                <input type="hidden" id="emp-id">
+                <div class="form-row">
+                    <div class="form-col">
+                        <label for="emp-name">Full Name</label>
+                        <input type="text" id="emp-name" required placeholder="e.g. John Doe">
+                    </div>
+                    <div class="form-col">
+                        <label for="emp-team">Team</label>
+                        <input type="text" id="emp-team" required placeholder="e.g. CAE Germany">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-col">
+                        <label for="emp-dept">Department</label>
+                        <select id="emp-dept">
+                            <option value="CAE">CAE</option>
+                            <option value="Test">Test</option>
+                            <option value="Management">Management</option>
+                            <option value="Lab">Lab</option>
+                            <option value="Sampling">Sampling</option>
+                            <option value="Customer Engineering">Customer Engineering</option>
+                            <option value="Internal Development">Internal Development</option>
+                        </select>
+                    </div>
+                    <div class="form-col">
+                        <label for="emp-location">Location</label>
+                        <input type="text" id="emp-location" required placeholder="e.g. Romania">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-col">
+                        <label for="emp-hours">Available Hours/Year</label>
+                        <input type="number" id="emp-hours" required value="1800">
+                    </div>
+                    <div class="form-col">
+                        <label for="emp-rate">Hourly Rate ($)</label>
+                        <input type="number" id="emp-rate" required step="0.01" value="50.00">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-col">
+                        <label for="emp-status">Status</label>
+                        <select id="emp-status">
+                            <option value="Active">Active</option>
+                            <option value="New Position">New Position</option>
+                            <option value="Replacement">Replacement</option>
+                            <option value="Temporary">Temporary</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+                    </div>
+                    <div class="form-col">
+                        <label for="emp-manager">Manager</label>
+                        <input type="text" id="emp-manager" placeholder="e.g. Dr. Müller">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-col-full">
+                        <label for="emp-notes">Notes</label>
+                        <textarea id="emp-notes" placeholder="General information..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary modal-close" data-modal="modal-employee">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Employee</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 2: ADD/EDIT TOPIC -->
+    <div id="modal-topic" class="modal">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h3 id="topic-modal-title">Add New Topic</h3>
+                <button class="modal-close btn-close" data-modal="modal-topic"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="form-topic" class="modal-form">
+                <input type="hidden" id="topic-id">
+                <div class="form-row">
+                    <div class="form-col">
+                        <label for="topic-name">Topic Name</label>
+                        <input type="text" id="topic-name" required placeholder="e.g. Crash Testing Standards">
+                    </div>
+                    <div class="form-col">
+                        <label for="topic-category">Category</label>
+                        <select id="topic-category">
+                            <option value="Internal Efforts">Internal Efforts</option>
+                            <option value="Internal D-Projects">Internal D-Projects</option>
+                            <option value="Customer Requests">Customer Requests</option>
+                            <option value="Allegro Projects">Allegro Projects</option>
+                            <option value="Pentatonic Projects">Pentatonic Projects</option>
+                            <option value="AI Initiatives">AI Initiatives</option>
+                            <option value="Virtual Validation">Virtual Validation</option>
+                            <option value="Quality Prediction">Quality Prediction</option>
+                            <option value="Material Development">Material Development</option>
+                            <option value="Testing Activities">Testing Activities</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-col">
+                        <label for="topic-area">Topic Area</label>
+                        <input type="text" id="topic-area" placeholder="e.g. CAE / Test / General">
+                    </div>
+                    <div class="form-col">
+                        <label for="topic-recovery">Recovery Amount ($)</label>
+                        <input type="number" id="topic-recovery" step="0.01" value="0.00">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-col-full">
+                        <label for="topic-desc">Description</label>
+                        <textarea id="topic-desc" placeholder="Scope and scope outline..."></textarea>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-col">
+                        <label for="topic-objective">Objective</label>
+                        <input type="text" id="topic-objective" placeholder="Target objectives...">
+                    </div>
+                    <div class="form-col">
+                        <label for="topic-deliverables">Expected Deliverables</label>
+                        <input type="text" id="topic-deliverables" placeholder="Deliverable documentation...">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-col-full">
+                        <label for="topic-justification">Business Justification</label>
+                        <textarea id="topic-justification" placeholder="Why is this topic needed? Value add..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary modal-close" data-modal="modal-topic">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Topic</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 3: EDIT CELL ALLOCATION -->
+    <div id="modal-allocation" class="modal">
+        <div class="modal-content glass modal-small">
+            <div class="modal-header">
+                <h3>Edit Allocation</h3>
+                <button class="modal-close btn-close" data-modal="modal-allocation"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="form-allocation" class="modal-form">
+                <input type="hidden" id="alloc-emp-id">
+                <input type="hidden" id="alloc-topic-id">
+                <div class="form-row">
+                    <div class="form-col-full">
+                        <h4 id="alloc-info-label" class="alloc-title-details">Employee Name @ Project Name</h4>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-col-full">
+                        <label for="alloc-pct">Allocation Percentage (%)</label>
+                        <input type="number" id="alloc-pct" min="0" max="100" required placeholder="e.g. 20">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-col-full">
+                        <label for="alloc-comment">Allocation Comment / Justification</label>
+                        <textarea id="alloc-comment" placeholder="Explain the reason for this allocation percentage..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary modal-close" data-modal="modal-allocation">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Allocation</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 4: CREATE SCENARIO -->
+    <div id="modal-scenario" class="modal">
+        <div class="modal-content glass modal-small">
+            <div class="modal-header">
+                <h3>Create Blank Scenario</h3>
+                <button class="modal-close btn-close" data-modal="modal-scenario"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="form-create-scenario" class="modal-form">
+                <div class="form-row">
+                    <div class="form-col-full">
+                        <label for="new-scenario-name">Scenario Name</label>
+                        <input type="text" id="new-scenario-name" required placeholder="e.g. Scenario FY28">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-col-full">
+                        <label for="new-scenario-desc">Description</label>
+                        <textarea id="new-scenario-desc" placeholder="Details about this scenario..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary modal-close" data-modal="modal-scenario">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Scenario</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 5: CLONE SCENARIO -->
+    <div id="modal-clone" class="modal">
+        <div class="modal-content glass modal-small">
+            <div class="modal-header">
+                <h3>Clone Active Scenario</h3>
+                <button class="modal-close btn-close" data-modal="modal-clone"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="form-clone-scenario" class="modal-form">
+                <div class="form-row">
+                    <div class="form-col-full">
+                        <label for="clone-scenario-name">New Scenario Name</label>
+                        <input type="text" id="clone-scenario-name" required placeholder="e.g. Clone of Baseline 2027">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-col-full">
+                        <label for="clone-scenario-desc">Description</label>
+                        <textarea id="clone-scenario-desc" placeholder="Scope details of this planning clone..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary modal-close" data-modal="modal-clone">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Clone Scenario</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Custom Script -->
+    <script src="js/app.js"></script>
+</body>
+</html>
