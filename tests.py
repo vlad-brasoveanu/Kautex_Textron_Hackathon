@@ -227,10 +227,19 @@ def test_local_ai_query_assistant(setup_database):
     response = client.post("/api/ai/query", json={"query": "who is working in Germany?"}, headers=user_headers)
     assert response.status_code == 200
     assert "Jane Doe" in response.json()["answer"]
-    
+
+    # Natural-language phrasing that doesn't match any of the fixed regex patterns
+    response = client.post("/api/ai/query", json={"query": "tell me what are the names of the people working in Germany"}, headers=user_headers)
+    assert response.status_code == 200
+    assert "Jane Doe" in response.json()["answer"]
+
+    response = client.post("/api/ai/query", json={"query": "how many people are on team Test Bonn"}, headers=user_headers)
+    assert response.status_code == 200
+    assert "1" in response.json()["answer"]
+
     response = client.post("/api/ai/query", json={"query": "Invalid question that contains topic cost"}, headers=user_headers)
     assert response.status_code == 200
-    assert "could not understand that question locally" in response.json()["answer"]
+    assert "not sure exactly what you're asking" in response.json()["answer"]
 
     # Test out-of-scope guardrail block
     response = client.post("/api/ai/query", json={"query": "What is the capital of France?"}, headers=user_headers)

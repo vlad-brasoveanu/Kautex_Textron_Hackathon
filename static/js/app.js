@@ -98,6 +98,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const aiChatBody = document.getElementById("ai-chat-body");
     const aiChatInput = document.getElementById("ai-chat-input");
     const btnSendAI = document.getElementById("btn-send-ai");
+    const aiChatWelcomeHTML = aiChatBody.innerHTML;
 
     // ==========================================
     // 1. INITIALIZATION & DATA SYNC
@@ -1616,6 +1617,15 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         btnCloseAI.addEventListener("click", () => {
+            // Conversation memory only lives as long as the drawer stays open -
+            // closing it resets the chat, so warn before discarding an active one.
+            const hasConversation = aiChatBody.querySelectorAll(".ai-message.user").length > 0;
+            if (hasConversation && !confirm("Are you sure you want to close the conversation? The chat history will be cleared.")) {
+                return;
+            }
+            if (hasConversation) {
+                aiChatBody.innerHTML = aiChatWelcomeHTML;
+            }
             aiDrawer.classList.remove("active");
         });
 

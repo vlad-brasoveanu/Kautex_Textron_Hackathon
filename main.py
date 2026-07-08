@@ -1639,6 +1639,64 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
                     test_cost += emp.available_hours * emp.hourly_rate * (pct / 100.0)
         return {"answer": prefix + f"The total estimated cost for all **Test-related** planning activities is **${test_cost:,.2f} USD**."}
 
+    # Generalized entity + intent detection. The regex handlers above only match
+    # a fixed set of phrasings (e.g. "who is working in X"); this catches more
+    # natural phrasings ("tell me the names of the people working in Romania",
+    # "how many people are on the CAE Germany team", "budget for Fuel Project")
+    # by looking for a known location/team/project mentioned anywhere in the
+    # sentence, then deciding what to return from the surrounding intent words.
+    unique_locs = list(set(e.location for e in employees))
+    unique_teams = list(set(e.team for e in employees))
+
+    def find_entity_in_query(text, choices):
+        best, best_len = None, 0
+        for choice in choices:
+            c_lower = choice.lower()
+            if c_lower and c_lower in text and len(c_lower) > best_len:
+                best, best_len = choice, len(c_lower)
+        return best
+
+    loc_hit = find_entity_in_query(q, unique_locs)
+    team_hit = None if loc_hit else find_entity_in_query(q, unique_teams)
+    topic_hit, topic_hit_candidates = (None, [])
+    if not loc_hit and not team_hit:
+        topic_hit, topic_hit_candidates = fuzzy_match_ambiguous(q, topics, lambda t: t.name, threshold=0.35)
+
+    if topic_hit_candidates:
+        c_str = "\n".join(f"* Topic/Project: **{c.name}**" for c in topic_hit_candidates)
+        return {"answer": prefix + f"I found multiple projects matching your question. Did you mean:\n{c_str}\nPlease clarify your query."}
+
+    if loc_hit or team_hit or topic_hit:
+        if loc_hit:
+            matched_emps = [e for e in employees if e.location == loc_hit]
+            entity_label = f"location **{loc_hit}**"
+        elif team_hit:
+            matched_emps = [e for e in employees if e.team == team_hit]
+            entity_label = f"team **{team_hit}**"
+        else:
+            matched_emps = [e for e in employees if alloc_map.get((e.id, topic_hit.id), 0.0) > 0]
+            entity_label = f"topic **{topic_hit.name}**"
+
+        cost_intent = any(w in q for w in ["cost", "budget", "spend", "expense"])
+        count_intent = any(w in q for w in ["how many", "count", "number of"])
+        people_intent = any(w in q for w in ["name", "names", "who", "people", "employee", "staff", "member"])
+
+        if cost_intent and not people_intent:
+            cost_total = sum(
+                emp.available_hours * emp.hourly_rate * (alloc_map.get((emp.id, t.id), 0.0) / 100.0)
+                for emp in matched_emps for t in topics
+            )
+            return {"answer": prefix + f"The total cost associated with {entity_label} is **${cost_total:,.2f} USD**."}
+
+        if count_intent and not people_intent:
+            return {"answer": prefix + f"There are **{len(matched_emps)}** employees associated with {entity_label}."}
+
+        # Default (and any "names"/"who"/"people" phrasing) -> list the people
+        if matched_emps:
+            names_list = "\n".join(f"* **{e.name}** ({e.team}) - {emp_alloc_sums.get(e.id, 0.0):.1f}% utilization" for e in matched_emps)
+            return {"answer": prefix + f"Here are the people working on {entity_label}:\n\n{names_list}"}
+        return {"answer": prefix + f"No employees are currently planned for {entity_label}."}
+
     # Fallback to search profile (Fuzzy Matcher)
     emp, emp_candidates = fuzzy_match_ambiguous(q, employees, lambda e: e.name)
     topic, topic_candidates = fuzzy_match_ambiguous(q, topics, lambda t: t.name)
@@ -1674,22 +1732,13 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
                                f"* *Description*: {topic.description or 'No description'}"
         }
 
+    # Nothing matched: the question is too vague or references something outside
+    # the current dataset. Ask a clarifying question instead of just failing.
     return {
-        "answer": prefix + "I'm sorry, I could not understand that question locally. Try asking:\n"
-                           "* *'Who is working on Agentic AI?'*\n"
-                           "* *'What is the total cost of Fuel Project?'*\n"
-                           "* *'List overloaded employees'*\n"
-                           "* *'Cost of team CAE Romania'*\n"
-                           "* *'Cost of location Germany'*"
-    }
-
-    return {
-        "answer": prefix + "I'm sorry, I could not understand that question locally. Try asking:\n"
-                           "* *'Who is working on Agentic AI?'*\n"
-                           "* *'What is the total cost of Fuel Project?'*\n"
-                           "* *'List overloaded employees'*\n"
-                           "* *'Cost of team CAE Romania'*\n"
-                           "* *'Cost of location Germany'*"
+        "answer": prefix + "I want to help, but I'm not sure exactly what you're asking. Could you clarify?\n\n"
+                           "* Are you asking about **people/staff**, **costs**, or **projects/topics**?\n"
+                           "* Could you mention a specific **team**, **location**, or **project name**?\n\n"
+                           "For example: *'Who is working in Romania?'*, *'What is the cost of the Fuel project?'*, or *'List overloaded employees'*."
     }
 
 # Serve static files for frontend SPA
