@@ -1276,38 +1276,38 @@ document.addEventListener("DOMContentLoaded", () => {
         
         if (bList) {
             bList.innerHTML = data.bottlenecks.map(b => `
-                <div style="margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.03);">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px;">
-                        <strong style="color:var(--text-primary); font-size:12px;">${b.type}</strong>
-                        <span class="badge ${b.severity === 'High' ? 'badge-danger' : b.severity === 'Medium' ? 'badge-warning' : 'badge-success'}" style="font-size:9px; padding:1px 6px;">${b.severity}</span>
+                <div class="ai-insight-item">
+                    <div class="ai-insight-header">
+                        <strong class="ai-insight-label">${b.type}</strong>
+                        <span class="badge ${b.severity === 'High' ? 'badge-danger' : b.severity === 'Medium' ? 'badge-warning' : 'badge-success'}" style="font-size:10px; padding:2px 7px;">${b.severity}</span>
                     </div>
-                    <p style="font-size:11px; color:var(--text-secondary);">${b.description}</p>
+                    <p class="ai-insight-desc">${b.description}</p>
                 </div>
-            `).join("") || "<p style='color:var(--text-muted); font-size:11px;'>No bottlenecks predicted.</p>";
+            `).join("") || "<p class='ai-insight-desc' style='opacity:0.6;'>No bottlenecks predicted.</p>";
         }
-        
+
         if (cList) {
             cList.innerHTML = data.cost_optimizations.map(c => `
-                <div style="margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.03);">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px;">
-                        <strong style="color:var(--text-primary); font-size:12px;">${c.category}</strong>
-                        <span style="color:var(--success-color); font-size:11px; font-weight:600;">${c.impact}</span>
+                <div class="ai-insight-item">
+                    <div class="ai-insight-header">
+                        <strong class="ai-insight-label">${c.category}</strong>
+                        <span class="ai-insight-impact">${c.impact}</span>
                     </div>
-                    <p style="font-size:11px; color:var(--text-secondary);">${c.description}</p>
+                    <p class="ai-insight-desc">${c.description}</p>
                 </div>
-            `).join("") || "<p style='color:var(--text-muted); font-size:11px;'>No cost optimizations found.</p>";
+            `).join("") || "<p class='ai-insight-desc' style='opacity:0.6;'>No cost optimizations found.</p>";
         }
-        
+
         if (rList) {
             rList.innerHTML = data.reallocations.map(r => `
-                <div style="margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.03);">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px;">
-                        <strong style="color:var(--text-primary); font-size:12px;">${r.action}</strong>
-                        <span class="badge ${r.priority === 'High' ? 'badge-danger' : r.priority === 'Medium' ? 'badge-warning' : 'badge-success'}" style="font-size:10px; padding:1px 6px;">${r.priority}</span>
+                <div class="ai-insight-item">
+                    <div class="ai-insight-header">
+                        <strong class="ai-insight-label">${r.action}</strong>
+                        <span class="badge ${r.priority === 'High' ? 'badge-danger' : r.priority === 'Medium' ? 'badge-warning' : 'badge-success'}" style="font-size:10px; padding:2px 7px;">${r.priority}</span>
                     </div>
-                    <p style="font-size:11px; color:var(--text-secondary);">${r.description}</p>
+                    <p class="ai-insight-desc">${r.description}</p>
                 </div>
-            `).join("") || "<p style='color:var(--text-muted); font-size:11px;'>No load balancing needed.</p>";
+            `).join("") || "<p class='ai-insight-desc' style='opacity:0.6;'>No load balancing needed.</p>";
         }
 
         const slideB = document.getElementById("pres-ai-bottlenecks-list");

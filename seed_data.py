@@ -58,7 +58,7 @@ def seed():
     employees = [
         models.Employee(
             scenario_id=scenario.id,
-            name="GV CAE Bonn",
+            name="Markus Weber",
             team="CAE Germany",
             department="CAE",
             location="Germany",
@@ -70,7 +70,7 @@ def seed():
         ),
         models.Employee(
             scenario_id=scenario.id,
-            name="GV Test Bonn",
+            name="Lukas Fischer",
             team="Test Bonn",
             department="Test",
             location="Germany",
@@ -82,7 +82,7 @@ def seed():
         ),
         models.Employee(
             scenario_id=scenario.id,
-            name="GV CAE India",
+            name="Priya Sharma",
             team="CAE India",
             department="CAE",
             location="India",
@@ -94,7 +94,7 @@ def seed():
         ),
         models.Employee(
             scenario_id=scenario.id,
-            name="GV Test India",
+            name="Arjun Mehta",
             team="Test India",
             department="Test",
             location="India",
@@ -106,7 +106,7 @@ def seed():
         ),
         models.Employee(
             scenario_id=scenario.id,
-            name="GV CAE Mexico",
+            name="Carlos Hernández",
             team="CAE Mexico",
             department="CAE",
             location="Mexico",
@@ -118,7 +118,7 @@ def seed():
         ),
         models.Employee(
             scenario_id=scenario.id,
-            name="GV Test Mexico",
+            name="Ana Martínez",
             team="Test Mexico",
             department="Test",
             location="Mexico",
@@ -130,7 +130,7 @@ def seed():
         ),
         models.Employee(
             scenario_id=scenario.id,
-            name="GV CAE Romania",
+            name="Andreea Ionescu",
             team="CAE Romania",
             department="CAE",
             location="Romania",
@@ -142,7 +142,7 @@ def seed():
         ),
         models.Employee(
             scenario_id=scenario.id,
-            name="GV Test Romania",
+            name="Mihai Dumitrescu",
             team="Test Romania",
             department="Test",
             location="Romania",
@@ -154,7 +154,7 @@ def seed():
         ),
         models.Employee(
             scenario_id=scenario.id,
-            name="GV Test Troy",
+            name="Michael Johnson",
             team="Test Troy",
             department="Test",
             location="USA",
@@ -166,7 +166,7 @@ def seed():
         ),
         models.Employee(
             scenario_id=scenario.id,
-            name="GV Test Pinghu",
+            name="Wei Zhang",
             team="Test Pinghu",
             department="Test",
             location="China",
@@ -282,64 +282,64 @@ def seed():
 
     # Add Resource Allocations
     allocations = [
-        # GV CAE Bonn (Total 100%)
-        models.Allocation(employee_id=emp_map["GV CAE Bonn"], topic_id=top_map["Non bookable - Other"], percentage=10.0, comment="Standard admin time."),
-        models.Allocation(employee_id=emp_map["GV CAE Bonn"], topic_id=top_map["bookable 1 - Consulting Global"], percentage=10.0, comment="Advisory for US engineering team."),
-        models.Allocation(employee_id=emp_map["GV CAE Bonn"], topic_id=top_map["Agentic AI and LLM - Enterprise Solutions"], percentage=50.0, comment="Lead dashboard backend developer."),
-        models.Allocation(employee_id=emp_map["GV CAE Bonn"], topic_id=top_map["Fuel Project"], percentage=10.0, comment="Review fuel cell structural simulations."),
-        models.Allocation(employee_id=emp_map["GV CAE Bonn"], topic_id=top_map["Method Development Pentatonic"], percentage=20.0, comment="Pentatonic crash simulation setup."),
+        # Markus Weber - CAE Germany (Total 100%)
+        models.Allocation(employee_id=emp_map["Markus Weber"], topic_id=top_map["Non bookable - Other"], percentage=10.0, comment="Standard admin time."),
+        models.Allocation(employee_id=emp_map["Markus Weber"], topic_id=top_map["bookable 1 - Consulting Global"], percentage=10.0, comment="Advisory for US engineering team."),
+        models.Allocation(employee_id=emp_map["Markus Weber"], topic_id=top_map["Agentic AI and LLM - Enterprise Solutions"], percentage=50.0, comment="Lead dashboard backend developer."),
+        models.Allocation(employee_id=emp_map["Markus Weber"], topic_id=top_map["Fuel Project"], percentage=10.0, comment="Review fuel cell structural simulations."),
+        models.Allocation(employee_id=emp_map["Markus Weber"], topic_id=top_map["Method Development Pentatonic"], percentage=20.0, comment="Pentatonic crash simulation setup."),
 
-        # GV Test Bonn (Total 120% - Overloaded!)
-        models.Allocation(employee_id=emp_map["GV Test Bonn"], topic_id=top_map["Non bookable - Other"], percentage=10.0, comment="Required lab compliance training."),
-        models.Allocation(employee_id=emp_map["GV Test Bonn"], topic_id=top_map["bookable 1 - Consulting Global"], percentage=10.0, comment="Bonn lab consulting requests."),
-        models.Allocation(employee_id=emp_map["GV Test Bonn"], topic_id=top_map["Agentic AI and LLM - Enterprise Solutions"], percentage=40.0, comment="Front-end UI tester and advisor."),
-        models.Allocation(employee_id=emp_map["GV Test Bonn"], topic_id=top_map["Fuel Project"], percentage=20.0, comment="Physical test rig supervisor."),
-        models.Allocation(employee_id=emp_map["GV Test Bonn"], topic_id=top_map["Creation of Test Standards"], percentage=40.0, comment="Drafting new global validation guidelines."),
+        # Lukas Fischer - Test Bonn (Total 120% - Overloaded!)
+        models.Allocation(employee_id=emp_map["Lukas Fischer"], topic_id=top_map["Non bookable - Other"], percentage=10.0, comment="Required lab compliance training."),
+        models.Allocation(employee_id=emp_map["Lukas Fischer"], topic_id=top_map["bookable 1 - Consulting Global"], percentage=10.0, comment="Bonn lab consulting requests."),
+        models.Allocation(employee_id=emp_map["Lukas Fischer"], topic_id=top_map["Agentic AI and LLM - Enterprise Solutions"], percentage=40.0, comment="Front-end UI tester and advisor."),
+        models.Allocation(employee_id=emp_map["Lukas Fischer"], topic_id=top_map["Fuel Project"], percentage=20.0, comment="Physical test rig supervisor."),
+        models.Allocation(employee_id=emp_map["Lukas Fischer"], topic_id=top_map["Creation of Test Standards"], percentage=40.0, comment="Drafting new global validation guidelines."),
 
-        # GV CAE India (Total 80%)
-        models.Allocation(employee_id=emp_map["GV CAE India"], topic_id=top_map["Non bookable - Other"], percentage=10.0, comment="Regular admin tasks."),
-        models.Allocation(employee_id=emp_map["GV CAE India"], topic_id=top_map["bookable 1 - Consulting Global"], percentage=10.0, comment="Mesh automation support."),
-        models.Allocation(employee_id=emp_map["GV CAE India"], topic_id=top_map["Agentic AI and LLM - Enterprise Solutions"], percentage=50.0, comment="Data ingestion and parsing development."),
-        models.Allocation(employee_id=emp_map["GV CAE India"], topic_id=top_map["Fuel Project"], percentage=10.0, comment="Basic structural meshing for Fuel Project."),
+        # Priya Sharma - CAE India (Total 80%)
+        models.Allocation(employee_id=emp_map["Priya Sharma"], topic_id=top_map["Non bookable - Other"], percentage=10.0, comment="Regular admin tasks."),
+        models.Allocation(employee_id=emp_map["Priya Sharma"], topic_id=top_map["bookable 1 - Consulting Global"], percentage=10.0, comment="Mesh automation support."),
+        models.Allocation(employee_id=emp_map["Priya Sharma"], topic_id=top_map["Agentic AI and LLM - Enterprise Solutions"], percentage=50.0, comment="Data ingestion and parsing development."),
+        models.Allocation(employee_id=emp_map["Priya Sharma"], topic_id=top_map["Fuel Project"], percentage=10.0, comment="Basic structural meshing for Fuel Project."),
 
-        # GV Test India (Total 110% - Overloaded!)
-        models.Allocation(employee_id=emp_map["GV Test India"], topic_id=top_map["Non bookable - Other"], percentage=10.0, comment="Standard admin time."),
-        models.Allocation(employee_id=emp_map["GV Test India"], topic_id=top_map["bookable 1 - Consulting Global"], percentage=10.0, comment="Local test support."),
-        models.Allocation(employee_id=emp_map["GV Test India"], topic_id=top_map["Agentic AI and LLM - Enterprise Solutions"], percentage=50.0, comment="Testing visual charts and exporting."),
-        models.Allocation(employee_id=emp_map["GV Test India"], topic_id=top_map["Fuel Project"], percentage=10.0, comment="Test run operations."),
-        models.Allocation(employee_id=emp_map["GV Test India"], topic_id=top_map["Creation of Test Standards"], percentage=30.0, comment="Helping standardise India lab procedures."),
+        # Arjun Mehta - Test India (Total 110% - Overloaded!)
+        models.Allocation(employee_id=emp_map["Arjun Mehta"], topic_id=top_map["Non bookable - Other"], percentage=10.0, comment="Standard admin time."),
+        models.Allocation(employee_id=emp_map["Arjun Mehta"], topic_id=top_map["bookable 1 - Consulting Global"], percentage=10.0, comment="Local test support."),
+        models.Allocation(employee_id=emp_map["Arjun Mehta"], topic_id=top_map["Agentic AI and LLM - Enterprise Solutions"], percentage=50.0, comment="Testing visual charts and exporting."),
+        models.Allocation(employee_id=emp_map["Arjun Mehta"], topic_id=top_map["Fuel Project"], percentage=10.0, comment="Test run operations."),
+        models.Allocation(employee_id=emp_map["Arjun Mehta"], topic_id=top_map["Creation of Test Standards"], percentage=30.0, comment="Helping standardise India lab procedures."),
 
-        # GV CAE Mexico (Total 90%)
-        models.Allocation(employee_id=emp_map["GV CAE Mexico"], topic_id=top_map["Non bookable - Other"], percentage=10.0, comment="Admin and locale support."),
-        models.Allocation(employee_id=emp_map["GV CAE Mexico"], topic_id=top_map["Agentic AI and LLM - Enterprise Solutions"], percentage=50.0, comment="Model testing and scenarios design."),
-        models.Allocation(employee_id=emp_map["GV CAE Mexico"], topic_id=top_map["Method Development Pentatonic"], percentage=30.0, comment="Pentatonic crash simulations assistance."),
+        # Carlos Hernández - CAE Mexico (Total 90%)
+        models.Allocation(employee_id=emp_map["Carlos Hernández"], topic_id=top_map["Non bookable - Other"], percentage=10.0, comment="Admin and locale support."),
+        models.Allocation(employee_id=emp_map["Carlos Hernández"], topic_id=top_map["Agentic AI and LLM - Enterprise Solutions"], percentage=50.0, comment="Model testing and scenarios design."),
+        models.Allocation(employee_id=emp_map["Carlos Hernández"], topic_id=top_map["Method Development Pentatonic"], percentage=30.0, comment="Pentatonic crash simulations assistance."),
 
-        # GV Test Mexico (Total 90%)
-        models.Allocation(employee_id=emp_map["GV Test Mexico"], topic_id=top_map["Non bookable - Other"], percentage=10.0, comment="Local compliance check."),
-        models.Allocation(employee_id=emp_map["GV Test Mexico"], topic_id=top_map["Fuel Project"], percentage=50.0, comment="Primary test rig support."),
-        models.Allocation(employee_id=emp_map["GV Test Mexico"], topic_id=top_map["Creation of Test Standards"], percentage=30.0, comment="Aligning Mexico lab specs."),
+        # Ana Martínez - Test Mexico (Total 90%)
+        models.Allocation(employee_id=emp_map["Ana Martínez"], topic_id=top_map["Non bookable - Other"], percentage=10.0, comment="Local compliance check."),
+        models.Allocation(employee_id=emp_map["Ana Martínez"], topic_id=top_map["Fuel Project"], percentage=50.0, comment="Primary test rig support."),
+        models.Allocation(employee_id=emp_map["Ana Martínez"], topic_id=top_map["Creation of Test Standards"], percentage=30.0, comment="Aligning Mexico lab specs."),
 
-        # GV CAE Romania (Total 100%)
-        models.Allocation(employee_id=emp_map["GV CAE Romania"], topic_id=top_map["Non bookable - Other"], percentage=20.0, comment="Extended training and administrative duties."),
-        models.Allocation(employee_id=emp_map["GV CAE Romania"], topic_id=top_map["bookable 1 - Consulting Global"], percentage=10.0, comment="Consulting for German hub."),
-        models.Allocation(employee_id=emp_map["GV CAE Romania"], topic_id=top_map["Agentic AI and LLM - Enterprise Solutions"], percentage=20.0, comment="SQL engine testing."),
-        models.Allocation(employee_id=emp_map["GV CAE Romania"], topic_id=top_map["Fuel Project"], percentage=30.0, comment="Thermal modeling for Fuel Project."),
-        models.Allocation(employee_id=emp_map["GV CAE Romania"], topic_id=top_map["Method Development Pentatonic"], percentage=20.0, comment="Pentatonic thermal validation."),
+        # Andreea Ionescu - CAE Romania (Total 100%)
+        models.Allocation(employee_id=emp_map["Andreea Ionescu"], topic_id=top_map["Non bookable - Other"], percentage=20.0, comment="Extended training and administrative duties."),
+        models.Allocation(employee_id=emp_map["Andreea Ionescu"], topic_id=top_map["bookable 1 - Consulting Global"], percentage=10.0, comment="Consulting for German hub."),
+        models.Allocation(employee_id=emp_map["Andreea Ionescu"], topic_id=top_map["Agentic AI and LLM - Enterprise Solutions"], percentage=20.0, comment="SQL engine testing."),
+        models.Allocation(employee_id=emp_map["Andreea Ionescu"], topic_id=top_map["Fuel Project"], percentage=30.0, comment="Thermal modeling for Fuel Project."),
+        models.Allocation(employee_id=emp_map["Andreea Ionescu"], topic_id=top_map["Method Development Pentatonic"], percentage=20.0, comment="Pentatonic thermal validation."),
 
-        # GV Test Romania (Total 95%)
-        models.Allocation(employee_id=emp_map["GV Test Romania"], topic_id=top_map["Non bookable - Other"], percentage=10.0, comment="Required safety checks."),
-        models.Allocation(employee_id=emp_map["GV Test Romania"], topic_id=top_map["bookable 1 - Consulting Global"], percentage=10.0, comment="Test consulting."),
-        models.Allocation(employee_id=emp_map["GV Test Romania"], topic_id=top_map["Agentic AI and LLM - Enterprise Solutions"], percentage=40.0, comment="QA verification."),
-        models.Allocation(employee_id=emp_map["GV Test Romania"], topic_id=top_map["Fuel Project"], percentage=20.0, comment="Validation lead for Fuel Project Romania."),
-        models.Allocation(employee_id=emp_map["GV Test Romania"], topic_id=top_map["Creation of Test Standards"], percentage=15.0, comment="Reviewing Romanian translation of ISO guidelines."),
+        # Mihai Dumitrescu - Test Romania (Total 95%)
+        models.Allocation(employee_id=emp_map["Mihai Dumitrescu"], topic_id=top_map["Non bookable - Other"], percentage=10.0, comment="Required safety checks."),
+        models.Allocation(employee_id=emp_map["Mihai Dumitrescu"], topic_id=top_map["bookable 1 - Consulting Global"], percentage=10.0, comment="Test consulting."),
+        models.Allocation(employee_id=emp_map["Mihai Dumitrescu"], topic_id=top_map["Agentic AI and LLM - Enterprise Solutions"], percentage=40.0, comment="QA verification."),
+        models.Allocation(employee_id=emp_map["Mihai Dumitrescu"], topic_id=top_map["Fuel Project"], percentage=20.0, comment="Validation lead for Fuel Project Romania."),
+        models.Allocation(employee_id=emp_map["Mihai Dumitrescu"], topic_id=top_map["Creation of Test Standards"], percentage=15.0, comment="Reviewing Romanian translation of ISO guidelines."),
 
-        # GV Test Troy (Total 80%)
-        models.Allocation(employee_id=emp_map["GV Test Troy"], topic_id=top_map["Non bookable - Other"], percentage=10.0, comment="Standard administrative tasks."),
-        models.Allocation(employee_id=emp_map["GV Test Troy"], topic_id=top_map["Fuel Project"], percentage=70.0, comment="Primary customer liaison validator in the US."),
+        # Michael Johnson - Test Troy (Total 80%)
+        models.Allocation(employee_id=emp_map["Michael Johnson"], topic_id=top_map["Non bookable - Other"], percentage=10.0, comment="Standard administrative tasks."),
+        models.Allocation(employee_id=emp_map["Michael Johnson"], topic_id=top_map["Fuel Project"], percentage=70.0, comment="Primary customer liaison validator in the US."),
 
-        # GV Test Pinghu (Total 90%)
-        models.Allocation(employee_id=emp_map["GV Test Pinghu"], topic_id=top_map["Non bookable - Other"], percentage=10.0, comment="Compliance safety meeting."),
-        models.Allocation(employee_id=emp_map["GV Test Pinghu"], topic_id=top_map["Creation of Test Standards"], percentage=80.0, comment="Harmonising China lab testing metrics."),
+        # Wei Zhang - Test Pinghu (Total 90%)
+        models.Allocation(employee_id=emp_map["Wei Zhang"], topic_id=top_map["Non bookable - Other"], percentage=10.0, comment="Compliance safety meeting."),
+        models.Allocation(employee_id=emp_map["Wei Zhang"], topic_id=top_map["Creation of Test Standards"], percentage=80.0, comment="Harmonising China lab testing metrics."),
     ]
 
     for alloc in allocations:
@@ -350,13 +350,13 @@ def seed():
     add_costs = [
         # Agentic AI project
         models.AdditionalCost(topic_id=top_map["Agentic AI and LLM - Enterprise Solutions"], cost_type="internal", category="CAD", amount=5000.0, notes="CAD modeling licenses for UI prototyping."),
-        models.AdditionalCost(topic_id=top_map["Agentic AI and LLM - Enterprise Solutions"], cost_type="internal", category="Internal equipment", amount=3000.0, notes="Local testing servers rent."),
+        models.AdditionalCost(topic_id=top_map["Agentic AI and LLM - Enterprise Solutions"], cost_type="internal", category="Internal Equipment", amount=3000.0, notes="Local testing servers rent."),
         models.AdditionalCost(topic_id=top_map["Agentic AI and LLM - Enterprise Solutions"], cost_type="external", category="Tooling", amount=10000.0, notes="UI design tools premium licensing."),
         models.AdditionalCost(topic_id=top_map["Agentic AI and LLM - Enterprise Solutions"], cost_type="external", category="Prototypes", amount=15000.0, notes="Testing prototype deployment host."),
 
         # Fuel Project
-        models.AdditionalCost(topic_id=top_map["Fuel Project"], cost_type="external", category="Supplier support", amount=25000.0, notes="Dedicated validation consulting from supplier."),
-        models.AdditionalCost(topic_id=top_map["Fuel Project"], cost_type="external", category="External testing", amount=15000.0, notes="High pressure chamber certification test lab."),
+        models.AdditionalCost(topic_id=top_map["Fuel Project"], cost_type="external", category="Supplier Support", amount=25000.0, notes="Dedicated validation consulting from supplier."),
+        models.AdditionalCost(topic_id=top_map["Fuel Project"], cost_type="external", category="External Testing", amount=15000.0, notes="High pressure chamber certification test lab."),
     ]
 
     for cost in add_costs:
