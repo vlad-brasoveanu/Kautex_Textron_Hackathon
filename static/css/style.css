@@ -64,6 +64,23 @@ body.theme-light .matrix-table td.matrix-overloaded-name {
     color: #b91c1c !important;
 }
 
+body.theme-light select option {
+    background-color: #f1f5f9;
+    color: #0f172a;
+}
+
+body.theme-light ::-webkit-scrollbar-track {
+    background: rgba(241, 245, 249, 0.5);
+}
+
+body.theme-light ::-webkit-scrollbar-thumb {
+    background: rgba(15, 23, 42, 0.1);
+}
+
+body.theme-light ::-webkit-scrollbar-thumb:hover {
+    background: rgba(15, 23, 42, 0.2);
+}
+
 body.theme-dark {
     --bg-primary: #030712;
     --bg-secondary: #0b0f19;
@@ -197,11 +214,18 @@ body {
     gap: 12px;
 }
 
-.logo-icon {
-    font-size: 26px;
-    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+.logo-image, .login-logo-image {
+    transition: filter 0.3s ease;
+}
+
+body:not(.theme-light) .logo-image,
+body:not(.theme-light) .login-logo-image {
+    filter: brightness(0) invert(1) drop-shadow(0px 2px 4px rgba(255,255,255,0.1));
+}
+
+body.theme-light .logo-image,
+body.theme-light .login-logo-image {
+    filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.15));
 }
 
 .logo-text h1 {
@@ -308,7 +332,7 @@ body {
    SIDEBAR STYLES
    ========================================================== */
 .app-sidebar {
-    background: rgba(17, 24, 39, 0.8);
+    background: var(--glass-bg);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-right: 1px solid var(--glass-border);

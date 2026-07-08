@@ -648,7 +648,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 plugins: {
                     legend: {
                         position: "right",
-                        labels: { color: "#f3f4f6", font: { family: "Outfit" } }
+                        labels: { color: document.body.classList.contains("theme-light") ? "#0f172a" : "#f3f4f6", font: { family: "Outfit" } }
                     }
                 }
             }
@@ -682,8 +682,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
-                    x: { ticks: { color: "#9ca3af", font: { family: "Outfit" } }, grid: { display: false } },
-                    y: { ticks: { color: "#9ca3af", font: { family: "Outfit" } }, grid: { color: "rgba(255,255,255,0.05)" } }
+                    x: { ticks: { color: document.body.classList.contains("theme-light") ? "#475569" : "#9ca3af", font: { family: "Outfit" } }, grid: { display: false } },
+                    y: { ticks: { color: document.body.classList.contains("theme-light") ? "#475569" : "#9ca3af", font: { family: "Outfit" } }, grid: { color: document.body.classList.contains("theme-light") ? "rgba(15, 23, 42, 0.08)" : "rgba(255,255,255,0.05)" } }
                 },
                 plugins: {
                     legend: { display: false }
@@ -722,7 +722,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 plugins: {
                     legend: {
                         position: "bottom",
-                        labels: { color: "#f3f4f6", font: { family: "Outfit", size: 11 }, boxWidth: 12 }
+                        labels: { color: document.body.classList.contains("theme-light") ? "#0f172a" : "#f3f4f6", font: { family: "Outfit", size: 11 }, boxWidth: 12 }
                     }
                 }
             }
@@ -758,8 +758,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 maintainAspectRatio: false,
                 indexAxis: "y",
                 scales: {
-                    x: { ticks: { color: "#9ca3af", font: { family: "Outfit" } }, grid: { color: "rgba(255,255,255,0.05)" } },
-                    y: { ticks: { color: "#9ca3af", font: { family: "Outfit" } }, grid: { display: false } }
+                    x: { ticks: { color: document.body.classList.contains("theme-light") ? "#475569" : "#9ca3af", font: { family: "Outfit" } }, grid: { color: document.body.classList.contains("theme-light") ? "rgba(15, 23, 42, 0.08)" : "rgba(255,255,255,0.05)" } },
+                    y: { ticks: { color: document.body.classList.contains("theme-light") ? "#475569" : "#9ca3af", font: { family: "Outfit" } }, grid: { display: false } }
                 },
                 plugins: {
                     legend: { display: false }
@@ -809,8 +809,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
-                    x: { ticks: { color: "#9ca3af", font: { family: "Outfit", size: 10 } }, grid: { display: false } },
-                    y: { ticks: { color: "#9ca3af", font: { family: "Outfit" }, precision: 0 }, grid: { color: "rgba(255,255,255,0.05)" } }
+                    x: { ticks: { color: document.body.classList.contains("theme-light") ? "#475569" : "#9ca3af", font: { family: "Outfit", size: 10 } }, grid: { display: false } },
+                    y: { ticks: { color: document.body.classList.contains("theme-light") ? "#475569" : "#9ca3af", font: { family: "Outfit" }, precision: 0 }, grid: { color: document.body.classList.contains("theme-light") ? "rgba(15, 23, 42, 0.08)" : "rgba(255,255,255,0.05)" } }
                 },
                 plugins: {
                     legend: { display: false }
@@ -1292,7 +1292,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: { legend: { position: "right", labels: { color: "#e2e8f0", font: { family: "Outfit", size: 10 } } } }
+                        plugins: { legend: { position: "right", labels: { color: document.body.classList.contains("theme-light") ? "#0f172a" : "#e2e8f0", font: { family: "Outfit", size: 10 } } } }
                     }
                 });
             },
@@ -2381,6 +2381,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 const selected = e.target.value;
                 localStorage.setItem("app-theme", selected);
                 setAppTheme(selected);
+                if (activeSection === "dashboards-section") {
+                    renderDashboards();
+                } else if (activeSection === "presentation-section") {
+                    renderPresentationDeck();
+                }
             });
         }
 
