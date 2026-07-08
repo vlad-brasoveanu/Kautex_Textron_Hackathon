@@ -81,6 +81,61 @@ body.theme-light ::-webkit-scrollbar-thumb:hover {
     background: rgba(15, 23, 42, 0.2);
 }
 
+/* Light Mode Presentation Slides styling overrides */
+body.theme-light .presentation-slide {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+}
+
+body.theme-light .slide-header-brand {
+    color: #475569 !important;
+}
+
+body.theme-light .slide-body-center h2 {
+    color: #0f172a !important;
+}
+
+body.theme-light .slide-subtitle-divider {
+    background: rgba(15, 23, 42, 0.1) !important;
+}
+
+body.theme-light .slide-footer {
+    color: #475569 !important;
+    border-top: 1px solid #e2e8f0 !important;
+}
+
+body.theme-light .slide-title-bar h3, 
+body.theme-light .pres-kpi-number, 
+body.theme-light .risk-title {
+    color: #0f172a !important;
+}
+
+body.theme-light .pres-kpi-item, 
+body.theme-light .pres-chart-box, 
+body.theme-light .pres-notes-box {
+    background: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
+}
+
+body.theme-light .pres-kpi-label, 
+body.theme-light .pres-chart-box h4 {
+    color: #475569 !important;
+}
+
+body.theme-light .pres-table th {
+    background: #f1f5f9 !important;
+    color: #0f172a !important;
+    border-color: #cbd5e1 !important;
+}
+
+body.theme-light .pres-table td {
+    border-color: #e2e8f0 !important;
+    color: #334155 !important;
+}
+
 body.theme-dark {
     --bg-primary: #030712;
     --bg-secondary: #0b0f19;
@@ -560,7 +615,7 @@ body.theme-light .login-logo-image {
 
 /* Topic Headers (Vertical Sticky) */
 .matrix-table thead th {
-    background: #1e293b;
+    background: var(--bg-secondary);
     color: var(--text-primary);
     font-weight: 500;
     position: sticky;
@@ -572,7 +627,7 @@ body.theme-light .login-logo-image {
 .matrix-table td.sticky-col, .matrix-table th.sticky-col {
     position: sticky;
     left: 0;
-    background: #1e293b;
+    background: var(--bg-secondary);
     z-index: 4;
     text-align: left;
     font-weight: 500;
@@ -588,7 +643,7 @@ body.theme-light .login-logo-image {
 }
 
 .matrix-table tbody tr:hover td.sticky-col {
-    background: #1e293b;
+    background: var(--bg-secondary);
 }
 
 /* Editable cells */
