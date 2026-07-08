@@ -656,6 +656,12 @@ body.role-user-active .matrix-cell-pct:hover {
     border-color: rgba(156, 163, 175, 0.3);
 }
 
+.badge-info {
+    background: rgba(139, 92, 246, 0.15);
+    color: var(--accent-color);
+    border-color: rgba(139, 92, 246, 0.3);
+}
+
 /* ==========================================================
    EXECUTIVE ALERT STRIP
    ========================================================== */

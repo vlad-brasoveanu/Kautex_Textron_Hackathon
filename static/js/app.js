@@ -62,6 +62,13 @@ document.addEventListener("DOMContentLoaded", () => {
     let topicSortField = "name";
     let topicSortOrder = 1;
 
+    // Audit Logs search/filter state - logs are fetched once and re-filtered
+    // client-side so search/filter changes don't need a network round trip.
+    let auditLogsCache = [];
+    let auditLogSearch = "";
+    let auditLogActionFilter = "";
+    let auditLogUserFilter = "";
+
     // Executive dashboard overview table sort states
     let teamOvSortField = "total_cost";
     let teamOvSortOrder = -1;
@@ -2340,6 +2347,29 @@ document.addEventListener("DOMContentLoaded", () => {
             btnRefreshLogs.addEventListener("click", fetchAndRenderAdminLogs);
         }
 
+        // Audit Logs search + filters (client-side, re-filters the cached log list)
+        const searchAuditLogs = document.getElementById("search-audit-logs");
+        if (searchAuditLogs) {
+            searchAuditLogs.addEventListener("input", (e) => {
+                auditLogSearch = e.target.value.trim();
+                renderAuditLogsTable();
+            });
+        }
+        const filterAuditLogsAction = document.getElementById("filter-audit-logs-action");
+        if (filterAuditLogsAction) {
+            filterAuditLogsAction.addEventListener("change", (e) => {
+                auditLogActionFilter = e.target.value;
+                renderAuditLogsTable();
+            });
+        }
+        const filterAuditLogsUser = document.getElementById("filter-audit-logs-user");
+        if (filterAuditLogsUser) {
+            filterAuditLogsUser.addEventListener("change", (e) => {
+                auditLogUserFilter = e.target.value;
+                renderAuditLogsTable();
+            });
+        }
+
         // Create user form submission handler
         const formManageUser = document.getElementById("form-manage-create-user");
         if (formManageUser) {
@@ -2673,7 +2703,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const tbody = document.querySelector("#admin-logs-table tbody");
         if (!tbody) return;
         tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;"><i class="fa-solid fa-spinner fa-spin"></i> Loading audit logs...</td></tr>';
-        
+
         try {
             const token = localStorage.getItem("token");
             const response = await fetch("/api/admin/logs", {
@@ -2682,32 +2712,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
             if (response.ok) {
-                const logs = await response.json();
-                tbody.innerHTML = "";
-                if (logs.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-secondary);">No system audit logs found.</td></tr>';
-                    return;
-                }
-                logs.forEach(log => {
-                    const tr = document.createElement("tr");
-                    const date = new Date(log.timestamp + "Z");
-                    const localTime = date.toLocaleString();
-                    
-                    let badgeClass = "badge-secondary";
-                    if (log.action === "Login") badgeClass = "badge-success";
-                    else if (log.action === "Failed Login") badgeClass = "badge-danger";
-                    else if (log.action === "Import CSV") badgeClass = "badge-primary";
-                    else if (log.action === "Export Report") badgeClass = "badge-warning";
-                    else if (log.action === "Registration") badgeClass = "badge-info";
-                    
-                    tr.innerHTML = `
-                        <td style="font-size: 11px; color: var(--text-secondary);">${localTime}</td>
-                        <td><strong>${log.username}</strong></td>
-                        <td><span class="badge ${badgeClass}">${log.action}</span></td>
-                        <td style="font-size: 12px; color: var(--text-primary); max-width: 400px; word-wrap: break-word;">${log.details || ""}</td>
-                    `;
-                    tbody.appendChild(tr);
-                });
+                auditLogsCache = await response.json();
+                populateAuditLogFilterDropdowns();
+                renderAuditLogsTable();
             } else {
                 tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--danger-color);"><i class="fa-solid fa-triangle-exclamation"></i> Error loading logs. Access denied.</td></tr>';
             }
@@ -2715,6 +2722,92 @@ document.addEventListener("DOMContentLoaded", () => {
             console.error("Error fetching logs:", err);
             tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--danger-color);">Failed to connect to backend server.</td></tr>';
         }
+    }
+
+    function populateAuditLogFilterDropdowns() {
+        const actionSelect = document.getElementById("filter-audit-logs-action");
+        const userSelect = document.getElementById("filter-audit-logs-user");
+        if (!actionSelect || !userSelect) return;
+
+        const prevAction = actionSelect.value;
+        const actions = [...new Set(auditLogsCache.map(l => l.action))].sort();
+        actionSelect.innerHTML = '<option value="">All Actions</option>';
+        actions.forEach(a => {
+            const opt = document.createElement("option");
+            opt.value = a;
+            opt.textContent = a;
+            actionSelect.appendChild(opt);
+        });
+        actionSelect.value = actions.includes(prevAction) ? prevAction : "";
+
+        const prevUser = userSelect.value;
+        const users = [...new Set(auditLogsCache.map(l => l.username))].sort();
+        userSelect.innerHTML = '<option value="">All Users</option>';
+        users.forEach(u => {
+            const opt = document.createElement("option");
+            opt.value = u;
+            opt.textContent = u;
+            userSelect.appendChild(opt);
+        });
+        userSelect.value = users.includes(prevUser) ? prevUser : "";
+    }
+
+    function renderAuditLogsTable() {
+        const tbody = document.querySelector("#admin-logs-table tbody");
+        const countLabel = document.getElementById("audit-logs-result-count");
+        if (!tbody) return;
+
+        let filtered = [...auditLogsCache];
+
+        if (auditLogActionFilter) {
+            filtered = filtered.filter(l => l.action === auditLogActionFilter);
+        }
+        if (auditLogUserFilter) {
+            filtered = filtered.filter(l => l.username === auditLogUserFilter);
+        }
+        if (auditLogSearch) {
+            const q = auditLogSearch.toLowerCase();
+            filtered = filtered.filter(l =>
+                l.username.toLowerCase().includes(q) ||
+                l.action.toLowerCase().includes(q) ||
+                (l.details || "").toLowerCase().includes(q)
+            );
+        }
+
+        if (countLabel) {
+            countLabel.innerText = `Showing ${filtered.length} of ${auditLogsCache.length} log entries.`;
+        }
+
+        tbody.innerHTML = "";
+        if (auditLogsCache.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-secondary);">No system audit logs found.</td></tr>';
+            return;
+        }
+        if (filtered.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-secondary);">No log entries match your search/filter.</td></tr>';
+            return;
+        }
+
+        filtered.forEach(log => {
+            const tr = document.createElement("tr");
+            const date = new Date(log.timestamp + "Z");
+            const localTime = date.toLocaleString();
+
+            let badgeClass = "badge-secondary";
+            if (log.action === "Login") badgeClass = "badge-success";
+            else if (log.action === "Failed Login") badgeClass = "badge-danger";
+            else if (log.action === "Import CSV") badgeClass = "badge-primary";
+            else if (log.action === "Export Report") badgeClass = "badge-warning";
+            else if (log.action === "Registration") badgeClass = "badge-info";
+
+            tr.innerHTML = `
+                <td style="font-size: 11px; color: var(--text-secondary);">${localTime}</td>
+                <td><strong>${log.username}</strong></td>
+                <td><span class="badge ${badgeClass}">${log.action}</span></td>
+                <td style="font-size: 12px; color: var(--text-primary); max-width: 400px; word-wrap: break-word;">${log.details || ""}</td>
+            `;
+            tbody.appendChild(tr);
+        });
     }
 
     async function fetchAndRenderUsers() {

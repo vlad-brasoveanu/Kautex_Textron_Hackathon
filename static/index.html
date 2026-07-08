@@ -548,8 +548,20 @@
                     </div>
                     <button id="btn-refresh-logs" class="btn btn-primary"><i class="fa-solid fa-rotate"></i> Refresh Logs</button>
                 </div>
-                
+
                 <div class="crud-card" style="margin-top: 20px; width: 100%;">
+                    <div class="crud-card-header" style="flex-direction: column; align-items: stretch; gap: 8px;">
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="search-audit-logs" placeholder="Search by user, action, or details..." style="flex: 1; padding: 6px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none;">
+                            <select id="filter-audit-logs-action" style="padding: 6px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none; max-width: 180px;">
+                                <option value="">All Actions</option>
+                            </select>
+                            <select id="filter-audit-logs-user" style="padding: 6px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none; max-width: 180px;">
+                                <option value="">All Users</option>
+                            </select>
+                        </div>
+                        <p class="section-desc" id="audit-logs-result-count" style="margin: 0;"></p>
+                    </div>
                     <div class="crud-table-wrapper" style="max-height: 500px; overflow-y: auto;">
                         <table class="crud-table" id="admin-logs-table">
                             <thead>
