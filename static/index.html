@@ -529,18 +529,18 @@
                 </div>
             </section>
 
-            <!-- SECTION 5: CSV FILE UPLOAD (ADMIN ONLY) -->
+             <!-- SECTION 5: EXCEL / CSV FILE UPLOAD (ADMIN ONLY) -->
             <section id="upload-section" class="main-section admin-only" style="display: none;">
                 <div class="section-header">
                     <h2><i class="fa-solid fa-cloud-arrow-up"></i> Upload Planning Sheet</h2>
-                    <p class="section-desc">Instantly populate the active planning version by uploading an Excel-exported CSV matrix planning sheet.</p>
+                    <p class="section-desc">Instantly populate the active planning version by uploading an Excel (.xlsx/.xls) or CSV matrix planning sheet.</p>
                 </div>
 
                 <div class="upload-container">
                     <div class="drag-drop-area" id="csv-drag-drop">
-                        <i class="fa-solid fa-file-csv upload-big-icon"></i>
-                        <p>Drag and drop your planning CSV here, or click to browse</p>
-                        <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
+                        <i class="fa-solid fa-file-excel upload-big-icon" style="color: #107c41;"></i>
+                        <p>Drag and drop your planning CSV or Excel file here, or click to browse</p>
+                        <input type="file" id="csv-file-input" accept=".csv, .xlsx, .xls" style="display: none;">
                         <button class="btn btn-primary">Browse Files</button>
                     </div>
 
@@ -551,8 +551,8 @@
 
                     <!-- Instructions and Sample Layout -->
                     <div class="upload-instructions">
-                        <h3><i class="fa-solid fa-circle-info"></i> CSV Layout Format Instructions</h3>
-                        <p>Your uploaded CSV must match the standard matrix planning sheet layout:</p>
+                        <h3><i class="fa-solid fa-circle-info"></i> CSV / Excel Layout Format Instructions</h3>
+                        <p>Your uploaded sheet must match the standard matrix planning layout:</p>
                         <ul>
                             <li>The first row must contain columns: <code>Employee</code>, <code>Team</code>, <code>Location</code>, <code>Hours/Year</code> (or <code>Available hours/year (Region 100%)</code>), <code>Hourly Rate</code>, followed by the specific Topic/Project columns (e.g. <code>Agentic AI</code>, <code>Fuel Project</code>).</li>
                             <li>The rows below should represent employees. The intersection cells represent their allocation percentage (e.g. <code>20%</code>, <code>0.2</code>, or <code>20</code>).</li>

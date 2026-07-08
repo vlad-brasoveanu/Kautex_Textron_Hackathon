@@ -2,6 +2,7 @@ import io
 import csv
 import re
 import hashlib
+import openpyxl
 import json
 import urllib.request
 import urllib.error
@@ -1014,13 +1015,37 @@ async def import_csv_data(file: UploadFile = File(...), db: Session = Depends(ge
     active_scenario = get_active_scenario_db(db)
 
     contents = await file.read()
-    decoded = contents.decode("utf-8")
-    csv_file = io.StringIO(decoded)
-    reader = csv.reader(csv_file)
+    rows = []
+    filename = file.filename.lower() if file.filename else ""
+    
+    if filename.endswith(".xlsx") or filename.endswith(".xls") or file.content_type in ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel"]:
+        try:
+            workbook = openpyxl.load_workbook(io.BytesIO(contents), data_only=True)
+            sheet = workbook.active
+            for row in sheet.iter_rows(values_only=True):
+                # Filter out completely empty rows
+                if not any(v is not None for v in row):
+                    continue
+                row_vals = []
+                for val in row:
+                    if val is None:
+                        row_vals.append("")
+                    else:
+                        row_vals.append(str(val))
+                rows.append(row_vals)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to parse Excel file: {str(e)}")
+    else:
+        try:
+            decoded = contents.decode("utf-8")
+            csv_file = io.StringIO(decoded)
+            reader = csv.reader(csv_file)
+            rows = list(reader)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to parse CSV file: {str(e)}")
 
-    rows = list(reader)
     if not rows:
-        raise HTTPException(status_code=400, detail="CSV is empty")
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
     # Standard header checking
     headers = [h.strip() for h in rows[0]]

@@ -1,6 +1,7 @@
 import pytest
 import io
 import csv
+import openpyxl
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from database import Base
@@ -417,6 +418,28 @@ def test_csv_importer_new_manager_column(setup_database):
     employee = next(e for e in emp_resp.json() if e["name"] == "Managed User")
     assert employee["manager"] == "Jane Boss"
 
+def test_excel_importer(setup_database):
+    # Construct an Excel sheet in memory using openpyxl
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.append(["Employee", "Team", "Location", "Hours/Year", "Hourly Rate", "Initiative Excel"])
+    ws.append(["Excel Employee", "Excel Team", "USA", 2000, 85.5, 0.5])
+    ws.append(["CAD", "", "", "", "", 15000])
+    
+    output = io.BytesIO()
+    wb.save(output)
+    excel_content = output.getvalue()
+    
+    file_payload = {"file": ("planning_grid.xlsx", excel_content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
+    response = client.post("/api/import/csv", files=file_payload, headers=admin_headers)
+    
+    assert response.status_code == 200
+    res_data = response.json()
+    assert res_data["status"] == "success"
+    assert res_data["imported_employees"] == 1
+    assert res_data["imported_topics"] == 1
+    assert res_data["imported_allocations"] == 1
+    assert res_data["imported_additional_costs"] == 1
 
 def test_scenario_backup_restore(setup_database):
     # 1. Add some mock data to scenario 1
