@@ -58,6 +58,10 @@ document.addEventListener("DOMContentLoaded", () => {
         topicId: ""
     };
 
+    // Allocation Matrix column sort state (null = insertion order)
+    let matrixSortField = null;
+    let matrixSortOrder = 1;
+
     // Management Panel CRUD states
     let empSearch = "";
     let empLocFilter = "";
@@ -356,6 +360,47 @@ document.addEventListener("DOMContentLoaded", () => {
         // editable, and rows/columns can be added or removed directly from the grid.
         const canEditGrid = activeRole === "admin" || activeRole === "master_admin";
 
+        // --- Column sorting: click a header to sort employees by that column.
+        // Sort value getters, keyed the same as the `data-sort`-ish key passed
+        // to makeSortIcon/attachSort below.
+        function matrixSortValue(emp, key) {
+            if (key === "name") return emp.name;
+            if (key === "team") return emp.team;
+            if (key === "location") return emp.location;
+            if (key === "hours") return emp.available_hours;
+            if (key === "rate") return emp.hourly_rate;
+            if (key === "total") return empAllocSums[emp.id] || 0;
+            if (key.startsWith("topic:")) {
+                const topicId = parseInt(key.slice(6), 10);
+                const alloc = allocMap[`${emp.id}_${topicId}`];
+                return alloc ? alloc.percentage : 0;
+            }
+            return null;
+        }
+
+        function makeSortIcon(key) {
+            const icon = document.createElement("i");
+            const isActive = matrixSortField === key;
+            icon.className = "matrix-sort-icon " + (isActive
+                ? (matrixSortOrder === 1 ? "fa-solid fa-sort-up active" : "fa-solid fa-sort-down active")
+                : "fa-solid fa-sort");
+            return icon;
+        }
+
+        function attachSort(th, key) {
+            th.classList.add("matrix-sortable-th");
+            th.appendChild(makeSortIcon(key));
+            th.addEventListener("click", () => {
+                if (matrixSortField === key) {
+                    matrixSortOrder = -matrixSortOrder;
+                } else {
+                    matrixSortField = key;
+                    matrixSortOrder = 1;
+                }
+                renderAllocationMatrix();
+            });
+        }
+
         // Create table elements
         const table = document.createElement("table");
         table.className = "matrix-table";
@@ -364,38 +409,50 @@ document.addEventListener("DOMContentLoaded", () => {
         const thead = document.createElement("thead");
         const headerRow = document.createElement("tr");
 
-        // Metadata headers
+        // Metadata headers - each one is click-to-sort.
         const thEmp = document.createElement("th");
         thEmp.className = "sticky-col";
-        thEmp.innerText = "Employee";
+        thEmp.innerHTML = "<span>Employee</span>";
+        attachSort(thEmp, "name");
         headerRow.appendChild(thEmp);
 
         const thTeam = document.createElement("th");
-        thTeam.innerText = "Team";
+        thTeam.innerHTML = "<span>Team</span>";
+        attachSort(thTeam, "team");
         headerRow.appendChild(thTeam);
 
         const thLoc = document.createElement("th");
-        thLoc.innerText = "Location";
+        thLoc.innerHTML = "<span>Location</span>";
+        attachSort(thLoc, "location");
         headerRow.appendChild(thLoc);
 
         const thHours = document.createElement("th");
-        thHours.innerText = "Hours/Yr";
+        thHours.innerHTML = "<span>Hours/Yr</span>";
+        attachSort(thHours, "hours");
         headerRow.appendChild(thHours);
 
         const thRate = document.createElement("th");
-        thRate.innerText = "Rate ($)";
+        thRate.innerHTML = "<span>Rate ($)</span>";
+        attachSort(thRate, "rate");
         headerRow.appendChild(thRate);
 
-        // Topic column headers - double-click to edit the topic, or remove the
-        // column entirely with the small close icon (admin/master admin only).
+        // Topic column headers - click to sort by that topic's allocation %,
+        // double-click to edit the topic, or remove the column entirely with
+        // the small close icon (admin/master admin only).
         filteredTopics.forEach(topic => {
             const thTopic = document.createElement("th");
-            thTopic.innerHTML = `${topic.name}<br><small style='font-weight:normal;color:#9ca3af;'>${topic.category}</small>`;
-            if (canEditGrid) {
-                thTopic.title = "Double-click to edit this column";
-                thTopic.style.cursor = "pointer";
-                thTopic.addEventListener("dblclick", () => editTopicPrompt(topic.id));
+            thTopic.className = "matrix-topic-th";
 
+            const topRow = document.createElement("div");
+            topRow.className = "matrix-th-row";
+
+            const label = document.createElement("span");
+            label.className = "matrix-th-label";
+            label.innerText = topic.name;
+            topRow.appendChild(label);
+            topRow.appendChild(makeSortIcon(`topic:${topic.id}`));
+
+            if (canEditGrid) {
                 const removeBtn = document.createElement("i");
                 removeBtn.className = "fa-solid fa-circle-xmark matrix-col-remove";
                 removeBtn.title = "Remove this column (topic)";
@@ -403,47 +460,96 @@ document.addEventListener("DOMContentLoaded", () => {
                     e.stopPropagation();
                     deleteTopicPrompt(topic.id);
                 });
-                thTopic.appendChild(removeBtn);
+                topRow.appendChild(removeBtn);
             }
+
+            thTopic.appendChild(topRow);
+
+            const subtitle = document.createElement("small");
+            subtitle.className = "matrix-th-subtitle";
+            subtitle.innerText = topic.category;
+            thTopic.appendChild(subtitle);
+
+            thTopic.addEventListener("click", () => {
+                const key = `topic:${topic.id}`;
+                if (matrixSortField === key) {
+                    matrixSortOrder = -matrixSortOrder;
+                } else {
+                    matrixSortField = key;
+                    matrixSortOrder = 1;
+                }
+                renderAllocationMatrix();
+            });
+
+            if (canEditGrid) {
+                thTopic.title = "Click to sort, double-click to edit this column";
+                thTopic.addEventListener("dblclick", (e) => {
+                    e.stopPropagation();
+                    editTopicPrompt(topic.id);
+                });
+            } else {
+                thTopic.title = "Click to sort";
+            }
+
             headerRow.appendChild(thTopic);
         });
 
         // Total Column Header
         const thTotal = document.createElement("th");
-        thTotal.innerText = "Total Util %";
+        thTotal.innerHTML = "<span>Total Util %</span>";
+        attachSort(thTotal, "total");
         headerRow.appendChild(thTotal);
 
         thead.appendChild(headerRow);
         table.appendChild(thead);
 
+        // Apply the active sort (if any) to a copy of the filtered employee
+        // list, used for row rendering below.
+        const sortedEmployees = [...filteredEmployees];
+        if (matrixSortField) {
+            sortedEmployees.sort((a, b) => {
+                const va = matrixSortValue(a, matrixSortField);
+                const vb = matrixSortValue(b, matrixSortField);
+                if (typeof va === "string") {
+                    return va.localeCompare(vb) * matrixSortOrder;
+                }
+                return (va - vb) * matrixSortOrder;
+            });
+        }
+
         // --- BODY ROWS (EMPLOYEES) ---
         const tbody = document.createElement("tbody");
         
-        filteredEmployees.forEach(emp => {
+        sortedEmployees.forEach(emp => {
             const tr = document.createElement("tr");
 
             // Meta cells
             const tdName = document.createElement("td");
             tdName.className = "sticky-col";
-            
+
+            const nameGroup = document.createElement("span");
+            nameGroup.className = "matrix-row-name-group";
+
             const nameText = document.createElement("span");
             nameText.innerText = emp.name;
-            tdName.appendChild(nameText);
-            
+            nameGroup.appendChild(nameText);
+
             const totalAlloc = empAllocSums[emp.id] || 0.0;
             if (totalAlloc > 100.0) {
                 tdName.classList.add("matrix-overloaded-name");
-                
+
                 const warningIcon = document.createElement("i");
                 warningIcon.className = "fa-solid fa-triangle-exclamation matrix-warning-icon";
                 warningIcon.title = `Overloaded! Total allocation is ${totalAlloc.toFixed(1)}%`;
                 warningIcon.style.color = "var(--danger-color)";
                 warningIcon.style.marginLeft = "6px";
-                tdName.appendChild(warningIcon);
-                
+                nameGroup.appendChild(warningIcon);
+
                 tr.classList.add("tr-overloaded");
             }
-            
+
+            tdName.appendChild(nameGroup);
+
             if (canEditGrid) {
                 const removeBtn = document.createElement("i");
                 removeBtn.className = "fa-solid fa-circle-xmark matrix-row-remove";

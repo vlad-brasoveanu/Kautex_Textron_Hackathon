@@ -657,6 +657,25 @@ body:not(.theme-light) .login-logo-image {
     z-index: 6;
 }
 
+/* Employee body cell: name (+ overload icon) on the left, remove control
+   pinned to the right edge - a flex row keeps the "x" button consistently
+   aligned regardless of name length, instead of just trailing the text inline. */
+.matrix-table td.sticky-col {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.matrix-row-name-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .matrix-table tbody tr:hover td {
     background: rgba(255, 255, 255, 0.02);
 }
@@ -750,23 +769,82 @@ body.role-user-active .matrix-cell-pct:hover {
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* Row/Column remove controls (full grid control for admin/master admin) */
+/* Row/Column remove controls (full grid control for admin/master admin).
+   Fixed-size circular hit targets, vertically centered via the flex
+   containers above/below instead of relying on inline vertical-align, which
+   drifted depending on neighboring text size. */
 .matrix-row-remove, .matrix-col-remove {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
     color: var(--danger-color);
-    font-size: 13px;
-    margin-left: 8px;
+    font-size: 14px;
+    border-radius: 50%;
     cursor: pointer;
     opacity: 0.55;
-    transition: opacity 0.15s ease;
-    vertical-align: middle;
+    transition: opacity 0.15s ease, background 0.15s ease;
 }
 
 .matrix-row-remove:hover, .matrix-col-remove:hover {
     opacity: 1;
+    background: rgba(239, 68, 68, 0.12);
 }
 
-.matrix-col-remove {
-    float: right;
+/* Topic (column) headers: a top row with the label + sort icon on the left
+   and the remove control pinned to the right, a category subtitle below. */
+.matrix-topic-th {
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s ease;
+}
+
+.matrix-topic-th:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.matrix-th-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.matrix-th-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.matrix-th-subtitle {
+    display: block;
+    font-weight: normal;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+/* Sortable metadata/topic headers */
+.matrix-sortable-th {
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s ease;
+}
+
+.matrix-sortable-th:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.matrix-sort-icon {
+    font-size: 11px;
+    opacity: 0.4;
+    margin-left: 6px;
+    transition: opacity 0.15s ease;
+}
+
+.matrix-sort-icon.active {
+    opacity: 1;
+    color: var(--primary-color);
 }
 
 /* Utilisation Highlight Classes */
