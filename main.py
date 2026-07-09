@@ -2420,6 +2420,55 @@ def enrich_predictions_with_llm(predictions: dict, employees: list, topics: list
     return predictions
 
 
+@app.post("/api/reports/ai-memo")
+def generate_ai_memo(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """Generates a short executive memo from the same real portfolio data
+    the dashboards already show. Always returns something usable - Ollama
+    enriches the wording when available, but a deterministic templated
+    memo (built from the real numbers) is the fallback, matching the same
+    graceful-degradation philosophy as Admin Insights."""
+    active_scenario = get_active_scenario_db(db)
+    report = build_dashboard_report(db, active_scenario)
+
+    top_topics = report["highest_cost_topics"][:3]
+    top_depts = sorted(report["cost_by_department"].items(), key=lambda x: x[1], reverse=True)[:3]
+    overloaded = report["overloaded_employees"]
+
+    top_topics_str = ", ".join(f"{t['name']} (${t['total_cost']:,.0f})" for t in top_topics) or "none"
+    top_depts_str = ", ".join(f"{d} (${c:,.0f})" for d, c in top_depts) or "none"
+    overloaded_names_str = ", ".join(e["name"] for e in overloaded) or "none"
+
+    fallback_paragraphs = [
+        f"This plan supports {report['total_headcount']} employees at a total annual planning cost of "
+        f"${report['total_annual_planning_cost']:,.0f}, combining ${report['total_internal_employee_cost']:,.0f} in internal "
+        f"staff cost, ${report['total_additional_internal_cost']:,.0f} in additional internal cost, and "
+        f"${report['total_external_cost']:,.0f} in external cost, net of ${report['total_recovery_cost']:,.0f} in recovery.",
+
+        f"The largest cost drivers are {top_topics_str}. By department, {top_depts_str} represent the highest spend.",
+
+        (f"{len(overloaded)} employee(s) are currently allocated above 100% and should be reviewed for rebalancing: "
+         f"{overloaded_names_str}." if overloaded else
+         "No employees are currently over-allocated - staffing levels across the portfolio are within capacity."),
+    ]
+    fallback_memo = "\n\n".join(fallback_paragraphs)
+
+    prompt = (
+        "You are writing a concise 3-paragraph executive memo for Textron leadership summarizing the current "
+        "engineering resource plan. Use ONLY the real data below - do not invent numbers, names, or projects.\n\n"
+        f"Scenario: {report['scenario_name']}\n"
+        f"Headcount: {report['total_headcount']}\n"
+        f"Total annual planning cost: ${report['total_annual_planning_cost']:,.0f}\n"
+        f"Highest cost topics: {top_topics_str}\n"
+        f"Highest cost departments: {top_depts_str}\n"
+        f"Overloaded employees (>100% allocated): {overloaded_names_str}\n\n"
+        "Write exactly 3 short paragraphs: (1) overall scope and cost, (2) where the money goes, "
+        "(3) risks/recommendations. Plain prose, no headers, no bullet points, no markdown."
+    )
+    llm_memo = query_local_ollama(prompt)
+
+    return {"memo": llm_memo.strip() if llm_memo else fallback_memo}
+
+
 def fuzzy_match_ambiguous(query: str, choices: list, key_extractor, threshold: float = 0.25) -> tuple[Optional[any], list[any]]:
     if not query:
         return None, []

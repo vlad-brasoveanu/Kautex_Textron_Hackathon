@@ -582,6 +582,31 @@ def test_ai_what_if_copilot_stays_sandboxed(setup_database):
     assert scenarios_after == scenarios_before
 
 
+def test_ai_memo_endpoint(setup_database):
+    db = setup_database
+    scenario = db.query(models.Scenario).filter(models.Scenario.is_active == True).first()
+
+    emp = models.Employee(
+        scenario_id=scenario.id, name="Elena Marin", team="CAE Romania",
+        department="CAE", location="Romania", available_hours=1800.0, hourly_rate=80.0
+    )
+    topic = models.Topic(scenario_id=scenario.id, name="Fuel Project", category="Customer Requests")
+    db.add_all([emp, topic])
+    db.commit()
+    db.refresh(emp)
+    db.refresh(topic)
+    db.add(models.Allocation(employee_id=emp.id, topic_id=topic.id, percentage=120.0))
+    db.commit()
+
+    response = client.post("/api/reports/ai-memo", headers=user_headers)
+    assert response.status_code == 200
+    memo = response.json()["memo"]
+    assert isinstance(memo, str) and len(memo) > 0
+    # Without Ollama running, falls back to the deterministic templated memo
+    # built from real numbers - the overloaded employee should be named.
+    assert "Elena Marin" in memo
+
+
 def test_ai_predictions_endpoint(setup_database):
     response = client.get("/api/reports/ai-predictions", headers=user_headers)
     assert response.status_code == 200

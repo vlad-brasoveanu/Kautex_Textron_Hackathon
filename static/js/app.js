@@ -3976,6 +3976,49 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
 
+        // Generate AI Memo trigger - fetches a real-data-grounded executive
+        // memo (LLM-enriched if Ollama is available, deterministic fallback
+        // otherwise - see /api/reports/ai-memo) and drops it in as a custom
+        // slide using the same push pattern as Add Slide / addSimComparisonToDeck.
+        const btnDeckGenerateMemo = document.getElementById("btn-deck-generate-ai-memo");
+        if (btnDeckGenerateMemo) {
+            btnDeckGenerateMemo.addEventListener("click", async () => {
+                const originalHTML = btnDeckGenerateMemo.innerHTML;
+                btnDeckGenerateMemo.disabled = true;
+                btnDeckGenerateMemo.innerHTML = "<i class=\"fa-solid fa-spinner fa-spin\"></i> Generating...";
+                try {
+                    const response = await fetch("/api/reports/ai-memo", { method: "POST" });
+                    if (!response.ok) {
+                        alert("Failed to generate the executive memo.");
+                        return;
+                    }
+                    const data = await response.json();
+                    const bodyHTML = data.memo.split(/\n{2,}/).map(p => `<p>${p.trim()}</p>`).join("");
+
+                    if (!deckConfig) loadDeckConfig();
+                    const newId = "custom_memo_" + Date.now();
+                    deckConfig.push({
+                        id: newId,
+                        included: true,
+                        isCustom: true,
+                        overrides: {
+                            "title-text": "Executive Memo",
+                            "body-text": bodyHTML
+                        }
+                    });
+                    saveDeckConfig();
+                    renderDeckCustomizeList();
+                    renderPresentationDeck();
+                } catch (err) {
+                    console.error("Error generating AI memo:", err);
+                    alert("Error generating the executive memo.");
+                } finally {
+                    btnDeckGenerateMemo.disabled = false;
+                    btnDeckGenerateMemo.innerHTML = originalHTML;
+                }
+            });
+        }
+
         // Present Mode triggers
         const btnPresentDeck = document.getElementById("btn-present-deck");
         if (btnPresentDeck) {
