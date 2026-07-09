@@ -1384,8 +1384,7 @@ tr.overview-row:hover td {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    max-height: 50vh;
-    overflow-y: auto;
+    max-height: unset;
 }
 
 .deck-customize-item {
@@ -2096,6 +2095,12 @@ th.sortable-emp:hover, th.sortable-topic:hover {
     padding: 18px;
     position: sticky;
     top: 20px;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    scrollbar-gutter: stable;
+    overscroll-behavior: contain;
 }
 
 .deck-customize-panel h3 {
@@ -2105,10 +2110,14 @@ th.sortable-emp:hover, th.sortable-topic:hover {
     align-items: center;
     gap: 8px;
     margin-bottom: 8px;
+    flex-shrink: 0;
 }
 
 .deck-customize-panel .deck-customize-list {
-    max-height: calc(100vh - 320px);
+    flex: 1 1 auto;
+    overflow-y: auto;
+    margin-bottom: 12px;
+    padding-right: 4px;
 }
 
 .presentation-slide {
@@ -2600,5 +2609,350 @@ th.sortable-emp:hover, th.sortable-topic:hover {
 body.authenticated .login-overlay {
     opacity: 0;
     pointer-events: none;
+}
+
+/* Inline content editable styles */
+[contenteditable="true"] {
+    transition: outline 0.15s ease, background 0.15s ease;
+    border-radius: 4px;
+}
+[contenteditable="true"]:hover {
+    outline: 1px dashed var(--primary-color) !important;
+    cursor: text;
+}
+[contenteditable="true"]:focus {
+    outline: 2px solid var(--accent-color) !important;
+    background: rgba(99, 102, 241, 0.08) !important;
+    padding: 2px 4px;
+}
+
+/* Presentation Mode Overlay */
+.presentation-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: var(--bg-primary); /* Consistent with the dashboard theme background */
+    z-index: 10000;
+    display: none; /* Controlled via active class */
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    box-sizing: border-box;
+    padding: 3vh 3vw 12vh 3vw; /* Space for toolbar at bottom */
+    overflow: hidden;
+    transition: opacity 0.3s ease;
+    opacity: 0;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+}
+
+.presentation-overlay.active {
+    display: flex;
+    opacity: 1;
+}
+
+/* Container wrappers for scaling slides to fit viewport */
+.presentation-content-wrapper {
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.presentation-slide-viewport {
+    width: 100%;
+    max-width: 1250px; /* Upgraded size from 1050px */
+    height: 100%;
+    max-height: 700px; /* Upgraded size from 590px */
+    aspect-ratio: 16 / 9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Font and scale overrides inside Fullscreen Presentation Overlay */
+.presentation-overlay .presentation-slide h3 {
+    font-size: 24px !important;
+}
+.presentation-overlay .presentation-slide {
+    font-size: 14.5px !important;
+}
+.presentation-overlay .pres-table th,
+.presentation-overlay .pres-table td {
+    padding: 10px 14px !important;
+    font-size: 12.5px !important;
+}
+.presentation-overlay .pres-kpi-number {
+    font-size: 26px !important;
+}
+.presentation-overlay .pres-kpi-label {
+    font-size: 12.5px !important;
+}
+.presentation-overlay .risk-list li {
+    font-size: 12.5px !important;
+    padding: 10px 14px !important;
+}
+
+/* Ensure slide takes full size of viewport */
+.presentation-slide-viewport .presentation-slide {
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 36px 48px !important;
+    border-radius: 16px;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+    background: var(--bg-secondary) !important;
+    border: 1px solid var(--glass-border) !important;
+    animation: slideFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideFadeIn {
+    from { opacity: 0; transform: scale(0.96) translateY(12px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Control Toolbar at bottom (Always in White/Light Mode) */
+.presentation-toolbar {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 800px;
+    background: rgba(255, 255, 255, 0.92) !important;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    border-radius: 50px;
+    padding: 12px 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 10001;
+    box-shadow: 0 15px 35px rgba(15, 23, 42, 0.08) !important;
+}
+
+.presentation-toolbar .toolbar-left,
+.presentation-toolbar .toolbar-center,
+.presentation-toolbar .toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.pres-slide-counter {
+    color: #475569 !important;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+/* Explicit white mode buttons for the presentation toolbar */
+.presentation-toolbar .btn-secondary {
+    background: #f1f5f9 !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #334155 !important;
+}
+
+.presentation-toolbar .btn-secondary:hover {
+    background: #e2e8f0 !important;
+    color: #0f172a !important;
+}
+
+.presentation-toolbar .btn-primary {
+    background: #3b82f6 !important;
+    color: #ffffff !important;
+    border: none !important;
+}
+
+.presentation-toolbar .btn-primary:hover {
+    background: #2563eb !important;
+    color: #ffffff !important;
+}
+
+.presentation-toolbar .text-red {
+    color: #dc2626 !important;
+}
+
+.presentation-toolbar .text-red:hover {
+    color: #b91c1c !important;
+}
+
+body #presentation-overlay.theme-light-presentation {
+    background: #0f172a !important; /* Darker navy background for high contrast framing */
+}
+
+/* Dark presentation overlay theme forcing dark slides regardless of body theme */
+body #presentation-overlay.theme-dark-presentation {
+    background: #070a13 !important; /* Pitch black / very dark navy screen background */
+}
+
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide {
+    background: #0f172a !important; /* Dark card background */
+    color: #f8fafc !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5) !important;
+}
+
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide .slide-header-brand {
+    color: #94a3b8 !important;
+}
+
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide .slide-body-center h2 {
+    color: #f8fafc !important;
+}
+
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide .slide-subtitle-divider {
+    background: rgba(255, 255, 255, 0.08) !important;
+}
+
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide .slide-footer {
+    color: #94a3b8 !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.06) !important;
+}
+
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .slide-header-brand {
+    color: #475569 !important;
+}
+
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .slide-body-center h2 {
+    color: #0f172a !important;
+}
+
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .slide-subtitle-divider {
+    background: rgba(15, 23, 42, 0.1) !important;
+}
+
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .slide-footer {
+    color: #475569 !important;
+    border-top: 1px solid #e2e8f0 !important;
+}
+
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .slide-title-bar h3,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .pres-kpi-number,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .risk-title {
+    color: #0f172a !important;
+}
+
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .pres-kpi-item,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .pres-chart-box,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .pres-notes-box {
+    background: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
+}
+
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .pres-kpi-label,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .pres-chart-box h4 {
+    color: #475569 !important;
+}
+
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .pres-table th {
+    background: #eef2f9 !important;
+    color: #0f172a !important;
+    border-color: #cbd5e1 !important;
+}
+
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .pres-table td {
+    border-color: #cbd5e1 !important;
+    color: #334155 !important;
+}
+
+/* General high contrast resets for all slides in light presentation mode */
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide h1,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide h2,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide h3,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide h4,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide p,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide li,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide div,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide span,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide td,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide th,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide strong,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide a,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide [contenteditable="true"] {
+    color: #0f172a !important;
+}
+
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .text-blue {
+    color: #1d4ed8 !important; /* Darker blue for light mode high contrast */
+}
+
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .text-green {
+    color: #15803d !important; /* Darker green */
+}
+
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .text-red {
+    color: #b91c1c !important; /* Darker red */
+}
+
+/* Force dark slide theme styling inside viewport when theme-dark-presentation is active */
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide h1,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide h2,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide h3,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide h4,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide p,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide li,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide div,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide span,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide td,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide th,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide strong,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide a,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide [contenteditable="true"] {
+    color: #f8fafc !important;
+}
+
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide .pres-kpi-item,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide .pres-chart-box,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide .pres-notes-box {
+    background: rgba(255, 255, 255, 0.02) !important;
+    border-color: rgba(255, 255, 255, 0.06) !important;
+    color: #f8fafc !important;
+}
+
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide .pres-kpi-label,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide .pres-chart-box h4 {
+    color: #94a3b8 !important;
+}
+
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide .pres-table th {
+    background: rgba(255, 255, 255, 0.04) !important;
+    color: #f8fafc !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide .pres-table td {
+    border-color: rgba(255, 255, 255, 0.05) !important;
+    color: #cbd5e1 !important;
+}
+
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide .text-blue {
+    color: #3b82f6 !important;
+}
+
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide .text-green {
+    color: #10b981 !important;
+}
+
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide .text-red {
+    color: #ef4444 !important;
 }
 

@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Digital Engineering Planning Dashboard</title>
+    <title>Kautex Planning Portal</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -430,7 +432,8 @@
                     <p class="section-desc">Formatted slides suitable for presenting directly to Textron executive leadership. Customize which slides are included and their order using the panel alongside the deck.</p>
                     <div style="display: flex; gap: 10px;">
                         <button id="btn-export-deck-csv" class="btn btn-secondary"><i class="fa-solid fa-file-csv"></i> Export Report to CSV</button>
-                        <button id="btn-print-deck" class="btn btn-primary"><i class="fa-solid fa-print"></i> Export Presentation to PDF</button>
+                        <button id="btn-print-deck" class="btn btn-secondary"><i class="fa-solid fa-print"></i> Export PDF</button>
+                        <button id="btn-present-deck" class="btn btn-primary"><i class="fa-solid fa-play"></i> Present Mode</button>
                     </div>
                 </div>
 
@@ -445,7 +448,10 @@
                         <ul id="deck-customize-list" class="deck-customize-list">
                             <!-- Populated dynamically -->
                         </ul>
-                        <button type="button" class="btn btn-secondary" id="btn-deck-reset-default" style="width: 100%; margin-top: 14px;">Reset to Default</button>
+                        <div style="display: flex; gap: 10px; margin-top: 14px;">
+                            <button type="button" class="btn btn-secondary" id="btn-deck-add-custom-slide" style="flex: 1;"><i class="fa-solid fa-plus"></i> Add Slide</button>
+                            <button type="button" class="btn btn-secondary" id="btn-deck-reset-default" style="flex: 1;">Reset Layout</button>
+                        </div>
                         
                         <div class="control-group" style="margin-top: 15px; border-top: 1px solid var(--glass-border); padding-top: 15px;">
                             <label for="pdf-print-theme" style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600; color: var(--text-secondary);">PDF Export Theme</label>
@@ -778,6 +784,7 @@
             <div class="ai-drawer-header">
                 <h3><i class="fa-solid fa-robot"></i> Confidential AI Assistant</h3>
                 <span class="local-pill"><i class="fa-solid fa-lock"></i> Completely Local</span>
+                <button id="btn-clear-chat" class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size: 11px; margin-left: auto; margin-right: 8px; display: inline-flex; align-items: center; gap: 4px;" title="Clear Chat History"><i class="fa-solid fa-trash-can"></i> Clear</button>
                 <button id="btn-close-ai" class="btn-close"><i class="fa-solid fa-xmark"></i></button>
             </div>
             
@@ -1163,6 +1170,33 @@
                     <button type="submit" class="btn btn-primary">Clone Version</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Presentation Mode Overlay -->
+    <div id="presentation-overlay" class="presentation-overlay">
+        <div class="presentation-content-wrapper">
+            <div class="presentation-slide-viewport" id="presentation-slide-viewport">
+                <!-- Current slide rendered here -->
+            </div>
+        </div>
+        
+        <!-- Bottom Floating Control Bar -->
+        <div class="presentation-toolbar">
+            <div class="toolbar-left">
+                <button id="pres-btn-exit" class="btn btn-secondary btn-sm"><i class="fa-solid fa-xmark"></i> Exit</button>
+                <span class="pres-slide-counter" id="pres-slide-counter">Slide 1 of 1</span>
+            </div>
+            
+            <div class="toolbar-center">
+                <button id="pres-btn-prev" class="btn btn-secondary"><i class="fa-solid fa-chevron-left"></i> Prev</button>
+                <button id="pres-btn-next" class="btn btn-primary">Next <i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+            
+            <div class="toolbar-right">
+                <button id="pres-btn-theme" class="btn btn-secondary btn-sm" title="Toggle Slide Theme"><i class="fa-solid fa-circle-half-stroke"></i> Theme</button>
+                <button id="pres-btn-exclude" class="btn btn-secondary btn-sm text-red" title="Exclude current slide"><i class="fa-solid fa-eye-slash"></i> Exclude</button>
+            </div>
         </div>
     </div>
 

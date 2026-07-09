@@ -12,7 +12,7 @@ from openpyxl.utils import get_column_letter
 import json
 import urllib.request
 import urllib.error
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Header, status
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Header, status, Request
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -377,7 +377,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+# Prevent API caching globally to avoid client-side race conditions on scenario switches
+@app.middleware("http")
+async def add_no_cache_headers(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
 # Helper function to get the current active scenario
 def get_active_scenario_db(db: Session):
     scenario = db.query(models.Scenario).filter(models.Scenario.is_active == True).first()
@@ -2547,13 +2555,13 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
                 f"{prefix}Applied filters to Allocation Matrix: {filters_list_str}.\n\n"
                 f"Here are the **{len(matching_emps)}** matching employees currently visualised in the matrix:\n"
                 f"{nl.join(staff_details)}\n\n"
-                f"The Resource Allocation Matrix has been updated in the background. Use the **Export Matrix (CSV)** button at the bottom of the grid to export this filtered set."
+                f"Would you like to update the Resource Allocation Matrix in the background with these filters?"
             )
         else:
             answer_text = (
                 f"{prefix}Applied filters to Allocation Matrix: {filters_list_str}.\n\n"
                 f"No employees matched these criteria.\n\n"
-                f"The Allocation Matrix grid has been updated (showing 0 matches)."
+                f"Would you like to update the Resource Allocation Matrix in the background (showing 0 matches)?"
             )
             
         return {

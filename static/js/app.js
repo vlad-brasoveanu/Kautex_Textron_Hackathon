@@ -40,6 +40,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let dashboardData = null;
     let trashData = { employees: [], topics: [] };
     let selectedEmployeeIds = new Set();
+    let refreshRequestId = 0;
     
     let activeRole = "admin"; // admin or user
     let activeSection = "matrix-section";
@@ -98,6 +99,15 @@ document.addEventListener("DOMContentLoaded", () => {
     let departmentChart = null;
     let utilizationChart = null;
     let presLocationChart = null;
+    let presDeptChart = null;
+    let presLocBreakdownChart = null;
+
+    // Excluded interactive presentation filters
+    const excludedFilters = {
+        locations: new Set(),
+        teams: new Set(),
+        departments: new Set()
+    };
 
     // Presentation Deck: last fetched AI predictions, kept around so the deck
     // can be re-rendered (e.g. after reordering slides) without a re-fetch.
@@ -160,6 +170,9 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
             document.body.classList.remove("authenticated");
         }
+        // Load persistent chat history if available
+        loadChatHistory();
+
         updateSidebarFiltersVisibility();
     }
 
@@ -186,7 +199,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function fetchScenarios() {
         try {
-            const response = await fetch("/api/scenarios");
+            const ts = Date.now();
+            const response = await fetch(`/api/scenarios?_ts=${ts}`);
             scenarios = await response.json();
             populateScenarioDropdown();
         } catch (error) {
@@ -196,7 +210,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function fetchActiveScenario() {
         try {
-            const response = await fetch("/api/scenarios/active");
+            const ts = Date.now();
+            const response = await fetch(`/api/scenarios/active?_ts=${ts}`);
             activeScenario = await response.json();
             scenarioSelect.value = activeScenario.id;
             // The presentation deck's title slide reads activeScenario.name directly
@@ -208,33 +223,47 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function refreshAllData() {
         showLoader();
+        const requestId = ++refreshRequestId;
         try {
+            const ts = Date.now();
             // Parallel fetches
             const [empRes, topRes, allocRes, reportRes] = await Promise.all([
-                fetch("/api/employees"),
-                fetch("/api/topics"),
-                fetch("/api/allocations"),
-                fetch("/api/reports/dashboard")
+                fetch(`/api/employees?_ts=${ts}`),
+                fetch(`/api/topics?_ts=${ts}`),
+                fetch(`/api/allocations?_ts=${ts}`),
+                fetch(`/api/reports/dashboard?_ts=${ts}`)
             ]);
             
-            employees = await empRes.json();
-            topics = await topRes.json();
-            allocations = await allocRes.json();
-            dashboardData = await reportRes.json();
+            if (requestId !== refreshRequestId) return;
+            
+            const empData = await empRes.json();
+            const topData = await topRes.json();
+            const allocData = await allocRes.json();
+            const repData = await reportRes.json();
+            
+            if (requestId !== refreshRequestId) return;
+            
+            employees = empData;
+            topics = topData;
+            allocations = allocData;
+            dashboardData = repData;
             
             renderFiltersPanel();
             renderAllocationMatrix();
             renderDashboards();
             renderPresentationDeck();
             renderCRUDTables();
-            await fetchAIPredictions();
+            
+            await fetchAIPredictions(requestId);
             if (activeRole !== "user") {
-                await fetchTrash();
+                await fetchTrash(requestId);
             }
         } catch (error) {
             console.error("Error refreshing planning data:", error);
         } finally {
-            hideLoader();
+            if (requestId === refreshRequestId) {
+                hideLoader();
+            }
         }
     }
 
@@ -815,7 +844,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function saveExecWidgetConfig() {
-        localStorage.setItem(EXEC_CONFIG_STORAGE_KEY, JSON.stringify(execWidgetConfig));
+        try {
+            localStorage.setItem(EXEC_CONFIG_STORAGE_KEY, JSON.stringify(execWidgetConfig));
+        } catch (e) {
+            console.warn("Failed to save exec widget config to localStorage:", e);
+        }
     }
 
     function applyExecWidgetVisibility() {
@@ -1498,14 +1531,22 @@ document.addEventListener("DOMContentLoaded", () => {
         title: {
             label: "Title Slide",
             desc: "Cover slide with report title and planning version name.",
-            buildPages: (ctx) => [{
+            buildPages: (ctx, slideId) => [{
                 wrapperClass: "slide-title",
                 bodyHTML: `
-                    <div class="slide-header-brand"><i class="fa-solid fa-layer-group"></i> Textron Digital Engineering</div>
+                    <div class="slide-header-brand" style="display: flex; align-items: center; gap: 8px;">
+                        <img src="kautex_logo.png" alt="Kautex Logo" class="logo-image" style="height: 28px; width: auto; object-fit: contain; margin-right: 4px;">
+                        <span contenteditable="true" data-slide-id="${slideId}" data-edit-key="brand-text">${getSlideText(slideId, "brand-text", "Kautex Textron")}</span>
+                    </div>
                     <div class="slide-body-center">
-                        <h2>Engineering Planning & Budget Report</h2>
-                        <p>${ctx.activeScenario ? ctx.activeScenario.name : "Planning Version"}</p>
-                        <div class="slide-subtitle-divider"></div>
+                        <h2 contenteditable="true" data-slide-id="${slideId}" data-edit-key="main-title" style="font-size: 30px; font-weight: 700; margin-bottom: 6px;">${getSlideText(slideId, "main-title", "Engineering Planning & Budget Report")}</h2>
+                        <p contenteditable="true" data-slide-id="${slideId}" data-edit-key="scenario-text" style="font-size: 16px; font-weight: 500; color: var(--accent-color); margin-top: 5px;">${getSlideText(slideId, "scenario-text", `Scenario: ${ctx.activeScenario ? ctx.activeScenario.name : "Planning Version"}`)}</p>
+                        <div class="slide-subtitle-divider" style="margin: 16px 0;"></div>
+                        <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 24px; line-height: 1.6;">
+                            <strong>Date Generated:</strong> ${new Date().toLocaleDateString(undefined, {year: 'numeric', month: 'long', day: 'numeric'})} &nbsp;|&nbsp;
+                            <strong>Scenario ID:</strong> #${ctx.activeScenario ? ctx.activeScenario.id : "0"} &nbsp;|&nbsp;
+                            <strong>Total Headcount:</strong> ${(ctx.employees || []).length} Staff
+                        </div>
                         <span class="confidential-stamp">STRICTLY CONFIDENTIAL</span>
                     </div>
                 `
@@ -1515,37 +1556,57 @@ document.addEventListener("DOMContentLoaded", () => {
         executive: {
             label: "Executive Summary",
             desc: "Headcount, cost KPIs, and cost-by-location chart.",
-            buildPages: (ctx) => {
-                const d = ctx.dashboardData;
+            buildPages: (ctx, slideId) => {
+                const d = ctx.dashboardData || {};
                 return [{
                     wrapperClass: "",
                     bodyHTML: `
-                        <div class="slide-title-bar"><h3>Executive Planning Overview</h3><span class="confidential-small">CONFIDENTIAL</span></div>
+                        <div class="slide-title-bar">
+                            <h3 contenteditable="true" data-slide-id="${slideId}" data-edit-key="title-text">${getSlideText(slideId, "title-text", "Executive Planning Overview")}</h3>
+                            <span class="confidential-small">CONFIDENTIAL</span>
+                        </div>
                         <div class="slide-content-split">
                             <div class="slide-col-left">
                                 <div class="pres-kpi-grid">
-                                    <div class="pres-kpi-item"><span class="pres-kpi-label">Headcount</span><span class="pres-kpi-number">${d.total_headcount}</span></div>
-                                    <div class="pres-kpi-item"><span class="pres-kpi-label">Internal Effort Cost</span><span class="pres-kpi-number">$${d.total_internal_employee_cost.toLocaleString(undefined, {maximumFractionDigits: 0})}</span></div>
-                                    <div class="pres-kpi-item"><span class="pres-kpi-label">Additional & Vendor Cost</span><span class="pres-kpi-number">$${(d.total_additional_internal_cost + d.total_external_cost).toLocaleString(undefined, {maximumFractionDigits: 0})}</span></div>
-                                    <div class="pres-kpi-item"><span class="pres-kpi-label">Net Fiscal Budget</span><span class="pres-kpi-number text-blue">$${d.total_annual_planning_cost.toLocaleString(undefined, {maximumFractionDigits: 0})}</span></div>
+                                    <div class="pres-kpi-item" style="border-left: 4px solid var(--accent-color); padding: 12px 16px;">
+                                        <span class="pres-kpi-label" contenteditable="true" data-slide-id="${slideId}" data-edit-key="kpi1-label">${getSlideText(slideId, "kpi1-label", "Headcount")}</span>
+                                        <span class="pres-kpi-number" style="font-size: 20px; font-weight: 700;" contenteditable="true" data-slide-id="${slideId}" data-edit-key="kpi1-val">${getSlideText(slideId, "kpi1-val", `${d.total_headcount || 0} Staff`)}</span>
+                                    </div>
+                                    <div class="pres-kpi-item" style="border-left: 4px solid var(--primary-color); padding: 12px 16px;">
+                                        <span class="pres-kpi-label" contenteditable="true" data-slide-id="${slideId}" data-edit-key="kpi2-label">${getSlideText(slideId, "kpi2-label", "Internal Effort Cost")}</span>
+                                        <span class="pres-kpi-number" style="font-size: 20px; font-weight: 700;" contenteditable="true" data-slide-id="${slideId}" data-edit-key="kpi2-val">${getSlideText(slideId, "kpi2-val", `$${(d.total_internal_employee_cost || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}`)}</span>
+                                    </div>
+                                    <div class="pres-kpi-item" style="border-left: 4px solid var(--warning-color); padding: 12px 16px;">
+                                        <span class="pres-kpi-label" contenteditable="true" data-slide-id="${slideId}" data-edit-key="kpi3-label">${getSlideText(slideId, "kpi3-label", "Additional & Vendor Cost")}</span>
+                                        <span class="pres-kpi-number" style="font-size: 20px; font-weight: 700;" contenteditable="true" data-slide-id="${slideId}" data-edit-key="kpi3-val">${getSlideText(slideId, "kpi3-val", `$${((d.total_additional_internal_cost || 0) + (d.total_external_cost || 0)).toLocaleString(undefined, {maximumFractionDigits: 0})}`)}</span>
+                                    </div>
+                                    <div class="pres-kpi-item" style="border-left: 4px solid var(--success-color); padding: 12px 16px;">
+                                        <span class="pres-kpi-label" contenteditable="true" data-slide-id="${slideId}" data-edit-key="kpi4-label">${getSlideText(slideId, "kpi4-label", "Net Fiscal Budget")}</span>
+                                        <span class="pres-kpi-number text-blue" style="font-size: 20px; font-weight: 700;" contenteditable="true" data-slide-id="${slideId}" data-edit-key="kpi4-val">${getSlideText(slideId, "kpi4-val", `$${(d.total_annual_planning_cost || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}`)}</span>
+                                    </div>
                                 </div>
                             </div>
                             <div class="slide-col-right">
-                                <div class="pres-chart-box">
-                                    <h4>Annual Planning Cost by Location</h4>
-                                    <div class="canvas-wrap"><canvas id="pres-chart-location-canvas"></canvas></div>
+                                <div class="pres-chart-box" style="padding: 12px 16px; display: flex; flex-direction: column; justify-content: space-between; flex: 1; height: 100%; min-height: 200px; box-sizing: border-box;">
+                                    <h4 contenteditable="true" data-slide-id="${slideId}" data-edit-key="chart-title">${getSlideText(slideId, "chart-title", "Annual Planning Cost by Location")}</h4>
+                                    <div class="canvas-wrap" style="position: relative; flex: 1; width: 100%; height: 100%; min-height: 200px; display: flex; align-items: center; justify-content: center;"><canvas id="pres-chart-location-canvas"></canvas></div>
+                                    ${renderExclusionBadges()}
                                 </div>
                             </div>
                         </div>
                     `
                 }];
             },
-            postRender: (ctx) => {
-                const canvas = document.getElementById("pres-chart-location-canvas");
-                if (!canvas) return;
+            postRender: (ctx, parentEl) => {
+                const canvas = parentEl ? parentEl.querySelector("#pres-chart-location-canvas") : document.getElementById("pres-chart-location-canvas");
+                if (!canvas || !ctx.dashboardData) return;
                 if (presLocationChart) presLocationChart.destroy();
-                const labels = Object.keys(ctx.dashboardData.cost_by_location);
-                const data = Object.values(ctx.dashboardData.cost_by_location);
+                const labels = Object.keys(ctx.dashboardData.cost_by_location || {});
+                const data = Object.values(ctx.dashboardData.cost_by_location || {});
+                
+                const isLight = parentEl && parentEl.closest("#presentation-overlay") ? parentEl.closest("#presentation-overlay").classList.contains("theme-light-presentation") : document.body.classList.contains("theme-light");
+                const textColor = isLight ? "#0f172a" : "#e2e8f0";
+                
                 presLocationChart = new Chart(canvas.getContext("2d"), {
                     type: "doughnut",
                     data: {
@@ -1555,20 +1616,87 @@ document.addEventListener("DOMContentLoaded", () => {
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: { legend: { position: "right", labels: { color: document.body.classList.contains("theme-light") ? "#0f172a" : "#e2e8f0", font: { family: "Outfit", size: 10 } } } }
+                        onClick: (e, activeEls) => {
+                            if (activeEls && activeEls.length > 0) {
+                                const index = activeEls[0].index;
+                                const label = presLocationChart.data.labels[index];
+                                window.toggleLocationExclusion(label);
+                            }
+                        },
+                        plugins: { legend: { position: "right", labels: { color: textColor, font: { family: "Outfit", size: 10 } } } }
                     }
                 });
             },
             csv: (ctx) => {
-                const d = ctx.dashboardData;
+                const d = ctx.dashboardData || {};
                 const lines = [
                     "=== Executive Summary ===",
                     "Metric,Value",
-                    `${csvCell("Headcount")},${d.total_headcount}`,
-                    `${csvCell("Internal Effort Cost")},${d.total_internal_employee_cost}`,
-                    `${csvCell("Additional & Vendor Cost")},${d.total_additional_internal_cost + d.total_external_cost}`,
-                    `${csvCell("Cost Recovery")},${-d.total_recovery_cost}`,
-                    `${csvCell("Net Fiscal Budget")},${d.total_annual_planning_cost}`
+                    `${csvCell("Headcount")},${d.total_headcount || 0}`,
+                    `${csvCell("Internal Effort Cost")},${d.total_internal_employee_cost || 0}`,
+                    `${csvCell("Additional & Vendor Cost")},${(d.total_additional_internal_cost || 0) + (d.total_external_cost || 0)}`,
+                    `${csvCell("Cost Recovery")},${-(d.total_recovery_cost || 0)}`,
+                    `${csvCell("Net Fiscal Budget")},${d.total_annual_planning_cost || 0}`
+                ];
+                return lines.join("\n");
+            }
+        },
+        financial_recovery: {
+            label: "Fiscal Budget & Recovery",
+            desc: "Budget breakdown detailing gross planning cost, recovery deductions, and net project costs.",
+            buildPages: (ctx, slideId) => {
+                const d = ctx.dashboardData || {};
+                const grossCost = (d.total_internal_employee_cost || 0) + (d.total_additional_internal_cost || 0) + (d.total_external_cost || 0);
+                const netCost = d.total_annual_planning_cost || 0;
+                const recovery = d.total_recovery_cost || 0;
+                const recoveryRate = grossCost > 0 ? (recovery / grossCost) * 100.0 : 0.0;
+                
+                return [{
+                    wrapperClass: "",
+                    bodyHTML: `
+                        <div class="slide-title-bar">
+                            <h3 contenteditable="true" data-slide-id="${slideId}" data-edit-key="title-text">${getSlideText(slideId, "title-text", "Gross Budget & Funding Recovery")}</h3>
+                            <span class="confidential-small">CONFIDENTIAL</span>
+                        </div>
+                        <div class="slide-content-split">
+                            <div class="slide-col-left">
+                                <div class="pres-kpi-grid" style="grid-template-columns: 1fr; gap: 10px;">
+                                    <div class="pres-kpi-item" style="border-left: 4px solid var(--text-secondary); padding: 10px 14px;">
+                                        <span class="pres-kpi-label" contenteditable="true" data-slide-id="${slideId}" data-edit-key="kpi1-label">${getSlideText(slideId, "kpi1-label", "Gross Portfolio Budget")}</span>
+                                        <span class="pres-kpi-number" style="font-size: 18px; font-weight: 700;" contenteditable="true" data-slide-id="${slideId}" data-edit-key="kpi1-val">${getSlideText(slideId, "kpi1-val", `$${grossCost.toLocaleString(undefined, {maximumFractionDigits: 0})}`)}</span>
+                                    </div>
+                                    <div class="pres-kpi-item" style="border-left: 4px solid var(--success-color); padding: 10px 14px;">
+                                        <span class="pres-kpi-label" contenteditable="true" data-slide-id="${slideId}" data-edit-key="kpi2-label">${getSlideText(slideId, "kpi2-label", "Total Cost Recovery / Co-Funding")}</span>
+                                        <span class="pres-kpi-number text-green" style="font-size: 18px; font-weight: 700;" contenteditable="true" data-slide-id="${slideId}" data-edit-key="kpi2-val">${getSlideText(slideId, "kpi2-val", `$${recovery.toLocaleString(undefined, {maximumFractionDigits: 0})}`)}</span>
+                                    </div>
+                                    <div class="pres-kpi-item" style="border-left: 4px solid var(--primary-color); padding: 10px 14px;">
+                                        <span class="pres-kpi-label" contenteditable="true" data-slide-id="${slideId}" data-edit-key="kpi3-label">${getSlideText(slideId, "kpi3-label", "Net Fiscal Target")}</span>
+                                        <span class="pres-kpi-number text-blue" style="font-size: 18px; font-weight: 700;" contenteditable="true" data-slide-id="${slideId}" data-edit-key="kpi3-val">${getSlideText(slideId, "kpi3-val", `$${netCost.toLocaleString(undefined, {maximumFractionDigits: 0})}`)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="slide-col-right" style="justify-content: center; align-items: center;">
+                                <div style="text-align: center; background: rgba(16, 185, 129, 0.05); border: 1px dashed rgba(16, 185, 129, 0.2); padding: 20px 24px; border-radius: 12px; width: 85%;">
+                                    <i class="fa-solid fa-hand-holding-dollar" style="font-size: 32px; color: #10b981; margin-bottom: 8px;"></i>
+                                    <h4 style="margin: 0; font-size: 11px; color: var(--text-primary); text-transform: uppercase;" contenteditable="true" data-slide-id="${slideId}" data-edit-key="eff-title">${getSlideText(slideId, "eff-title", "Recovery Efficiency")}</h4>
+                                    <p style="font-size: 28px; font-weight: 700; color: #10b981; margin: 6px 0;" contenteditable="true" data-slide-id="${slideId}" data-edit-key="eff-val">${getSlideText(slideId, "eff-val", `${recoveryRate.toFixed(1)}%`)}</p>
+                                    <p style="font-size: 10px; color: var(--text-secondary); margin: 0; line-height: 1.4;" contenteditable="true" data-slide-id="${slideId}" data-edit-key="eff-desc">${getSlideText(slideId, "eff-desc", "Ratio of co-funding and external recoveries relative to total gross operational cost allocations.")}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `
+                }];
+            },
+            csv: (ctx) => {
+                const d = ctx.dashboardData || {};
+                const grossCost = (d.total_internal_employee_cost || 0) + (d.total_additional_internal_cost || 0) + (d.total_external_cost || 0);
+                const lines = [
+                    "=== Fiscal Budget & Recovery ===",
+                    "Metric,Value",
+                    `Gross Portfolio Budget,${grossCost}`,
+                    `Total Cost Recovery,${d.total_recovery_cost || 0}`,
+                    `Net Fiscal Target,${d.total_annual_planning_cost || 0}`,
+                    `Recovery Efficiency %,${(grossCost > 0 ? ((d.total_recovery_cost || 0) / grossCost) * 100.0 : 0.0).toFixed(2)}`
                 ];
                 return lines.join("\n");
             }
@@ -1576,25 +1704,36 @@ document.addEventListener("DOMContentLoaded", () => {
         topics: {
             label: "Key Initiatives Budget",
             desc: "Per-topic cost breakdown table.",
-            buildPages: (ctx) => {
-                const pages = chunkRows(ctx.dashboardData.topic_summaries, ROWS_PER_SLIDE);
+            buildPages: (ctx, slideId) => {
+                const pages = chunkRows(ctx.dashboardData ? (ctx.dashboardData.topic_summaries || []) : [], ROWS_PER_SLIDE);
                 return pages.map((rows, i) => ({
                     wrapperClass: "",
                     bodyHTML: `
-                        <div class="slide-title-bar"><h3>Key Strategic Initiatives Budget${pageSuffix(i + 1, pages.length)}</h3><span class="confidential-small">CONFIDENTIAL</span></div>
+                        <div class="slide-title-bar">
+                            <h3 contenteditable="true" data-slide-id="${slideId}" data-edit-key="title-text-${i}">${getSlideText(slideId, `title-text-${i}`, `Key Strategic Initiatives Budget${pageSuffix(i + 1, pages.length)}`)}</h3>
+                            <span class="confidential-small">CONFIDENTIAL</span>
+                        </div>
                         <div class="slide-content-split">
                             <div class="slide-col-full">
                                 <div class="pres-table-wrapper">
                                     <table class="pres-table">
-                                        <thead><tr><th>Initiative / Topic</th><th>Category</th><th>Category Cost</th><th>Involved Staff</th><th>Total Cost</th></tr></thead>
+                                        <thead>
+                                            <tr>
+                                                <th>Initiative / Topic</th>
+                                                <th>Category</th>
+                                                <th style="text-align: right;">Category Cost</th>
+                                                <th style="text-align: right;">Involved Staff</th>
+                                                <th style="text-align: right;">Total Cost</th>
+                                            </tr>
+                                        </thead>
                                         <tbody>
                                             ${rows.map(t => `
                                                 <tr>
-                                                    <td><strong>${t.name}</strong></td>
-                                                    <td>${t.category}</td>
-                                                    <td>$${(t.additional_internal_cost + t.external_cost).toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
-                                                    <td>${t.staff.length} Planned</td>
-                                                    <td><strong>$${t.total_cost.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong></td>
+                                                    <td><strong>${t.name || ""}</strong></td>
+                                                    <td><span style="font-size: 9px; padding: 2px 6px; border-radius: 4px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2);">${t.category || ""}</span></td>
+                                                    <td style="text-align: right;">$${((t.additional_internal_cost || 0) + (t.external_cost || 0)).toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+                                                    <td style="text-align: right;">${(t.staff || []).length} Planned</td>
+                                                    <td style="text-align: right;"><strong>$${(t.total_cost || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}</strong></td>
                                                 </tr>
                                             `).join("")}
                                         </tbody>
@@ -1607,8 +1746,320 @@ document.addEventListener("DOMContentLoaded", () => {
             },
             csv: (ctx) => {
                 const lines = ["=== Key Strategic Initiatives Budget ===", "Topic,Category,Category Cost,Involved Staff,Total Cost"];
-                ctx.dashboardData.topic_summaries.forEach(t => {
-                    lines.push(`${csvCell(t.name)},${csvCell(t.category)},${t.additional_internal_cost + t.external_cost},${t.staff.length},${t.total_cost}`);
+                (ctx.dashboardData ? (ctx.dashboardData.topic_summaries || []) : []).forEach(t => {
+                    lines.push(`${csvCell(t.name)},${csvCell(t.category)},${(t.additional_internal_cost || 0) + (t.external_cost || 0)},${(t.staff || []).length},${t.total_cost || 0}`);
+                });
+                return lines.join("\n");
+            }
+        },
+        top_projects: {
+            label: "Top Initiatives Detailed",
+            desc: "Detailed audit of the top 5 highest-cost projects, listing employee effort, additional costs, and recoveries.",
+            buildPages: (ctx, slideId) => {
+                const sorted = [...(ctx.dashboardData ? (ctx.dashboardData.topic_summaries || []) : [])]
+                    .sort((a, b) => (b.total_cost || 0) - (a.total_cost || 0))
+                    .slice(0, 5);
+                
+                return [{
+                    wrapperClass: "",
+                    bodyHTML: `
+                        <div class="slide-title-bar">
+                            <h3 contenteditable="true" data-slide-id="${slideId}" data-edit-key="title-text">${getSlideText(slideId, "title-text", "Top 5 High-Investment Strategic Initiatives")}</h3>
+                            <span class="confidential-small">CONFIDENTIAL</span>
+                        </div>
+                        <div class="slide-content-split">
+                            <div class="slide-col-full">
+                                <div class="pres-table-wrapper">
+                                    <table class="pres-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Initiative / Topic Name</th>
+                                                <th>Category</th>
+                                                <th style="text-align: right;">Internal Hours</th>
+                                                <th style="text-align: right;">Internal Cost</th>
+                                                <th style="text-align: right;">Additional Cost</th>
+                                                <th style="text-align: right;">Recovery</th>
+                                                <th style="text-align: right;">Net Cost</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${sorted.map(t => {
+                                                const netVal = (t.total_cost || 0) - (t.recovery || 0);
+                                                return `
+                                                    <tr>
+                                                        <td><strong>${t.name || ""}</strong></td>
+                                                        <td><span style="font-size: 9px; padding: 2px 6px; border-radius: 4px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2);">${t.category || ""}</span></td>
+                                                        <td style="text-align: right;">${(t.total_hours || 0).toLocaleString()} hrs</td>
+                                                        <td style="text-align: right;">$${(t.internal_cost || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+                                                        <td style="text-align: right;">$${((t.additional_internal_cost || 0) + (t.external_cost || 0)).toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+                                                        <td style="text-align: right;" class="text-green">${t.recovery > 0 ? `-$${t.recovery.toLocaleString(undefined, {maximumFractionDigits: 0})}` : '$0'}</td>
+                                                        <td style="text-align: right;"><strong>$${netVal.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong></td>
+                                                    </tr>
+                                                `;
+                                            }).join("")}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    `
+                }];
+            },
+            csv: (ctx) => {
+                const sorted = [...(ctx.dashboardData ? (ctx.dashboardData.topic_summaries || []) : [])]
+                    .sort((a, b) => (b.total_cost || 0) - (a.total_cost || 0))
+                    .slice(0, 5);
+                const lines = ["=== Top 5 High-Investment Strategic Initiatives ===", "Initiative,Category,Hours,Internal Cost,Additional Cost,Recovery,Net Cost"];
+                sorted.forEach(t => {
+                    lines.push(`${csvCell(t.name)},${csvCell(t.category)},${t.total_hours || 0},${t.internal_cost || 0},${(t.additional_internal_cost || 0) + (t.external_cost || 0)},${t.recovery || 0},${(t.total_cost || 0) - (t.recovery || 0)}`);
+                });
+                return lines.join("\n");
+            }
+        },
+        location_breakdown: {
+            label: "Location Cost Breakdown",
+            desc: "Regional breakdown of headcounts, internal effort, external costs, and net budgets.",
+            buildPages: (ctx, slideId) => {
+                const emps = ctx.employees || [];
+                const allocs = ctx.allocations || [];
+                
+                // Group by location
+                const locData = {};
+                emps.forEach(emp => {
+                    const loc = emp.location || "Unassigned";
+                    if (!locData[loc]) {
+                        locData[loc] = { name: loc, headcount: 0, internalCost: 0 };
+                    }
+                    locData[loc].headcount += 1;
+                    
+                    const util = allocs.filter(a => a.employee_id === emp.id).reduce((sum, a) => sum + a.percentage, 0.0);
+                    const cost = emp.available_hours * emp.hourly_rate * (util / 100.0);
+                    locData[loc].internalCost += cost;
+                });
+                
+                const sortedLocs = Object.values(locData).sort((a, b) => b.internalCost - a.internalCost);
+                const totalInternal = sortedLocs.reduce((sum, l) => sum + l.internalCost, 0);
+                
+                return [{
+                    wrapperClass: "slide-location-breakdown",
+                    bodyHTML: `
+                        <div class="slide-title-bar">
+                            <h3 contenteditable="true" data-slide-id="${slideId}" data-edit-key="title-text">${getSlideText(slideId, "title-text", "Regional Cost & Resource Breakdown")}</h3>
+                            <span class="confidential-small">CONFIDENTIAL</span>
+                        </div>
+                        <div class="slide-content-split">
+                            <div class="slide-col-left" style="flex: 1.1;">
+                                <div class="pres-table-wrapper">
+                                    <table class="pres-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Regional Hub (Location)</th>
+                                                <th style="text-align: right;">Planned Headcount</th>
+                                                <th style="text-align: right;">Internal Effort Cost</th>
+                                                <th style="text-align: right;">% of Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${sortedLocs.map(l => {
+                                                const pct = totalInternal > 0 ? (l.internalCost / totalInternal) * 100.0 : 0.0;
+                                                return `
+                                                    <tr>
+                                                        <td><strong><i class="fa-solid fa-location-dot" style="color: var(--primary-color); margin-right: 6px;"></i>${l.name}</strong></td>
+                                                        <td style="text-align: right;">${l.headcount} Staff</td>
+                                                        <td style="text-align: right;">$${l.internalCost.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+                                                        <td style="text-align: right;">${pct.toFixed(1)}%</td>
+                                                    </tr>
+                                                `;
+                                            }).join("")}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="slide-col-right" style="flex: 0.9;">
+                                <div class="pres-chart-box" style="padding: 12px; height: 100%; flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-height: 240px; box-sizing: border-box;">
+                                    <h4 style="margin-top: 0; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Regional Cost Distribution</h4>
+                                    <div class="canvas-wrap" style="position: relative; flex: 1; width: 100%; height: 100%; min-height: 200px; display: flex; align-items: center; justify-content: center;"><canvas id="pres-chart-loc-breakdown-canvas"></canvas></div>
+                                    ${renderExclusionBadges()}
+                                </div>
+                            </div>
+                        </div>
+                    `
+                }];
+            },
+            postRender: (ctx, parentEl) => {
+                const canvas = parentEl ? parentEl.querySelector("#pres-chart-loc-breakdown-canvas") : document.getElementById("pres-chart-loc-breakdown-canvas");
+                if (!canvas || !ctx.dashboardData) return;
+                if (presLocBreakdownChart) presLocBreakdownChart.destroy();
+                const labels = Object.keys(ctx.dashboardData.cost_by_location || {});
+                const data = Object.values(ctx.dashboardData.cost_by_location || {});
+                const isLight = parentEl && parentEl.closest("#presentation-overlay") ? parentEl.closest("#presentation-overlay").classList.contains("theme-light-presentation") : document.body.classList.contains("theme-light");
+                const textColor = isLight ? "#0f172a" : "#e2e8f0";
+                
+                presLocBreakdownChart = new Chart(canvas.getContext("2d"), {
+                    type: "bar",
+                    data: {
+                        labels: labels,
+                        datasets: [{ label: "Cost", data: data, backgroundColor: "#10b981", borderWidth: 1 }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        onClick: (e, activeEls) => {
+                            if (activeEls && activeEls.length > 0) {
+                                const index = activeEls[0].index;
+                                const label = presLocBreakdownChart.data.labels[index];
+                                window.toggleLocationExclusion(label);
+                            }
+                        },
+                        scales: {
+                            x: { ticks: { color: textColor, font: { family: "Outfit", size: 9 } }, grid: { display: false } },
+                            y: { ticks: { color: textColor, font: { family: "Outfit", size: 9 } }, grid: { color: "rgba(255, 255, 255, 0.08)" } }
+                        },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            },
+            csv: (ctx) => {
+                const emps = ctx.employees || [];
+                const locData = {};
+                emps.forEach(emp => {
+                    const loc = emp.location || "Unassigned";
+                    if (!locData[loc]) locData[loc] = { name: loc, headcount: 0, cost: 0 };
+                    locData[loc].headcount += 1;
+                    const util = (ctx.allocations || []).filter(a => a.employee_id === emp.id).reduce((sum, a) => sum + a.percentage, 0.0);
+                    locData[loc].cost += emp.available_hours * emp.hourly_rate * (util / 100.0);
+                });
+                const lines = ["=== Regional Cost & Resource Breakdown ===", "Location,Headcount,Internal Cost,Avg Hourly Rate"];
+                Object.values(locData).forEach(l => {
+                    const empsInLoc = emps.filter(e => e.location === l.name);
+                    const avgRate = empsInLoc.length > 0 ? empsInLoc.reduce((sum, e) => sum + e.hourly_rate, 0) / empsInLoc.length : 0.0;
+                    lines.push(`${csvCell(l.name)},${l.headcount},${l.cost.toFixed(0)},${avgRate.toFixed(2)}`);
+                });
+                return lines.join("\n");
+            }
+        },
+        department_breakdown: {
+            label: "Department Cost Breakdown",
+            desc: "Departmental breakdown of headcounts, average utilization, and cost allocation.",
+            buildPages: (ctx, slideId) => {
+                const emps = ctx.employees || [];
+                const allocs = ctx.allocations || [];
+                
+                const deptData = {};
+                emps.forEach(emp => {
+                    const dept = emp.department || "General";
+                    if (!deptData[dept]) {
+                        deptData[dept] = { name: dept, headcount: 0, totalHours: 0, internalCost: 0, sumUtil: 0 };
+                    }
+                    deptData[dept].headcount += 1;
+                    
+                    const util = allocs.filter(a => a.employee_id === emp.id).reduce((sum, a) => sum + a.percentage, 0.0);
+                    deptData[dept].sumUtil += util;
+                    deptData[dept].totalHours += emp.available_hours;
+                    deptData[dept].internalCost += emp.available_hours * emp.hourly_rate * (util / 100.0);
+                });
+                
+                const sortedDepts = Object.values(deptData).sort((a, b) => b.internalCost - a.internalCost);
+                const grandTotal = sortedDepts.reduce((sum, d) => sum + d.internalCost, 0);
+                
+                return [{
+                    wrapperClass: "slide-department-breakdown",
+                    bodyHTML: `
+                        <div class="slide-title-bar">
+                            <h3 contenteditable="true" data-slide-id="${slideId}" data-edit-key="title-text">${getSlideText(slideId, "title-text", "Departmental Cost & Staffing Summary")}</h3>
+                            <span class="confidential-small">CONFIDENTIAL</span>
+                        </div>
+                        <div class="slide-content-split">
+                            <div class="slide-col-left" style="flex: 1.1;">
+                                <div class="pres-table-wrapper">
+                                    <table class="pres-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Department</th>
+                                                <th style="text-align: right;">Planned Headcount</th>
+                                                <th style="text-align: right;">Avg Util</th>
+                                                <th style="text-align: right;">Internal Cost</th>
+                                                <th style="text-align: right;">% of Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${sortedDepts.map(d => {
+                                                const avgUtil = d.headcount > 0 ? d.sumUtil / d.headcount : 0.0;
+                                                const pct = grandTotal > 0 ? (d.internalCost / grandTotal) * 100.0 : 0.0;
+                                                return `
+                                                    <tr>
+                                                        <td><strong><i class="fa-solid fa-building" style="color: var(--primary-color); margin-right: 6px;"></i>${d.name}</strong></td>
+                                                        <td style="text-align: right;">${d.headcount} Staff</td>
+                                                        <td style="text-align: right;">${avgUtil.toFixed(1)}%</td>
+                                                        <td style="text-align: right;">$${d.internalCost.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+                                                        <td style="text-align: right;">${pct.toFixed(1)}%</td>
+                                                    </tr>
+                                                `;
+                                            }).join("")}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="slide-col-right" style="flex: 0.9;">
+                                <div class="pres-chart-box" style="padding: 12px; height: 100%; flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-height: 240px; box-sizing: border-box;">
+                                    <h4 style="margin-top: 0; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Department Cost Distribution</h4>
+                                    <div class="canvas-wrap" style="position: relative; flex: 1; width: 100%; height: 100%; min-height: 200px; display: flex; align-items: center; justify-content: center;"><canvas id="pres-chart-dept-canvas"></canvas></div>
+                                    ${renderExclusionBadges()}
+                                </div>
+                            </div>
+                        </div>
+                    `
+                }];
+            },
+            postRender: (ctx, parentEl) => {
+                const canvas = parentEl ? parentEl.querySelector("#pres-chart-dept-canvas") : document.getElementById("pres-chart-dept-canvas");
+                if (!canvas || !ctx.dashboardData) return;
+                if (presDeptChart) presDeptChart.destroy();
+                const labels = Object.keys(ctx.dashboardData.cost_by_department || {});
+                const data = Object.values(ctx.dashboardData.cost_by_department || {});
+                const isLight = parentEl && parentEl.closest("#presentation-overlay") ? parentEl.closest("#presentation-overlay").classList.contains("theme-light-presentation") : document.body.classList.contains("theme-light");
+                const textColor = isLight ? "#0f172a" : "#e2e8f0";
+                
+                presDeptChart = new Chart(canvas.getContext("2d"), {
+                    type: "bar",
+                    data: {
+                        labels: labels,
+                        datasets: [{ label: "Cost", data: data, backgroundColor: "#8b5cf6", borderWidth: 1 }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        onClick: (e, activeEls) => {
+                            if (activeEls && activeEls.length > 0) {
+                                const index = activeEls[0].index;
+                                const label = presDeptChart.data.labels[index];
+                                window.toggleDeptExclusion(label);
+                            }
+                        },
+                        scales: {
+                            x: { ticks: { color: textColor, font: { family: "Outfit", size: 9 } }, grid: { display: false } },
+                            y: { ticks: { color: textColor, font: { family: "Outfit", size: 9 } }, grid: { color: "rgba(255, 255, 255, 0.08)" } }
+                        },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            },
+            csv: (ctx) => {
+                const emps = ctx.employees || [];
+                const deptData = {};
+                emps.forEach(emp => {
+                    const dept = emp.department || "General";
+                    if (!deptData[dept]) deptData[dept] = { name: dept, headcount: 0, internalCost: 0, sumUtil: 0, hours: 0 };
+                    deptData[dept].headcount += 1;
+                    const util = (ctx.allocations || []).filter(a => a.employee_id === emp.id).reduce((sum, a) => sum + a.percentage, 0.0);
+                    deptData[dept].sumUtil += util;
+                    deptData[dept].hours += emp.available_hours;
+                    deptData[dept].internalCost += emp.available_hours * emp.hourly_rate * (util / 100.0);
+                });
+                const lines = ["=== Departmental Cost & Staffing Summary ===", "Department,Headcount,Avg Utilization %,Internal Cost,Total Hours"];
+                Object.values(deptData).forEach(d => {
+                    const avgUtil = d.headcount > 0 ? d.sumUtil / d.headcount : 0.0;
+                    lines.push(`${csvCell(d.name)},${d.headcount},${avgUtil.toFixed(1)},${d.internalCost.toFixed(0)},${d.hours}`);
                 });
                 return lines.join("\n");
             }
@@ -1616,25 +2067,33 @@ document.addEventListener("DOMContentLoaded", () => {
         risks: {
             label: "Resource Allocations & Risks",
             desc: "Overloaded employees and strategic notes.",
-            buildPages: (ctx) => {
-                const pages = chunkRows(ctx.dashboardData.overloaded_employees, ROWS_PER_SLIDE);
+            buildPages: (ctx, slideId) => {
+                const pages = chunkRows(ctx.dashboardData ? (ctx.dashboardData.overloaded_employees || []) : [], ROWS_PER_SLIDE);
                 return pages.map((rows, i) => ({
                     wrapperClass: "",
                     bodyHTML: `
-                        <div class="slide-title-bar"><h3>Resource Allocations & Overload Alerts${pageSuffix(i + 1, pages.length)}</h3><span class="confidential-small">CONFIDENTIAL</span></div>
+                        <div class="slide-title-bar">
+                            <h3 contenteditable="true" data-slide-id="${slideId}" data-edit-key="title-text-${i}">${getSlideText(slideId, `title-text-${i}`, `Resource Allocations & Overload Alerts${pageSuffix(i + 1, pages.length)}`)}</h3>
+                            <span class="confidential-small">CONFIDENTIAL</span>
+                        </div>
                         <div class="slide-content-split">
                             <div class="slide-col-left">
-                                <h4 class="risk-title"><i class="fa-solid fa-triangle-exclamation"></i> Overloaded Resources (>100% Allocation)</h4>
+                                <h4 class="risk-title" contenteditable="true" data-slide-id="${slideId}" data-edit-key="risk-title-left"><i class="fa-solid fa-triangle-exclamation"></i> ${getSlideText(slideId, "risk-title-left", "Overloaded Resources (>100% Allocation)")}</h4>
                                 <ul class="risk-list">
                                     ${rows.map(emp => `
-                                        <li><i class="fa-solid fa-triangle-exclamation"></i> <strong>${emp.name}</strong> (${emp.team}) planned utilization is at <strong>${emp.utilization.toFixed(1)}%</strong>. Immediate risk of burnout/project delay.</li>
-                                    `).join("") || "<li><i class='fa-solid fa-circle-check text-green'></i> No overloaded planning risks detected in this scenario.</li>"}
+                                        <li style="padding: 8px 12px; border-radius: 6px; background: rgba(239, 68, 68, 0.08); border-left: 3px solid var(--danger-color); margin-bottom: 6px; font-size: 11px;">
+                                            <i class="fa-solid fa-triangle-exclamation" style="color: var(--danger-color); margin-right: 6px;"></i>
+                                            <strong>${emp.name || ""}</strong> (${emp.team || ""}) planned utilization is at <span style="color: var(--danger-color); font-weight: 700;">${(emp.utilization || 0).toFixed(1)}%</span>.
+                                        </li>
+                                    `).join("") || `<li style="padding: 8px 12px; border-radius: 6px; background: rgba(16, 185, 129, 0.08); border-left: 3px solid var(--success-color); font-size: 11px; color: var(--success-color);">
+                                                        <i class="fa-solid fa-circle-check" style="margin-right: 6px;"></i> No overloaded planning risks detected in this scenario.
+                                                    </li>`}
                                 </ul>
                             </div>
                             <div class="slide-col-right">
-                                <h4 class="risk-title"><i class="fa-solid fa-list-check"></i> Management Comments & Strategic Notes</h4>
+                                <h4 class="risk-title" contenteditable="true" data-slide-id="${slideId}" data-edit-key="risk-title-right"><i class="fa-solid fa-list-check"></i> ${getSlideText(slideId, "risk-title-right", "Management Comments & Strategic Notes")}</h4>
                                 <div class="pres-notes-box">
-                                    <p><strong>Planning Version Summary:</strong> Initial draft of resources for engineering hubs. High effort is currently allocated on the Agentic AI prototype development which has an external funding recovery mapped. Key project delivery for Customer Requests (Fuel) requires resource reallocations to cover India testing overload risk.</p>
+                                    <p contenteditable="true" data-slide-id="${slideId}" data-edit-key="notes-text">${getSlideText(slideId, "notes-text", "Planning Version Summary: Initial draft of resources for engineering hubs. High effort is currently allocated on the Agentic AI prototype development which has an external funding recovery mapped. Key project delivery for Customer Requests (Fuel) requires resource reallocations to cover India testing overload risk.")}</p>
                                 </div>
                             </div>
                         </div>
@@ -1643,20 +2102,20 @@ document.addEventListener("DOMContentLoaded", () => {
             },
             csv: (ctx) => {
                 const lines = ["=== Resource Allocations & Overload Alerts ===", "Employee,Team,Utilization %"];
-                ctx.dashboardData.overloaded_employees.forEach(emp => {
-                    lines.push(`${csvCell(emp.name)},${csvCell(emp.team)},${emp.utilization.toFixed(1)}`);
+                (ctx.dashboardData ? (ctx.dashboardData.overloaded_employees || []) : []).forEach(emp => {
+                    lines.push(`${csvCell(emp.name)},${csvCell(emp.team)},${(emp.utilization || 0).toFixed(1)}`);
                 });
-                if (ctx.dashboardData.overloaded_employees.length === 0) lines.push("No overloaded planning risks detected in this scenario.");
+                if (ctx.dashboardData && (ctx.dashboardData.overloaded_employees || []).length === 0) lines.push("No overloaded planning risks detected in this scenario.");
                 return lines.join("\n");
             }
         },
         ai: {
             label: "AI Portfolio Predictions",
             desc: "AI-driven bottleneck predictions and optimization suggestions.",
-            buildPages: (ctx) => {
+            buildPages: (ctx, slideId) => {
                 const data = ctx.aiPredictionsData || { bottlenecks: [], cost_optimizations: [], reallocations: [] };
-                const suggestions = [...data.cost_optimizations, ...data.reallocations].slice(0, 3);
-                const pages = chunkRows(data.bottlenecks, ROWS_PER_SLIDE);
+                const suggestions = [...(data.cost_optimizations || []), ...(data.reallocations || [])].slice(0, 3);
+                const pages = chunkRows(data.bottlenecks || [], ROWS_PER_SLIDE);
 
                 return pages.map((rows, i) => {
                     const isFirst = i === 0;
@@ -1664,25 +2123,23 @@ document.addEventListener("DOMContentLoaded", () => {
                         <ul class="risk-list">
                             ${rows.map(b => `
                                 <li style="padding: 8px 12px; border-radius: 6px; background: rgba(239, 68, 68, 0.04); border-left: 3px solid ${b.severity === 'High' ? 'var(--danger-color)' : 'var(--warning-color)'}; margin-bottom: 6px; font-size: 11px;">
-                                    <strong>[${b.type}]</strong> ${b.description}
+                                    <strong>[${b.type || ""}]</strong> ${b.description || ""}
                                 </li>
                             `).join("")}
                         </ul>
                     `;
-                    // Suggestions only appear once, alongside the first page of bottlenecks;
-                    // continuation pages are a full-width bottleneck list.
                     const body = isFirst ? `
                         <div class="slide-content-split">
                             <div class="slide-col-left">
-                                <h4 class="risk-title" style="color: var(--accent-color); font-size: 13px;"><i class="fa-solid fa-brain"></i> Predicted Resource Bottlenecks</h4>
+                                <h4 class="risk-title" style="color: var(--accent-color); font-size: 13px;" contenteditable="true" data-slide-id="${slideId}" data-edit-key="label-left"><i class="fa-solid fa-brain"></i> ${getSlideText(slideId, "label-left", "Predicted Resource Bottlenecks")}</h4>
                                 ${bottleneckList}
                             </div>
                             <div class="slide-col-right">
-                                <h4 class="risk-title" style="color: var(--warning-color); font-size: 13px;"><i class="fa-solid fa-chart-line"></i> Strategic Optimization Suggestions</h4>
+                                <h4 class="risk-title" style="color: var(--warning-color); font-size: 13px;" contenteditable="true" data-slide-id="${slideId}" data-edit-key="label-right"><i class="fa-solid fa-chart-line"></i> ${getSlideText(slideId, "label-right", "Strategic Optimization Suggestions")}</h4>
                                 <ul class="risk-list" style="gap: 6px;">
                                     ${suggestions.map(s => `
                                         <li style="padding: 8px 12px; border-radius: 6px; background: rgba(59, 130, 246, 0.04); border-left: 3px solid var(--primary-color); margin-bottom: 6px; font-size: 11px;">
-                                            <strong>[${s.category || s.action}]</strong> ${s.description}
+                                            <strong>[${s.category || s.action || ""}]</strong> ${s.description || ""}
                                         </li>
                                     `).join("")}
                                 </ul>
@@ -1691,7 +2148,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     ` : `
                         <div class="slide-content-split">
                             <div class="slide-col-full">
-                                <h4 class="risk-title" style="color: var(--accent-color); font-size: 13px;"><i class="fa-solid fa-brain"></i> Predicted Resource Bottlenecks (continued)</h4>
+                                <h4 class="risk-title" style="color: var(--accent-color); font-size: 13px;" contenteditable="true" data-slide-id="${slideId}" data-edit-key="label-left-cont"><i class="fa-solid fa-brain"></i> ${getSlideText(slideId, "label-left-cont", "Predicted Resource Bottlenecks (continued)")}</h4>
                                 ${bottleneckList}
                             </div>
                         </div>
@@ -1699,7 +2156,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     return {
                         wrapperClass: "",
                         bodyHTML: `
-                            <div class="slide-title-bar"><h3>AI-Driven Portfolio Predictions & Suggestions${pageSuffix(i + 1, pages.length)}</h3><span class="confidential-small">CONFIDENTIAL</span></div>
+                            <div class="slide-title-bar">
+                                <h3 contenteditable="true" data-slide-id="${slideId}" data-edit-key="title-text-${i}">${getSlideText(slideId, `title-text-${i}`, `AI-Driven Portfolio Predictions & Suggestions${pageSuffix(i + 1, pages.length)}`)}</h3>
+                                <span class="confidential-small">CONFIDENTIAL</span>
+                            </div>
                             ${body}
                         `
                     };
@@ -1708,34 +2168,45 @@ document.addEventListener("DOMContentLoaded", () => {
             csv: (ctx) => {
                 const data = ctx.aiPredictionsData || { bottlenecks: [], cost_optimizations: [], reallocations: [] };
                 const lines = ["=== AI Portfolio Predictions & Suggestions ===", "Type,Category/Type,Description"];
-                data.bottlenecks.forEach(b => lines.push(`Bottleneck,${csvCell(b.type)},${csvCell(b.description)}`));
-                [...data.cost_optimizations, ...data.reallocations].slice(0, 3).forEach(s => lines.push(`Suggestion,${csvCell(s.category || s.action)},${csvCell(s.description)}`));
+                (data.bottlenecks || []).forEach(b => lines.push(`Bottleneck,${csvCell(b.type)},${csvCell(b.description)}`));
+                [...(data.cost_optimizations || []), ...(data.reallocations || [])].slice(0, 3).forEach(s => lines.push(`Suggestion,${csvCell(s.category || s.action)},${csvCell(s.description)}`));
                 return lines.join("\n");
             }
         },
         teams: {
             label: "Team Breakdown",
             desc: "Aggregate team-level staffing and cost - no individual employee names.",
-            buildPages: (ctx) => {
-                const sorted = [...ctx.dashboardData.team_summaries].sort((a, b) => b.total_cost - a.total_cost);
+            buildPages: (ctx, slideId) => {
+                const sorted = [...(ctx.dashboardData ? (ctx.dashboardData.team_summaries || []) : [])].sort((a, b) => (b.total_cost || 0) - (a.total_cost || 0));
                 const pages = chunkRows(sorted, ROWS_PER_SLIDE);
                 return pages.map((rows, i) => ({
                     wrapperClass: "",
                     bodyHTML: `
-                        <div class="slide-title-bar"><h3>Team Resourcing & Cost Breakdown${pageSuffix(i + 1, pages.length)}</h3><span class="confidential-small">CONFIDENTIAL</span></div>
+                        <div class="slide-title-bar">
+                            <h3 contenteditable="true" data-slide-id="${slideId}" data-edit-key="title-text-${i}">${getSlideText(slideId, `title-text-${i}`, `Team Resourcing & Cost Breakdown${pageSuffix(i + 1, pages.length)}`)}</h3>
+                            <span class="confidential-small">CONFIDENTIAL</span>
+                        </div>
                         <div class="slide-content-split">
                             <div class="slide-col-full">
                                 <div class="pres-table-wrapper">
                                     <table class="pres-table">
-                                        <thead><tr><th>Team</th><th>Members</th><th>Avg Utilization</th><th>Overloaded</th><th>Total Cost</th></tr></thead>
+                                        <thead>
+                                            <tr>
+                                                <th>Team</th>
+                                                <th style="text-align: right;">Members</th>
+                                                <th style="text-align: right;">Avg Utilization</th>
+                                                <th style="text-align: right;">Overloaded</th>
+                                                <th style="text-align: right;">Total Cost</th>
+                                            </tr>
+                                        </thead>
                                         <tbody>
                                             ${rows.map(t => `
                                                 <tr>
-                                                    <td><strong>${t.team_name}</strong></td>
-                                                    <td>${t.member_count}</td>
-                                                    <td>${t.average_utilization.toFixed(1)}%</td>
-                                                    <td>${t.overloaded_count}</td>
-                                                    <td><strong>$${t.total_cost.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong></td>
+                                                    <td><strong>${t.team_name || ""}</strong></td>
+                                                    <td style="text-align: right;">${t.member_count || 0} Staff</td>
+                                                    <td style="text-align: right;">${(t.average_utilization || 0).toFixed(1)}%</td>
+                                                    <td style="text-align: right;">${t.overloaded_count || 0} overloaded</td>
+                                                    <td style="text-align: right;"><strong>$${(t.total_cost || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}</strong></td>
                                                 </tr>
                                             `).join("")}
                                         </tbody>
@@ -1748,8 +2219,8 @@ document.addEventListener("DOMContentLoaded", () => {
             },
             csv: (ctx) => {
                 const lines = ["=== Team Resourcing & Cost Breakdown ===", "Team,Members,Avg Utilization %,Overloaded,Total Cost"];
-                [...ctx.dashboardData.team_summaries].sort((a, b) => b.total_cost - a.total_cost).forEach(t => {
-                    lines.push(`${csvCell(t.team_name)},${t.member_count},${t.average_utilization.toFixed(1)},${t.overloaded_count},${t.total_cost}`);
+                [...(ctx.dashboardData ? (ctx.dashboardData.team_summaries || []) : [])].sort((a, b) => (b.total_cost || 0) - (a.total_cost || 0)).forEach(t => {
+                    lines.push(`${csvCell(t.team_name)},${t.member_count || 0},${(t.average_utilization || 0).toFixed(1)},${t.overloaded_count || 0},${t.total_cost || 0}`);
                 });
                 return lines.join("\n");
             }
@@ -1757,9 +2228,9 @@ document.addEventListener("DOMContentLoaded", () => {
         employees: {
             label: "Employee Breakdown",
             desc: "Individual employee names, utilization, and cost. Omit this slide to keep the report team-level only.",
-            buildPages: (ctx) => {
-                const sorted = ctx.employees.map(emp => {
-                    const util = ctx.allocations.filter(a => a.employee_id === emp.id).reduce((acc, a) => acc + a.percentage, 0.0);
+            buildPages: (ctx, slideId) => {
+                const sorted = (ctx.employees || []).map(emp => {
+                    const util = (ctx.allocations || []).filter(a => a.employee_id === emp.id).reduce((acc, a) => acc + a.percentage, 0.0);
                     const cost = emp.available_hours * emp.hourly_rate * (util / 100.0);
                     return { name: emp.name, team: emp.team, location: emp.location, util, cost };
                 }).sort((a, b) => b.cost - a.cost);
@@ -1767,20 +2238,31 @@ document.addEventListener("DOMContentLoaded", () => {
                 return pages.map((rows, i) => ({
                     wrapperClass: "",
                     bodyHTML: `
-                        <div class="slide-title-bar"><h3>Individual Employee Breakdown${pageSuffix(i + 1, pages.length)}</h3><span class="confidential-small">CONFIDENTIAL</span></div>
+                        <div class="slide-title-bar">
+                            <h3 contenteditable="true" data-slide-id="${slideId}" data-edit-key="title-text-${i}">${getSlideText(slideId, `title-text-${i}`, `Individual Employee Breakdown${pageSuffix(i + 1, pages.length)}`)}</h3>
+                            <span class="confidential-small">CONFIDENTIAL</span>
+                        </div>
                         <div class="slide-content-split">
                             <div class="slide-col-full">
                                 <div class="pres-table-wrapper">
                                     <table class="pres-table">
-                                        <thead><tr><th>Employee</th><th>Team</th><th>Location</th><th>Utilization</th><th>Total Cost</th></tr></thead>
+                                        <thead>
+                                            <tr>
+                                                <th>Employee</th>
+                                                <th>Team</th>
+                                                <th>Location</th>
+                                                <th style="text-align: right;">Utilization</th>
+                                                <th style="text-align: right;">Total Cost</th>
+                                            </tr>
+                                        </thead>
                                         <tbody>
                                             ${rows.map(r => `
                                                 <tr>
-                                                    <td><strong>${r.name}</strong></td>
-                                                    <td>${r.team}</td>
-                                                    <td>${r.location}</td>
-                                                    <td>${r.util.toFixed(1)}%</td>
-                                                    <td><strong>$${r.cost.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong></td>
+                                                    <td><strong>${r.name || ""}</strong></td>
+                                                    <td>${r.team || ""}</td>
+                                                    <td>${r.location || ""}</td>
+                                                    <td style="text-align: right;">${(r.util || 0).toFixed(1)}%</td>
+                                                    <td style="text-align: right;"><strong>$${(r.cost || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}</strong></td>
                                                 </tr>
                                             `).join("")}
                                         </tbody>
@@ -1793,8 +2275,8 @@ document.addEventListener("DOMContentLoaded", () => {
             },
             csv: (ctx) => {
                 const lines = ["=== Individual Employee Breakdown ===", "Employee,Team,Location,Utilization %,Total Cost"];
-                ctx.employees.map(emp => {
-                    const util = ctx.allocations.filter(a => a.employee_id === emp.id).reduce((acc, a) => acc + a.percentage, 0.0);
+                (ctx.employees || []).map(emp => {
+                    const util = (ctx.allocations || []).filter(a => a.employee_id === emp.id).reduce((acc, a) => acc + a.percentage, 0.0);
                     const cost = emp.available_hours * emp.hourly_rate * (util / 100.0);
                     return { name: emp.name, team: emp.team, location: emp.location, util, cost };
                 }).sort((a, b) => b.cost - a.cost).forEach(r => {
@@ -1809,7 +2291,11 @@ document.addEventListener("DOMContentLoaded", () => {
         return [
             { id: "title", included: true },
             { id: "executive", included: true },
+            { id: "financial_recovery", included: true },
             { id: "topics", included: true },
+            { id: "top_projects", included: true },
+            { id: "location_breakdown", included: false },
+            { id: "department_breakdown", included: false },
             { id: "risks", included: true },
             { id: "ai", included: true },
             { id: "teams", included: false },
@@ -1817,17 +2303,25 @@ document.addEventListener("DOMContentLoaded", () => {
         ];
     }
 
+    function getSlideText(slideId, key, defaultValue) {
+        const configItem = deckConfig ? deckConfig.find(item => item.id === slideId) : null;
+        if (configItem && configItem.overrides && configItem.overrides[key] !== undefined) {
+            return configItem.overrides[key];
+        }
+        return defaultValue;
+    }
+
     function loadDeckConfig() {
         try {
+            loadExclusions();
             const raw = localStorage.getItem(DECK_CONFIG_STORAGE_KEY);
             if (raw) {
                 const parsed = JSON.parse(raw);
                 const knownIds = Object.keys(SLIDE_TEMPLATES);
-                const parsedIds = parsed.map(p => p.id);
-                // Only trust the saved config if it exactly matches the current set of
-                // known templates - guards against a stale config from a previous
-                // version of the app that added/removed template slides.
-                if (Array.isArray(parsed) && knownIds.length === parsedIds.length && knownIds.every(id => parsedIds.includes(id))) {
+                const isValid = Array.isArray(parsed) && parsed.every(p => {
+                    return p && typeof p === "object" && p.id && (p.isCustom || knownIds.includes(p.id));
+                });
+                if (isValid) {
                     deckConfig = parsed;
                     return;
                 }
@@ -1836,14 +2330,341 @@ document.addEventListener("DOMContentLoaded", () => {
             console.error("Failed to load deck config, resetting to default:", e);
         }
         deckConfig = getDefaultDeckConfig();
+        saveDeckConfig();
     }
 
     function saveDeckConfig() {
-        localStorage.setItem(DECK_CONFIG_STORAGE_KEY, JSON.stringify(deckConfig));
+        try {
+            localStorage.setItem(DECK_CONFIG_STORAGE_KEY, JSON.stringify(deckConfig));
+        } catch (e) {
+            console.warn("Failed to save deck config to localStorage:", e);
+        }
+    }
+
+    function computeInteractiveDashboardData(filteredEmps, filteredAllocs) {
+        if (!dashboardData) return null;
+        
+        // Calculate employee utilization sums
+        const empAllocSums = {};
+        filteredAllocs.forEach(a => {
+            empAllocSums[a.employee_id] = (empAllocSums[a.employee_id] || 0.0) + a.percentage;
+        });
+
+        // 1. Calculate employee costs
+        let totalInternalCost = 0.0;
+        const costByLocation = {};
+        const costByTeam = {};
+        const costByDept = {};
+        const costByTopic = {};
+        const hoursByTopic = {};
+
+        const overloadedList = [];
+
+        filteredEmps.forEach(emp => {
+            const util = empAllocSums[emp.id] || 0.0;
+            if (util > 100.0) {
+                overloadedList.push({
+                    id: emp.id,
+                    name: emp.name,
+                    team: emp.team,
+                    location: emp.location,
+                    utilization: util
+                });
+            }
+
+            // Find allocations for this employee
+            const empAllocs = filteredAllocs.filter(a => a.employee_id === emp.id);
+            empAllocs.forEach(a => {
+                const cost = emp.available_hours * emp.hourly_rate * (a.percentage / 100.0);
+                totalInternalCost += cost;
+
+                costByLocation[emp.location] = (costByLocation[emp.location] || 0.0) + cost;
+                costByTeam[emp.team] = (costByTeam[emp.team] || 0.0) + cost;
+                costByDept[emp.department] = (costByDept[emp.department] || 0.0) + cost;
+                costByTopic[a.topic_id] = (costByTopic[a.topic_id] || 0.0) + cost;
+                hoursByTopic[a.topic_id] = (hoursByTopic[a.topic_id] || 0.0) + (emp.available_hours * a.percentage / 100.0);
+            });
+        });
+
+        // 2. Fetch constants from base data
+        const totalAdditionalInternal = dashboardData.total_additional_internal_cost || 0.0;
+        const totalExternal = dashboardData.total_external_cost || 0.0;
+        const totalRecovery = dashboardData.total_recovery_cost || 0.0;
+
+        const netAnnualPlanningCost = totalInternalCost + totalAdditionalInternal + totalExternal - totalRecovery;
+
+        // 3. Rebuild topic summaries
+        const topicSummaries = (topics || []).map(t => {
+            const intCost = costByTopic[t.id] || 0.0;
+            const hours = hoursByTopic[t.id] || 0.0;
+            const baseTopic = (dashboardData.topic_summaries || []).find(bt => bt.id === t.id) || {};
+            const addInternal = baseTopic.additional_internal_cost || 0.0;
+            const extCost = baseTopic.external_cost || 0.0;
+            const rec = t.recovery || 0.0;
+            
+            return {
+                id: t.id,
+                name: t.name,
+                category: t.category,
+                total_hours: hours,
+                internal_cost: intCost,
+                additional_internal_cost: addInternal,
+                external_cost: extCost,
+                recovery: rec,
+                total_cost: intCost + addInternal + extCost,
+                staff: (employees || []).filter(e => filteredAllocs.some(a => a.employee_id === e.id && a.topic_id === t.id))
+            };
+        });
+
+        // 4. Rebuild team summaries
+        const teamSummaries = [];
+        const teamGroups = {};
+        filteredEmps.forEach(e => {
+            if (!teamGroups[e.team]) teamGroups[e.team] = [];
+            teamGroups[e.team].push(e);
+        });
+
+        Object.keys(teamGroups).forEach(teamName => {
+            const teamEmps = teamGroups[teamName];
+            const sumUtil = teamEmps.reduce((sum, e) => sum + (empAllocSums[e.id] || 0.0), 0.0);
+            const ovCount = teamEmps.filter(e => (empAllocSums[e.id] || 0.0) > 100.0).length;
+            const cost = teamEmps.reduce((sum, e) => {
+                const empAllocs = filteredAllocs.filter(a => a.employee_id === e.id);
+                return sum + empAllocs.reduce((sub, a) => sub + (e.available_hours * e.hourly_rate * a.percentage / 100.0), 0.0);
+            }, 0.0);
+
+            teamSummaries.push({
+                team_name: teamName,
+                member_count: teamEmps.length,
+                average_utilization: teamEmps.length > 0 ? sumUtil / teamEmps.length : 0.0,
+                overloaded_count: ovCount,
+                total_cost: cost
+            });
+        });
+
+        return {
+            total_headcount: filteredEmps.length,
+            total_internal_employee_cost: totalInternalCost,
+            total_additional_internal_cost: totalAdditionalInternal,
+            total_external_cost: totalExternal,
+            total_recovery_cost: totalRecovery,
+            total_annual_planning_cost: netAnnualPlanningCost,
+            cost_by_location: costByLocation,
+            cost_by_department: costByDept,
+            overloaded_employees: overloadedList,
+            topic_summaries: topicSummaries,
+            team_summaries: teamSummaries
+        };
+    }
+
+    function renderExclusionBadges() {
+        const badges = [];
+        if (excludedFilters.locations.size > 0) {
+            Array.from(excludedFilters.locations).forEach(loc => {
+                badges.push(`<span class="badge badge-warning" style="cursor: pointer; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); padding: 2px 6px; border-radius: 4px; font-size: 9px; color: var(--warning-color); display: inline-flex; align-items: center; gap: 4px;" onclick="window.toggleLocationExclusion('${loc}')"><i class="fa-solid fa-ban"></i> ${loc}</span>`);
+            });
+        }
+        if (excludedFilters.departments.size > 0) {
+            Array.from(excludedFilters.departments).forEach(dept => {
+                badges.push(`<span class="badge badge-warning" style="cursor: pointer; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); padding: 2px 6px; border-radius: 4px; font-size: 9px; color: var(--warning-color); display: inline-flex; align-items: center; gap: 4px;" onclick="window.toggleDeptExclusion('${dept}')"><i class="fa-solid fa-ban"></i> ${dept}</span>`);
+            });
+        }
+        if (badges.length === 0) return "";
+        return `
+            <div class="exclusion-badges" style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; align-items: center;">
+                <span style="font-size: 9px; color: var(--text-secondary);">Exclusions (Click to restore):</span>
+                ${badges.join("")}
+            </div>
+        `;
+    }
+
+    window.toggleLocationExclusion = (loc) => {
+        if (excludedFilters.locations.has(loc)) {
+            excludedFilters.locations.delete(loc);
+        } else {
+            excludedFilters.locations.add(loc);
+        }
+        saveExclusions();
+        recomputeAndRefreshPresentation();
+    };
+
+    window.toggleDeptExclusion = (dept) => {
+        if (excludedFilters.departments.has(dept)) {
+            excludedFilters.departments.delete(dept);
+        } else {
+            excludedFilters.departments.add(dept);
+        }
+        saveExclusions();
+        recomputeAndRefreshPresentation();
+    };
+
+    function saveExclusions() {
+        try {
+            localStorage.setItem("pres-excluded-locations", JSON.stringify(Array.from(excludedFilters.locations)));
+            localStorage.setItem("pres-excluded-depts", JSON.stringify(Array.from(excludedFilters.departments)));
+        } catch (e) {}
+    }
+
+    function loadExclusions() {
+        try {
+            const locs = localStorage.getItem("pres-excluded-locations");
+            const depts = localStorage.getItem("pres-excluded-depts");
+            if (locs) excludedFilters.locations = new Set(JSON.parse(locs));
+            if (depts) excludedFilters.departments = new Set(JSON.parse(depts));
+        } catch (e) {}
+    }
+
+    function recomputeAndRefreshPresentation() {
+        renderPresentationDeck();
+        const overlay = document.getElementById("presentation-overlay");
+        if (overlay && overlay.classList.contains("active")) {
+            rebuildPhysicalSlides();
+            renderPresentationOverlaySlide();
+        }
     }
 
     function buildDeckContext() {
-        return { dashboardData, employees, topics, allocations, activeScenario, aiPredictionsData };
+        let filteredEmps = employees || [];
+        let filteredAllocs = allocations || [];
+        
+        if (excludedFilters.locations.size > 0) {
+            filteredEmps = filteredEmps.filter(e => !excludedFilters.locations.has(e.location));
+            filteredAllocs = filteredAllocs.filter(a => {
+                const emp = employees.find(e => e.id === a.employee_id);
+                return emp && !excludedFilters.locations.has(emp.location);
+            });
+        }
+        if (excludedFilters.teams.size > 0) {
+            filteredEmps = filteredEmps.filter(e => !excludedFilters.teams.has(e.team));
+            filteredAllocs = filteredAllocs.filter(a => {
+                const emp = employees.find(e => e.id === a.employee_id);
+                return emp && !excludedFilters.teams.has(emp.team);
+            });
+        }
+        if (excludedFilters.departments.size > 0) {
+            filteredEmps = filteredEmps.filter(e => !excludedFilters.departments.has(e.department));
+            filteredAllocs = filteredAllocs.filter(a => {
+                const emp = employees.find(e => e.id === a.employee_id);
+                return emp && !excludedFilters.departments.has(emp.department);
+            });
+        }
+        
+        const interactiveData = computeInteractiveDashboardData(filteredEmps, filteredAllocs);
+        
+        return { 
+            dashboardData: interactiveData || dashboardData, 
+            employees: filteredEmps, 
+            topics, 
+            allocations: filteredAllocs, 
+            activeScenario, 
+            aiPredictionsData 
+        };
+    }
+
+    let activePhysicalSlides = [];
+    let currentPresSlideIndex = 0;
+
+    function rebuildPhysicalSlides() {
+        const ctx = buildDeckContext();
+        const included = deckConfig.filter(c => c.included && (SLIDE_TEMPLATES[c.id] || c.isCustom));
+        activePhysicalSlides = [];
+
+        included.forEach(cfg => {
+            if (cfg.isCustom) {
+                const slideId = cfg.id;
+                activePhysicalSlides.push({
+                    slideId: slideId,
+                    wrapperClass: "slide-custom",
+                    bodyHTML: `
+                        <div class="slide-title-bar">
+                            <h3 contenteditable="true" data-slide-id="${slideId}" data-edit-key="title-text">${getSlideText(slideId, "title-text", "Custom Slide Title")}</h3>
+                            <span class="confidential-small">CONFIDENTIAL</span>
+                        </div>
+                        <div class="slide-content-split" style="flex-direction: column; align-items: stretch; margin-top: 15px;">
+                            <div class="slide-col-full" style="flex: 1; min-height: 180px; padding: 16px; border: 1px dashed var(--glass-border); border-radius: 8px; background: rgba(255, 255, 255, 0.01); text-align: left;">
+                                <div contenteditable="true" data-slide-id="${slideId}" data-edit-key="body-text" style="line-height: 1.6; font-size: 13px; outline: none; min-height: 160px;">
+                                    ${getSlideText(slideId, "body-text", "Click here to type custom content for this slide. You can write bullet points, lists, or text paragraphs.")}
+                                </div>
+                            </div>
+                        </div>
+                    `
+                });
+            } else {
+                const template = SLIDE_TEMPLATES[cfg.id];
+                template.buildPages(ctx, cfg.id).forEach(page => {
+                    activePhysicalSlides.push({
+                        slideId: cfg.id,
+                        wrapperClass: page.wrapperClass || "",
+                        bodyHTML: page.bodyHTML,
+                        postRender: template.postRender
+                    });
+                });
+            }
+        });
+    }
+
+    function enterPresentationMode() {
+        if (!dashboardData) return;
+        rebuildPhysicalSlides();
+        if (activePhysicalSlides.length === 0) {
+            alert("No slides are currently selected for the presentation. Please check at least one slide in the Customize Slides sidebar panel first.");
+            return;
+        }
+        currentPresSlideIndex = 0;
+        const overlay = document.getElementById("presentation-overlay");
+        overlay.classList.add("active");
+        overlay.classList.remove("theme-light-presentation");
+        overlay.classList.add("theme-dark-presentation");
+        document.body.style.overflow = "hidden"; // disable background scrolling
+        
+        // Wait for the opacity transition (300ms) to complete before rendering the slide
+        // so that Chart.js has the correct visible container heights!
+        setTimeout(() => {
+            renderPresentationOverlaySlide();
+        }, 320);
+    }
+
+    function exitPresentationMode() {
+        const overlay = document.getElementById("presentation-overlay");
+        overlay.classList.remove("active");
+        document.body.style.overflow = ""; // restore background scrolling
+    }
+
+    function renderPresentationOverlaySlide() {
+        const viewport = document.getElementById("presentation-slide-viewport");
+        const counter = document.getElementById("pres-slide-counter");
+        if (!viewport || activePhysicalSlides.length === 0) return;
+
+        const slide = activePhysicalSlides[currentPresSlideIndex];
+        const total = activePhysicalSlides.length;
+
+        viewport.innerHTML = `
+            <div class="presentation-slide ${slide.wrapperClass}">
+                ${slide.bodyHTML}
+                ${slideFooterHTML(currentPresSlideIndex + 1, total)}
+            </div>
+        `;
+        counter.textContent = `Slide ${currentPresSlideIndex + 1} of ${total}`;
+
+        // Trigger postRender for charts and visual components if postRender helper exists
+        if (slide.postRender) {
+            const ctx = buildDeckContext();
+            slide.postRender(ctx, viewport);
+        }
+    }
+
+    function prevPresSlide() {
+        if (currentPresSlideIndex > 0) {
+            currentPresSlideIndex--;
+            renderPresentationOverlaySlide();
+        }
+    }
+
+    function nextPresSlide() {
+        if (currentPresSlideIndex < activePhysicalSlides.length - 1) {
+            currentPresSlideIndex++;
+            renderPresentationOverlaySlide();
+        }
     }
 
     function renderPresentationDeck() {
@@ -1854,28 +2675,59 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!container) return;
 
         const ctx = buildDeckContext();
-        const included = deckConfig.filter(c => c.included && SLIDE_TEMPLATES[c.id]);
+        const included = deckConfig.filter(c => c.included && (SLIDE_TEMPLATES[c.id] || c.isCustom));
 
-        // Each template can expand into multiple physical slides (pagination), so
-        // flatten everything first - the "Slide X of Y" footer numbers the whole
-        // deck, not just one template's own pages.
+        // Flatten physical pages
         const allPages = [];
         included.forEach(cfg => {
-            const template = SLIDE_TEMPLATES[cfg.id];
-            template.buildPages(ctx).forEach(page => allPages.push(page));
+            if (cfg.isCustom) {
+                const slideId = cfg.id;
+                allPages.push({
+                    wrapperClass: "slide-custom",
+                    bodyHTML: `
+                        <div class="slide-title-bar">
+                            <h3 contenteditable="true" data-slide-id="${slideId}" data-edit-key="title-text">${getSlideText(slideId, "title-text", "Custom Slide Title")}</h3>
+                            <span class="confidential-small">CONFIDENTIAL</span>
+                        </div>
+                        <div class="slide-content-split" style="flex-direction: column; align-items: stretch; margin-top: 15px;">
+                            <div class="slide-col-full" style="flex: 1; min-height: 180px; padding: 16px; border: 1px dashed var(--glass-border); border-radius: 8px; background: rgba(255, 255, 255, 0.01); text-align: left;">
+                                <div contenteditable="true" data-slide-id="${slideId}" data-edit-key="body-text" style="line-height: 1.6; font-size: 13px; outline: none; min-height: 160px;">
+                                    ${getSlideText(slideId, "body-text", "Click here to type custom content for this slide. You can write bullet points, lists, or text paragraphs.")}
+                                </div>
+                            </div>
+                        </div>
+                    `
+                });
+            } else {
+                const template = SLIDE_TEMPLATES[cfg.id];
+                template.buildPages(ctx, cfg.id).forEach(page => allPages.push(page));
+            }
         });
 
         const total = allPages.length;
-        container.innerHTML = allPages.map((page, i) => `
+        container.innerHTML = total > 0 ? allPages.map((page, i) => `
             <div class="presentation-slide ${page.wrapperClass || ""}">
                 ${page.bodyHTML}
                 ${slideFooterHTML(i + 1, total)}
             </div>
-        `).join("");
+        `).join("") : `<div class="presentation-empty-state" style="padding: 40px; text-align: center; color: var(--text-secondary);">No slides included in the presentation. Enable slides in the customize panel.</div>`;
 
+        const slideElements = container.querySelectorAll(".presentation-slide");
+        let pageIdx = 0;
         included.forEach(cfg => {
-            const template = SLIDE_TEMPLATES[cfg.id];
-            if (template.postRender) template.postRender(ctx);
+            if (cfg.isCustom) {
+                pageIdx++;
+            } else {
+                const template = SLIDE_TEMPLATES[cfg.id];
+                const pages = template.buildPages(ctx, cfg.id);
+                pages.forEach(p => {
+                    const slideEl = slideElements[pageIdx];
+                    if (template.postRender && slideEl) {
+                        template.postRender(ctx, slideEl);
+                    }
+                    pageIdx++;
+                });
+            }
         });
 
         renderDeckCustomizeList();
@@ -1886,15 +2738,18 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!list || !deckConfig) return;
 
         list.innerHTML = deckConfig.map((cfg, i) => {
-            const template = SLIDE_TEMPLATES[cfg.id];
+            const isCustom = cfg.isCustom === true;
+            const title = isCustom ? getSlideText(cfg.id, "title-text", "Custom Slide") : SLIDE_TEMPLATES[cfg.id].label;
+            const desc = isCustom ? "User created custom slide" : SLIDE_TEMPLATES[cfg.id].desc;
             return `
                 <li class="deck-customize-item ${cfg.included ? "" : "excluded"}" data-index="${i}">
                     <input type="checkbox" class="deck-customize-checkbox" data-index="${i}" ${cfg.included ? "checked" : ""}>
                     <div class="deck-customize-info">
-                        <div class="deck-customize-title">${template.label}</div>
-                        <div class="deck-customize-desc">${template.desc}</div>
+                        <div class="deck-customize-title">${title}</div>
+                        <div class="deck-customize-desc">${desc}</div>
                     </div>
                     <div class="deck-customize-order-controls">
+                        ${isCustom ? `<button type="button" class="deck-delete-custom text-red" data-id="${cfg.id}" title="Delete Slide" style="margin-right: 8px; background: none; border: none; cursor: pointer; color: var(--danger-color);"><i class="fa-solid fa-trash-can"></i></button>` : ""}
                         <button type="button" class="deck-move-up" data-index="${i}" ${i === 0 ? "disabled" : ""} title="Move up"><i class="fa-solid fa-chevron-up"></i></button>
                         <button type="button" class="deck-move-down" data-index="${i}" ${i === deckConfig.length - 1 ? "disabled" : ""} title="Move down"><i class="fa-solid fa-chevron-down"></i></button>
                     </div>
@@ -1909,6 +2764,18 @@ document.addEventListener("DOMContentLoaded", () => {
                 saveDeckConfig();
                 renderDeckCustomizeList();
                 renderPresentationDeck();
+            });
+        });
+
+        list.querySelectorAll(".deck-delete-custom").forEach(btn => {
+            btn.addEventListener("click", () => {
+                const id = btn.getAttribute("data-id");
+                if (confirm("Are you sure you want to delete this custom slide?")) {
+                    deckConfig = deckConfig.filter(cfg => cfg.id !== id);
+                    saveDeckConfig();
+                    renderDeckCustomizeList();
+                    renderPresentationDeck();
+                }
             });
         });
 
@@ -1936,6 +2803,36 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         });
     }
+
+    // Set up focusout delegation to automatically capture and persist inline slide content edits
+    const handleSlideEdit = (e) => {
+        const target = e.target;
+        if (target.hasAttribute("contenteditable") && target.hasAttribute("data-slide-id")) {
+            const slideId = target.getAttribute("data-slide-id");
+            const editKey = target.getAttribute("data-edit-key");
+            const htmlValue = target.innerHTML.trim();
+
+            const configItem = deckConfig.find(item => item.id === slideId);
+            if (configItem) {
+                if (!configItem.overrides) {
+                    configItem.overrides = {};
+                }
+                configItem.overrides[editKey] = htmlValue;
+                saveDeckConfig();
+                
+                // If presentation overlay is open, synchronize slide changes, else update dashboard presentation tab view
+                const overlay = document.getElementById("presentation-overlay");
+                if (overlay && overlay.classList.contains("active")) {
+                    renderPresentationOverlaySlide();
+                } else {
+                    renderPresentationDeck();
+                }
+            }
+        }
+    };
+
+    document.getElementById("presentation-deck-container").addEventListener("focusout", handleSlideEdit);
+    document.getElementById("presentation-slide-viewport").addEventListener("focusout", handleSlideEdit);
 
     async function exportPresentationReportToCSV() {
         if (!dashboardData) return;
@@ -2002,12 +2899,16 @@ document.addEventListener("DOMContentLoaded", () => {
         select.value = currentVal;
     }
 
-    async function fetchAIPredictions() {
+    async function fetchAIPredictions(requestId) {
         try {
-            const response = await fetch("/api/reports/ai-predictions");
+            const ts = Date.now();
+            const response = await fetch(`/api/reports/ai-predictions?_ts=${ts}`);
+            if (requestId !== undefined && requestId !== refreshRequestId) return;
             if (response.ok) {
                 const predictions = await response.json();
+                if (requestId !== undefined && requestId !== refreshRequestId) return;
                 renderAIPredictions(predictions);
+                renderPresentationDeck();
             }
         } catch (err) {
             console.error("Error fetching AI predictions:", err);
@@ -2245,11 +3146,15 @@ document.addEventListener("DOMContentLoaded", () => {
         toolbar.style.display = (count > 0 && activeRole !== "user") ? "flex" : "none";
     }
 
-    async function fetchTrash() {
+    async function fetchTrash(requestId) {
         try {
-            const response = await fetch("/api/trash");
+            const ts = Date.now();
+            const response = await fetch(`/api/trash?_ts=${ts}`);
+            if (requestId !== undefined && requestId !== refreshRequestId) return;
             if (response.ok) {
-                trashData = await response.json();
+                const data = await response.json();
+                if (requestId !== undefined && requestId !== refreshRequestId) return;
+                trashData = data;
                 renderTrash();
             }
         } catch (err) {
@@ -2900,6 +3805,106 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
 
+        // Add Custom Slide trigger
+        const btnDeckAddCustom = document.getElementById("btn-deck-add-custom-slide");
+        if (btnDeckAddCustom) {
+            btnDeckAddCustom.addEventListener("click", () => {
+                const newId = "custom_" + Date.now();
+                deckConfig.push({
+                    id: newId,
+                    included: true,
+                    isCustom: true,
+                    overrides: {
+                        "title-text": "Custom Slide Title",
+                        "body-text": "Click here to type custom content for this slide. You can write bullet points, lists, or text paragraphs."
+                    }
+                });
+                saveDeckConfig();
+                renderDeckCustomizeList();
+                renderPresentationDeck();
+            });
+        }
+
+        // Present Mode triggers
+        const btnPresentDeck = document.getElementById("btn-present-deck");
+        if (btnPresentDeck) {
+            btnPresentDeck.addEventListener("click", enterPresentationMode);
+        }
+
+        const presBtnPrev = document.getElementById("pres-btn-prev");
+        if (presBtnPrev) {
+            presBtnPrev.addEventListener("click", prevPresSlide);
+        }
+
+        const presBtnNext = document.getElementById("pres-btn-next");
+        if (presBtnNext) {
+            presBtnNext.addEventListener("click", nextPresSlide);
+        }
+
+        const presBtnExit = document.getElementById("pres-btn-exit");
+        if (presBtnExit) {
+            presBtnExit.addEventListener("click", exitPresentationMode);
+        }
+
+        const presBtnTheme = document.getElementById("pres-btn-theme");
+        if (presBtnTheme) {
+            presBtnTheme.addEventListener("click", () => {
+                const overlay = document.getElementById("presentation-overlay");
+                if (overlay.classList.contains("theme-light-presentation")) {
+                    overlay.classList.remove("theme-light-presentation");
+                    overlay.classList.add("theme-dark-presentation");
+                } else {
+                    overlay.classList.remove("theme-dark-presentation");
+                    overlay.classList.add("theme-light-presentation");
+                }
+                renderPresentationOverlaySlide();
+            });
+        }
+
+        const presBtnExclude = document.getElementById("pres-btn-exclude");
+        if (presBtnExclude) {
+            presBtnExclude.addEventListener("click", () => {
+                const activePhysicalSlide = activePhysicalSlides[currentPresSlideIndex];
+                if (activePhysicalSlide) {
+                    const slideId = activePhysicalSlide.slideId;
+                    const configItem = deckConfig.find(item => item.id === slideId);
+                    if (configItem) {
+                        configItem.included = false;
+                        saveDeckConfig();
+                        rebuildPhysicalSlides();
+                        if (activePhysicalSlides.length === 0) {
+                            exitPresentationMode();
+                        } else {
+                            if (currentPresSlideIndex >= activePhysicalSlides.length) {
+                                currentPresSlideIndex = activePhysicalSlides.length - 1;
+                            }
+                            renderPresentationOverlaySlide();
+                        }
+                        renderPresentationDeck();
+                    }
+                }
+            });
+        }
+
+        // Keydown handler for presentation keyboard navigation
+        document.addEventListener("keydown", (e) => {
+            const overlay = document.getElementById("presentation-overlay");
+            if (overlay && overlay.classList.contains("active")) {
+                // Do not navigate if user is typing in a contenteditable field
+                if (document.activeElement && document.activeElement.hasAttribute("contenteditable")) {
+                    return;
+                }
+                if (e.key === "ArrowLeft" || e.key === "PageUp") {
+                    prevPresSlide();
+                } else if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") {
+                    e.preventDefault();
+                    nextPresSlide();
+                } else if (e.key === "Escape") {
+                    exitPresentationMode();
+                }
+            }
+        });
+
         // Executive Summary "Customize View" panel
         const btnExecCustomize = document.getElementById("btn-exec-customize");
         const execCustomizePanel = document.getElementById("exec-customize-panel");
@@ -3235,17 +4240,18 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         btnCloseAI.addEventListener("click", () => {
-            // Conversation memory only lives as long as the drawer stays open -
-            // closing it resets the chat, so warn before discarding an active one.
-            const hasConversation = aiChatBody.querySelectorAll(".ai-message.user").length > 0;
-            if (hasConversation && !confirm("Are you sure you want to close the conversation? The chat history will be cleared.")) {
-                return;
-            }
-            if (hasConversation) {
-                aiChatBody.innerHTML = aiChatWelcomeHTML;
-            }
             aiDrawer.classList.remove("active");
         });
+
+        const btnClearChat = document.getElementById("btn-clear-chat");
+        if (btnClearChat) {
+            btnClearChat.addEventListener("click", () => {
+                if (confirm("Are you sure you want to clear your chat history?")) {
+                    localStorage.removeItem("ai-chat-history");
+                    aiChatBody.innerHTML = aiChatWelcomeHTML;
+                }
+            });
+        }
 
         btnSendAI.addEventListener("click", handleAISubmit);
         aiChatInput.addEventListener("keypress", (e) => {
@@ -4174,8 +5180,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
         aiChatInput.value = "";
         
+        // If welcome message is showing (no user messages yet), clear it
+        const hasUserMsg = aiChatBody.querySelectorAll(".ai-message.user").length > 0;
+        if (!hasUserMsg) {
+            aiChatBody.innerHTML = "";
+        }
+
         // Append user bubble
         appendChatBubble("user", text);
+        saveChatHistory();
         
         // Append assistant loading bubble
         const loadingId = "bubble-" + Date.now();
@@ -4197,45 +5210,73 @@ document.addEventListener("DOMContentLoaded", () => {
                     .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
                     .replace(/\*(.*?)\*/g, "<em>$1</em>")
                     .replace(/\n/g, "<br>");
-                    
-                bubble.innerHTML = formatted;
-            }
+                
+                if (resData.filters) {
+                    const actionId = "ai-actions-" + Date.now();
+                    formatted += `
+                        <div id="${actionId}" class="ai-chat-actions" style="margin-top: 12px; display: flex; gap: 8px;">
+                            <button class="btn btn-primary btn-sm apply-btn" style="padding: 4px 10px; font-size: 11px;">Apply Filters</button>
+                            <button class="btn btn-secondary btn-sm cancel-btn" style="padding: 4px 10px; font-size: 11px;">Cancel</button>
+                        </div>
+                    `;
+                    bubble.innerHTML = formatted;
 
-            if (resData.filters) {
-                // Reset all filters to default before applying the AI filters
-                filters.location = "";
-                filters.team = "";
-                filters.department = "";
-                filters.category = "";
-                filters.manager = "";
-                filters.status = "";
-                filters.topicId = "";
-                filters.minRate = 0;
-                filters.maxRate = 999999;
+                    // Add event listeners inside the bubble context
+                    const actionDiv = document.getElementById(actionId);
+                    if (actionDiv) {
+                        const applyBtn = actionDiv.querySelector(".apply-btn");
+                        const cancelBtn = actionDiv.querySelector(".cancel-btn");
 
-                // Apply the filters to the global filters object
-                if (resData.filters.location !== undefined) filters.location = resData.filters.location;
-                if (resData.filters.team !== undefined) filters.team = resData.filters.team;
-                if (resData.filters.department !== undefined) filters.department = resData.filters.department;
-                if (resData.filters.category !== undefined) filters.category = resData.filters.category;
-                if (resData.filters.minRate !== undefined) filters.minRate = resData.filters.minRate;
-                if (resData.filters.maxRate !== undefined) filters.maxRate = resData.filters.maxRate;
-                
-                // Re-render dynamic filters panel
-                renderFiltersPanel();
-                
-                // Navigate to matrix grid
-                activeSection = "matrix-section";
-                navItems.forEach(n => n.classList.remove("active"));
-                const defaultNavItem = document.querySelector('[data-target="matrix-section"]');
-                if (defaultNavItem) defaultNavItem.classList.add("active");
-                mainSections.forEach(s => s.classList.remove("active"));
-                const defaultSec = document.getElementById("matrix-section");
-                if (defaultSec) defaultSec.classList.add("active");
-                updateSidebarFiltersVisibility();
-                
-                // Rerender matrix with the new filters
-                renderAllocationMatrix();
+                        applyBtn.addEventListener("click", () => {
+                            // Reset all filters to default before applying the AI filters
+                            filters.location = "";
+                            filters.team = "";
+                            filters.department = "";
+                            filters.category = "";
+                            filters.manager = "";
+                            filters.status = "";
+                            filters.topicId = "";
+                            filters.minRate = 0;
+                            filters.maxRate = 999999;
+
+                            // Apply the filters to the global filters object
+                            if (resData.filters.location !== undefined) filters.location = resData.filters.location;
+                            if (resData.filters.team !== undefined) filters.team = resData.filters.team;
+                            if (resData.filters.department !== undefined) filters.department = resData.filters.department;
+                            if (resData.filters.category !== undefined) filters.category = resData.filters.category;
+                            if (resData.filters.minRate !== undefined) filters.minRate = resData.filters.minRate;
+                            if (resData.filters.maxRate !== undefined) filters.maxRate = resData.filters.maxRate;
+
+                            // Re-render dynamic filters panel
+                            renderFiltersPanel();
+
+                            // Navigate to matrix grid
+                            activeSection = "matrix-section";
+                            navItems.forEach(n => n.classList.remove("active"));
+                            const defaultNavItem = document.querySelector('[data-target="matrix-section"]');
+                            if (defaultNavItem) defaultNavItem.classList.add("active");
+                            mainSections.forEach(s => s.classList.remove("active"));
+                            const defaultSec = document.getElementById("matrix-section");
+                            if (defaultSec) defaultSec.classList.add("active");
+                            updateSidebarFiltersVisibility();
+
+                            // Rerender matrix with the new filters
+                            renderAllocationMatrix();
+
+                            // Disable actions and show success text
+                            actionDiv.innerHTML = `<span style="color: #10b981; font-size: 11px; font-weight: 500;"><i class="fa-solid fa-circle-check"></i> Filters applied successfully</span>`;
+                            saveChatHistory();
+                        });
+
+                        cancelBtn.addEventListener("click", () => {
+                            actionDiv.innerHTML = `<span style="color: #64748b; font-size: 11px; font-weight: 500;"><i class="fa-solid fa-circle-xmark"></i> Action cancelled</span>`;
+                            saveChatHistory();
+                        });
+                    }
+                } else {
+                    bubble.innerHTML = formatted;
+                }
+                saveChatHistory();
             }
 
             if (resData.action_executed) {
@@ -4262,6 +5303,58 @@ document.addEventListener("DOMContentLoaded", () => {
         div.innerHTML = content;
         aiChatBody.appendChild(div);
         aiChatBody.scrollTop = aiChatBody.scrollHeight;
+    }
+
+    function saveChatHistory() {
+        const chatMessages = [];
+        aiChatBody.querySelectorAll(".ai-message").forEach(msg => {
+            // Skip the welcome message
+            if (msg.classList.contains("assistant") && msg.querySelector("ul")) {
+                return;
+            }
+            // Skip loaders
+            if (msg.querySelector(".fa-spinner")) {
+                return;
+            }
+            
+            // Clone to avoid live mutations
+            const clone = msg.cloneNode(true);
+            
+            // Handle unclicked action buttons by marking them expired when saving/reloading
+            const actionsDiv = clone.querySelector(".ai-chat-actions");
+            if (actionsDiv) {
+                if (actionsDiv.querySelector("button")) {
+                    actionsDiv.innerHTML = `<span style="color: #64748b; font-size: 11px; font-weight: 500;"><i class="fa-solid fa-circle-info"></i> Interactive filter option expired</span>`;
+                }
+            }
+            
+            chatMessages.push({
+                role: clone.classList.contains("user") ? "user" : "assistant",
+                content: clone.innerHTML
+            });
+        });
+        try {
+            localStorage.setItem("ai-chat-history", JSON.stringify(chatMessages));
+        } catch (e) {
+            console.error("Error saving chat history:", e);
+        }
+    }
+
+    function loadChatHistory() {
+        try {
+            const stored = localStorage.getItem("ai-chat-history");
+            if (stored) {
+                const messages = JSON.parse(stored);
+                if (messages.length > 0) {
+                    aiChatBody.innerHTML = ""; // Clear welcome
+                    messages.forEach(msg => {
+                        appendChatBubble(msg.role, msg.content);
+                    });
+                }
+            }
+        } catch (e) {
+            console.error("Error loading chat history:", e);
+        }
     }
 
     // Populate scenario lists on select dropdown
