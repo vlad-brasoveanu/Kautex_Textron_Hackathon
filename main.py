@@ -12,11 +12,11 @@ from openpyxl.utils import get_column_letter
 import json
 import urllib.request
 import urllib.error
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Header, status, Request
+import jwt
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Header, status, Request, Response
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
@@ -55,7 +55,11 @@ def migrate_add_missing_columns():
 
         conn.commit()
 
-migrate_add_missing_columns()
+# PRAGMA table_info is SQLite-only syntax; on a fresh Postgres database the
+# columns this backfills already exist via Base.metadata.create_all() above,
+# so this only needs to run against a pre-existing SQLite file.
+if engine.dialect.name == "sqlite":
+    migrate_add_missing_columns()
 
 app = FastAPI(title="Digital Engineering Planning Dashboard API")
 
@@ -64,26 +68,55 @@ def hash_password(password: str) -> str:
     salt = "textron_hackathon_salt_2026"
     return hashlib.sha256((password + salt).encode('utf-8')).hexdigest()
 
-# HTTP Bearer Auth Guard
-security = HTTPBearer()
+# Session token: a signed, expiring JWT carried in an HttpOnly cookie
+# (rather than the old unsigned "token_<username>_<role>" string, which
+# anyone could forge by hand once they knew a valid username/role pair).
+SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-not-for-production")
+SESSION_COOKIE_NAME = "session_token"
+SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60  # 7 days
+IS_PRODUCTION = bool(os.environ.get("RENDER"))
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
-    token = credentials.credentials
-    if not token or not token.startswith("token_"):
+def create_access_token(username: str, role: str) -> str:
+    expires_at = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=SESSION_MAX_AGE_SECONDS)
+    return jwt.encode({"sub": username, "role": role, "exp": expires_at}, SECRET_KEY, algorithm="HS256")
+
+def set_session_cookie(response: Response, username: str, role: str):
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME,
+        value=create_access_token(username, role),
+        httponly=True,
+        secure=IS_PRODUCTION,
+        samesite="lax",
+        max_age=SESSION_MAX_AGE_SECONDS,
+    )
+
+def get_current_user(request: Request, db: Session = Depends(get_db)):
+    # An explicit Authorization header (non-browser/API clients, tests) takes
+    # priority over the ambient HttpOnly cookie the browser sends - that way
+    # a client that deliberately authenticates as a different user isn't
+    # silently overridden by whatever cookie happens to be present.
+    token = None
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[len("Bearer "):]
+    if not token:
+        token = request.cookies.get(SESSION_COOKIE_NAME)
+    if not token:
         raise HTTPException(status_code=401, detail="Invalid or missing session token")
-        
-    parts = token.split("_")
-    if len(parts) < 3:
-        raise HTTPException(status_code=401, detail="Malformed session token")
-        
-    username = parts[1]
-    role = "_".join(parts[2:])
-    
+
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired session token")
+
+    username = payload.get("sub")
+    role = payload.get("role")
+
     # Verify in DB
     user = db.query(models.User).filter(models.User.username == username).first()
     if not user or user.role != role:
         raise HTTPException(status_code=401, detail="User session context invalid")
-        
+
     return user
 
 def require_admin(user: models.User = Depends(get_current_user)):
@@ -109,14 +142,15 @@ def write_system_log(db: Session, username: str, action: str, details: str):
 
 # Auth Login Endpoint
 @app.post("/api/auth/login", response_model=schemas.UserResponse)
-def login(payload: schemas.UserLogin, db: Session = Depends(get_db)):
+def login(payload: schemas.UserLogin, response: Response, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.username == payload.username).first()
     if not user or user.password_hash != hash_password(payload.password):
         write_system_log(db, username=payload.username, action="Failed Login", details="Invalid username or password")
         raise HTTPException(status_code=401, detail="Invalid username or password")
-        
+
     write_system_log(db, username=user.username, action="Login", details=f"Successful login. Role: {user.role}")
-    token = f"token_{user.username}_{user.role}"
+    token = create_access_token(user.username, user.role)
+    set_session_cookie(response, user.username, user.role)
     return {
         "username": user.username,
         "role": user.role,
@@ -127,11 +161,11 @@ def login(payload: schemas.UserLogin, db: Session = Depends(get_db)):
 
 # Auth Register Endpoint
 @app.post("/api/auth/register", response_model=schemas.UserResponse)
-def register(payload: schemas.UserRegister, db: Session = Depends(get_db)):
+def register(payload: schemas.UserRegister, response: Response, db: Session = Depends(get_db)):
     existing = db.query(models.User).filter(models.User.username == payload.username).first()
     if existing:
         raise HTTPException(status_code=400, detail="Username already exists")
-        
+
     new_user = models.User(
         username=payload.username,
         password_hash=hash_password(payload.password),
@@ -141,15 +175,34 @@ def register(payload: schemas.UserRegister, db: Session = Depends(get_db)):
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    
+
     write_system_log(db, username=new_user.username, action="Registration", details=f"New user registered with role: {new_user.role}")
-    token = f"token_{new_user.username}_{new_user.role}"
+    token = create_access_token(new_user.username, new_user.role)
+    set_session_cookie(response, new_user.username, new_user.role)
     return {
         "username": new_user.username,
         "role": new_user.role,
         "access_token": token,
         "name": new_user.name
     }
+
+
+# Session check - lets the frontend ask "am I logged in" via the HttpOnly
+# cookie on page load without ever touching the token itself.
+@app.get("/api/auth/me", response_model=schemas.UserResponse)
+def get_me(current_user: models.User = Depends(get_current_user)):
+    return {
+        "username": current_user.username,
+        "role": current_user.role,
+        "access_token": "",
+        "name": current_user.name
+    }
+
+
+@app.post("/api/auth/logout")
+def logout(response: Response):
+    response.delete_cookie(SESSION_COOKIE_NAME)
+    return {"message": "Logged out"}
 
 
 # Get all users (Admin/Master Admin only)

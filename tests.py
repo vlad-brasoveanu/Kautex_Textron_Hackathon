@@ -7,7 +7,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from database import Base
 import models
-from main import app, get_db, hash_password
+from main import app, get_db, hash_password, create_access_token
 from fastapi.testclient import TestClient
 
 # Create sqlite in-memory database for testing
@@ -26,14 +26,21 @@ def override_get_db():
 app.dependency_overrides[get_db] = override_get_db
 client = TestClient(app)
 
-# Helper headers
-master_headers = {"Authorization": "Bearer token_master_master_admin"}
-admin_headers = {"Authorization": "Bearer token_admin_admin"}
-user_headers = {"Authorization": "Bearer token_user_user"}
-invalid_headers = {"Authorization": "Bearer token_invalid_user"}
+# Helper headers - real signed JWTs (same mechanism the cookie carries),
+# sent as a Bearer header since the test client doesn't go through a
+# browser login flow to pick up the HttpOnly cookie.
+master_headers = {"Authorization": f"Bearer {create_access_token('master', 'master_admin')}"}
+admin_headers = {"Authorization": f"Bearer {create_access_token('admin', 'admin')}"}
+user_headers = {"Authorization": f"Bearer {create_access_token('user', 'user')}"}
+invalid_headers = {"Authorization": "Bearer not-a-valid-token"}
 
 @pytest.fixture(autouse=True)
 def setup_database():
+    # The TestClient is shared across the whole module, so a session cookie
+    # set by an earlier test's real /api/auth/login call would otherwise
+    # leak into later tests (e.g. ones checking unauthenticated requests).
+    client.cookies.clear()
+
     # Setup database schema before each test run
     Base.metadata.create_all(bind=engine)
     db = TestingSessionLocal()
@@ -86,7 +93,8 @@ def test_login_auth_endpoint():
     response = client.post("/api/auth/login", json={"username": "admin", "password": "admin123"})
     assert response.status_code == 200
     assert response.json()["role"] == "admin"
-    assert response.json()["access_token"] == "token_admin_admin"
+    assert response.json()["access_token"]  # a real signed JWT, not a fixed string
+    assert response.cookies.get("session_token")
 
     # Test valid user login
     response = client.post("/api/auth/login", json={"username": "user", "password": "user123"})

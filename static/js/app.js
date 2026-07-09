@@ -3,26 +3,25 @@
    FastAPI integration, Matrix Grid Renderer, and Local AI Chat
    ========================================================== */
 
-// Global Fetch Interceptor for Authentication Headers
+// Global Fetch Interceptor - the session is an HttpOnly cookie, which the
+// browser attaches to same-origin requests automatically, so this no longer
+// needs to manage an Authorization header itself. It still auto-detects
+// JSON bodies and force-logs-out on a 401 (expired/invalid session).
 const originalFetch = window.fetch;
 window.fetch = async function (url, options = {}) {
     if (!options.headers) {
         options.headers = {};
     }
-    const token = localStorage.getItem("token");
-    if (token && !url.includes("/api/auth/login")) {
-        options.headers["Authorization"] = `Bearer ${token}`;
-    }
     if (options.body && typeof options.body === "string" && !options.headers["Content-Type"]) {
         options.headers["Content-Type"] = "application/json";
     }
-    
+
     const response = await originalFetch(url, options);
-    if (response.status === 401 && !url.includes("/api/auth/login")) {
+    if (response.status === 401 && !url.includes("/api/auth/login") && !url.includes("/api/auth/me")) {
         // Unauthorized or expired session, force logout
-        localStorage.removeItem("token");
         localStorage.removeItem("role");
         localStorage.removeItem("username");
+        localStorage.removeItem("name");
         document.body.classList.remove("authenticated");
         window.location.reload();
         throw new Error("Session expired or invalid. Redirecting to sign in.");
@@ -213,21 +212,28 @@ document.addEventListener("DOMContentLoaded", () => {
     async function init() {
         setupEventListeners();
 
-        // Check session
-        const token = localStorage.getItem("token");
-        const role = localStorage.getItem("role");
-        const username = localStorage.getItem("username");
-        const name = localStorage.getItem("name") || username;
+        // Check session - the token itself lives in an HttpOnly cookie we
+        // can't read from JS, so ask the backend who (if anyone) it belongs to.
+        try {
+            const meResponse = await fetch("/api/auth/me");
+            if (meResponse.ok) {
+                const me = await meResponse.json();
+                activeRole = me.role;
+                localStorage.setItem("role", me.role);
+                localStorage.setItem("username", me.username);
+                localStorage.setItem("name", me.name);
 
-        if (token && role && username) {
-            activeRole = role;
-            document.body.classList.add("authenticated");
-            userDisplayName.innerHTML = `<i class="fa-solid fa-user-circle" style="color: var(--primary-color);"></i> ${name}`;
-            await fetchScenarios();
-            await fetchActiveScenario();
-            await refreshAllData();
-            restoreSectionFromHash();
-        } else {
+                document.body.classList.add("authenticated");
+                userDisplayName.innerHTML = `<i class="fa-solid fa-user-circle" style="color: var(--primary-color);"></i> ${me.name}`;
+                await fetchScenarios();
+                await fetchActiveScenario();
+                await refreshAllData();
+                restoreSectionFromHash();
+            } else {
+                document.body.classList.remove("authenticated");
+            }
+        } catch (error) {
+            console.error("Error checking session:", error);
             document.body.classList.remove("authenticated");
         }
         // Load persistent chat history if available
@@ -236,20 +242,24 @@ document.addEventListener("DOMContentLoaded", () => {
         updateSidebarFiltersVisibility();
     }
 
-    function logout() {
-        localStorage.removeItem("token");
+    async function logout() {
+        try {
+            await fetch("/api/auth/logout", { method: "POST" });
+        } catch (error) {
+            console.error("Error logging out:", error);
+        }
         localStorage.removeItem("role");
         localStorage.removeItem("username");
         localStorage.removeItem("name");
         document.body.classList.remove("authenticated");
-        
+
         // Reset local variables
         scenarios = [];
         employees = [];
         topics = [];
         allocations = [];
         dashboardData = null;
-        
+
         // Clear login form fields
         if (formLogin) {
             formLogin.reset();
@@ -2914,10 +2924,9 @@ document.addEventListener("DOMContentLoaded", () => {
         document.body.removeChild(link);
 
         try {
-            const token = localStorage.getItem("token");
             await fetch("/api/reports/log-export", {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ report_name: `Presentation Report (${scenarioName})`, format: "CSV" })
             });
         } catch (err) {
@@ -3362,7 +3371,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     if (response.ok) {
                         const data = await response.json();
-                        localStorage.setItem("token", data.access_token);
+                        // The session cookie is already set by the response
+                        // (HttpOnly); we only cache display info locally.
                         localStorage.setItem("role", data.role);
                         localStorage.setItem("username", data.username);
                         localStorage.setItem("name", data.name);
@@ -3824,12 +3834,10 @@ document.addEventListener("DOMContentLoaded", () => {
         // Presentation Print Deck trigger
         document.getElementById("btn-print-deck").addEventListener("click", async () => {
             try {
-                const token = localStorage.getItem("token");
                 await fetch("/api/reports/log-export", {
                     method: "POST",
                     headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${token}`
+                        "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
                         report_name: `Visual Presentation Deck (${activeScenario ? activeScenario.name : "Scenario"})`,
@@ -4063,10 +4071,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     return;
                 }
                 try {
-                    const token = localStorage.getItem("token");
-                    const response = await fetch(`/api/scenarios/${activeScenario.id}/backup`, {
-                        headers: { "Authorization": `Bearer ${token}` }
-                    });
+                    const response = await fetch(`/api/scenarios/${activeScenario.id}/backup`);
                     if (response.ok) {
                         const backupData = await response.json();
                         const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: "application/json" });
@@ -4117,12 +4122,10 @@ document.addEventListener("DOMContentLoaded", () => {
                             return;
                         }
                         
-                        const token = localStorage.getItem("token");
                         const response = await fetch(`/api/scenarios/${activeScenario.id}/restore`, {
                             method: "POST",
                             headers: {
-                                "Content-Type": "application/json",
-                                "Authorization": `Bearer ${token}`
+                                "Content-Type": "application/json"
                             },
                             body: JSON.stringify(payload)
                         });
@@ -4204,12 +4207,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 errDiv.style.display = "none";
 
                 try {
-                    const token = localStorage.getItem("token");
                     const response = await fetch("/api/users", {
                         method: "POST",
                         headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": `Bearer ${token}`
+                            "Content-Type": "application/json"
                         },
                         body: JSON.stringify({ name, username, password, role, email, department, position, supervisor })
                     });
@@ -4256,12 +4257,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
 
                 try {
-                    const token = localStorage.getItem("token");
                     const response = await fetch(`/api/users/${id}`, {
                         method: "PUT",
                         headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": `Bearer ${token}`
+                            "Content-Type": "application/json"
                         },
                         body: JSON.stringify(payload)
                     });
@@ -4776,12 +4775,7 @@ document.addEventListener("DOMContentLoaded", () => {
         tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;"><i class="fa-solid fa-spinner fa-spin"></i> Loading audit logs...</td></tr>';
 
         try {
-            const token = localStorage.getItem("token");
-            const response = await fetch("/api/admin/logs", {
-                headers: {
-                    "Authorization": `Bearer ${token}`
-                }
-            });
+            const response = await fetch("/api/admin/logs");
             if (response.ok) {
                 auditLogsCache = await response.json();
                 populateAuditLogFilterDropdowns();
@@ -4899,12 +4893,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         try {
-            const token = localStorage.getItem("token");
-            const response = await fetch("/api/users", {
-                headers: {
-                    "Authorization": `Bearer ${token}`
-                }
-            });
+            const response = await fetch("/api/users");
             if (response.ok) {
                 usersCache = await response.json();
                 populateUserRoleFilterDropdown();
@@ -4969,7 +4958,6 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        const token = localStorage.getItem("token");
         const currentUsername = localStorage.getItem("username");
 
         filtered.forEach(u => {
@@ -5037,10 +5025,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (confirm(`Are you sure you want to delete user account '${userRow.name}' (${userRow.username})?`)) {
                     try {
                         const response = await fetch(`/api/users/${id}`, {
-                            method: "DELETE",
-                            headers: {
-                                "Authorization": `Bearer ${token}`
-                            }
+                            method: "DELETE"
                         });
                         if (response.ok) {
                             fetchAndRenderUsers();
@@ -5140,12 +5125,10 @@ document.addEventListener("DOMContentLoaded", () => {
         document.body.removeChild(link);
         
         try {
-            const token = localStorage.getItem("token");
             await fetch("/api/reports/log-export", {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
                     report_name: `Allocation Matrix (${activeScenarioName})`,
@@ -5158,7 +5141,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     async function exportMatrixToExcel() {
-        const token = localStorage.getItem("token");
         const queryParams = new URLSearchParams();
         if (filters.location) queryParams.append("location", filters.location);
         if (filters.team) queryParams.append("team", filters.team);
@@ -5172,10 +5154,7 @@ document.addEventListener("DOMContentLoaded", () => {
         
         try {
             const response = await fetch(`/api/export/excel?${queryParams.toString()}`, {
-                method: "GET",
-                headers: {
-                    "Authorization": `Bearer ${token}`
-                }
+                method: "GET"
             });
             if (!response.ok) {
                 alert("Failed to export matrix to Excel");
@@ -5194,8 +5173,7 @@ document.addEventListener("DOMContentLoaded", () => {
             await fetch("/api/reports/log-export", {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
                     report_name: `Allocation Matrix (${activeScenario ? activeScenario.name : "Scenario"})`,
@@ -6476,10 +6454,9 @@ document.addEventListener("DOMContentLoaded", () => {
         document.body.removeChild(link);
 
         try {
-            const token = localStorage.getItem("token");
             await fetch("/api/reports/log-export", {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     report_name: `Scenario Comparison (${reportA.scenario_name} vs ${reportB.scenario_name})`,
                     format: "CSV"
@@ -6576,8 +6553,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const id = btn.getAttribute("data-id");
                 const name = btn.getAttribute("data-name");
                 try {
-                    const token = localStorage.getItem("token");
-                    const response = await fetch(`/api/scenarios/${id}/backup`, { headers: { "Authorization": `Bearer ${token}` } });
+                    const response = await fetch(`/api/scenarios/${id}/backup`);
                     if (response.ok) {
                         const backupData = await response.json();
                         const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: "application/json" });
@@ -6618,10 +6594,9 @@ document.addEventListener("DOMContentLoaded", () => {
                                 alert("Invalid backup file structure.");
                                 return;
                             }
-                            const token = localStorage.getItem("token");
                             const response = await fetch(`/api/scenarios/${id}/restore`, {
                                 method: "POST",
-                                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                                headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify(payload)
                             });
                             if (response.ok) {
@@ -6676,8 +6651,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!tbody) return;
         tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</td></tr>';
         try {
-            const token = localStorage.getItem("token");
-            const response = await fetch("/api/admin/logs", { headers: { "Authorization": `Bearer ${token}` } });
+            const response = await fetch("/api/admin/logs");
             if (!response.ok) {
                 tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--danger-color);">Error loading change log.</td></tr>';
                 return;
