@@ -616,6 +616,66 @@ def test_ai_predictions_endpoint(setup_database):
     assert "reallocations" in data
 
 
+def test_ai_predictions_risk_radar_heuristics(setup_database):
+    db = setup_database
+    scenario = db.query(models.Scenario).filter(models.Scenario.is_active == True).first()
+
+    # Single-point-of-failure: one employee carries the entire topic's load.
+    # Rate kept modest so this employee doesn't also skew the cost-outlier
+    # heuristic below - SPOF only cares about allocation concentration.
+    solo_emp = models.Employee(
+        scenario_id=scenario.id, name="Solo Carrier", team="CAE Germany",
+        department="CAE", location="Germany", available_hours=1800.0, hourly_rate=90.0
+    )
+    # An outlier-location employee to trip the cost-outlier heuristic.
+    outlier_emp = models.Employee(
+        scenario_id=scenario.id, name="Pricey Consultant", team="CAE Switzerland",
+        department="CAE", location="Switzerland", available_hours=1800.0, hourly_rate=500.0
+    )
+    cheap_emp = models.Employee(
+        scenario_id=scenario.id, name="Budget Analyst", team="CAE India",
+        department="CAE", location="India", available_hours=1800.0, hourly_rate=20.0
+    )
+    spof_topic = models.Topic(
+        scenario_id=scenario.id, name="Critical Path Topic", category="Internal Efforts",
+        justification="Sufficiently long and specific business justification text."
+    )
+    undocumented_topic = models.Topic(
+        scenario_id=scenario.id, name="Undocumented Topic", category="Internal Efforts",
+        justification=""
+    )
+    db.add_all([solo_emp, outlier_emp, cheap_emp, spof_topic, undocumented_topic])
+    db.commit()
+    db.refresh(solo_emp)
+    db.refresh(outlier_emp)
+    db.refresh(cheap_emp)
+    db.refresh(spof_topic)
+    db.refresh(undocumented_topic)
+
+    db.add_all([
+        models.Allocation(employee_id=solo_emp.id, topic_id=spof_topic.id, percentage=90.0),
+        models.Allocation(employee_id=outlier_emp.id, topic_id=undocumented_topic.id, percentage=50.0),
+        models.Allocation(employee_id=cheap_emp.id, topic_id=undocumented_topic.id, percentage=10.0),
+    ])
+    db.commit()
+
+    response = client.get("/api/reports/ai-predictions", headers=user_headers)
+    assert response.status_code == 200
+    data = response.json()
+
+    bottleneck_types = [b["type"] for b in data["bottlenecks"]]
+    assert "Single-Point-of-Failure Risk" in bottleneck_types
+    assert "Governance Gap: Missing Business Justification" in bottleneck_types
+    assert any("Solo Carrier" in b["description"] for b in data["bottlenecks"])
+    assert any("Undocumented Topic" in b["description"] for b in data["bottlenecks"])
+    # The documented topic should NOT be flagged for missing justification.
+    assert not any("Critical Path Topic" in b["description"] and b["type"] == "Governance Gap: Missing Business Justification" for b in data["bottlenecks"])
+
+    cost_opt_categories = [c["category"] for c in data["cost_optimizations"]]
+    assert "Location Cost Outlier" in cost_opt_categories
+    assert any("Switzerland" in c["description"] for c in data["cost_optimizations"])
+
+
 def test_ai_predictions_enriched_by_llm(setup_database, monkeypatch):
     # No LLM reachable -> heuristic-only predictions, unaffected by the enrichment layer.
     import main

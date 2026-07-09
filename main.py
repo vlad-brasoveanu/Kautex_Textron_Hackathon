@@ -2354,7 +2354,49 @@ def get_ai_predictions(db: Session = Depends(get_db), current_user: models.User 
             "priority": "Low",
             "description": "No reallocations needed. Bandwidths are balanced across all planned employees."
         })
-        
+
+    # 4. Single-point-of-failure risk: one employee carrying most of a topic's load
+    for t in topics:
+        topic_total = alloc_topic_sums.get(t.id, 0.0)
+        if topic_total <= 0.0:
+            continue
+        topic_allocs = [a for a in allocations if a.topic_id == t.id]
+        top_alloc = max(topic_allocs, key=lambda a: a.percentage, default=None)
+        if top_alloc and (top_alloc.percentage / topic_total) >= 0.6:
+            emp_name = next((e.name for e in employees if e.id == top_alloc.employee_id), "Unknown")
+            predictions["bottlenecks"].append({
+                "type": "Single-Point-of-Failure Risk",
+                "severity": "High",
+                "description": f"**{emp_name}** alone carries **{(top_alloc.percentage / topic_total) * 100:.0f}%** of the total effort planned on **{t.name}**. Losing this person (leave, attrition) would stall the topic with no backup coverage."
+            })
+
+    # 5. Cost outliers by location: locations averaging well above the portfolio norm
+    location_costs = {}
+    location_headcounts = {}
+    for emp in employees:
+        emp_cost = emp.available_hours * emp.hourly_rate * (emp_alloc_sums.get(emp.id, 0.0) / 100.0)
+        location_costs[emp.location] = location_costs.get(emp.location, 0.0) + emp_cost
+        location_headcounts[emp.location] = location_headcounts.get(emp.location, 0) + 1
+    location_avgs = {loc: location_costs[loc] / location_headcounts[loc] for loc in location_costs if location_headcounts[loc] > 0}
+    if location_avgs:
+        portfolio_avg = sum(location_avgs.values()) / len(location_avgs)
+        for loc, avg in location_avgs.items():
+            if portfolio_avg > 0 and avg > portfolio_avg * 1.5:
+                predictions["cost_optimizations"].append({
+                    "category": "Location Cost Outlier",
+                    "impact": f"${avg - portfolio_avg:,.0f}/employee above portfolio average",
+                    "description": f"**{loc}** averages **${avg:,.0f}** in annual cost per employee, over 1.5x the portfolio average of ${portfolio_avg:,.0f}. Review whether this location's rates or allocation levels are proportionate to its role in the plan."
+                })
+
+    # 6. Governance gap: topics missing a documented business justification
+    for t in topics:
+        if not t.justification or len(t.justification.strip()) < 15:
+            predictions["bottlenecks"].append({
+                "type": "Governance Gap: Missing Business Justification",
+                "severity": "Low",
+                "description": f"Topic **{t.name}** has no (or a very thin) documented business justification. Undocumented spend is harder to defend in budget reviews - add a justification before the next planning cycle."
+            })
+
     predictions = enrich_predictions_with_llm(predictions, employees, topics, allocations, emp_alloc_sums, alloc_topic_sums)
     return predictions
 
