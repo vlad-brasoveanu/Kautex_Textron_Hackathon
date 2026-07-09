@@ -125,5 +125,7 @@ class UploadHistory(Base):
     imported_topics = Column(Integer, default=0)
     imported_allocations = Column(Integer, default=0)
     imported_additional_costs = Column(Integer, default=0)
+    archived_employees = Column(Integer, default=0)
+    archived_topics = Column(Integer, default=0)
 
     scenario = relationship("Scenario")

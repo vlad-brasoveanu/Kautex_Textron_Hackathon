@@ -48,6 +48,11 @@ def migrate_add_missing_columns():
             if "deleted_at" not in existing_cols:
                 conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN deleted_at DATETIME")
 
+        existing_cols = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(upload_history)").fetchall()}
+        for col in ("archived_employees", "archived_topics"):
+            if col not in existing_cols:
+                conn.exec_driver_sql(f"ALTER TABLE upload_history ADD COLUMN {col} INTEGER DEFAULT 0")
+
         conn.commit()
 
 migrate_add_missing_columns()
@@ -1458,12 +1463,22 @@ def apply_rows_to_scenario(rows, active_scenario, db: Session, column_mapping: O
         models.Employee.scenario_id == active_scenario.id, models.Employee.is_deleted == False).all()}
     existing_top = {t.name: t for t in db.query(models.Topic).filter(
         models.Topic.scenario_id == active_scenario.id, models.Topic.is_deleted == False).all()}
-    
+
+    # Snapshot of who/what was already live *before* this file, so we can tell
+    # apart from what this file actually references. Anything left over after
+    # processing the sheet is no longer part of "the current document" and
+    # gets archived to Trash (recoverable) rather than left behind as a
+    # zero-allocation ghost that silently persists across templates.
+    original_emp_names = set(existing_emp.keys())
+    original_top_names = set(existing_top.keys())
+    file_topic_names = {name for _, name in topic_cols}
+    touched_emp_names = set()
+
     added_emps = 0
     added_tops = 0
     added_allocs = 0
     added_costs = 0
-    
+
     def cell(row, idx):
         if idx == -1 or idx >= len(row):
             return ""
@@ -1526,6 +1541,7 @@ def apply_rows_to_scenario(rows, active_scenario, db: Session, column_mapping: O
         # existing value untouched on update, and falls back to a sane default
         # when creating a brand-new employee.
         emp_name = first_cell
+        touched_emp_names.add(emp_name)
         team = row_team
         location = row_location
         dept_raw = cell(row, dept_idx)
@@ -1631,12 +1647,35 @@ def apply_rows_to_scenario(rows, active_scenario, db: Session, column_mapping: O
                     except ValueError:
                         pass
                         
+    # Sync: anything that was live before this file but isn't referenced by it
+    # anymore (employee row missing, topic column missing) is archived to
+    # Trash rather than left behind as a stale, zero-allocation leftover from
+    # a previous template - restorable from the Trash panel if this was a
+    # mistake.
+    archived_emps = 0
+    for name in original_emp_names - touched_emp_names:
+        emp = existing_emp[name]
+        if not emp.is_deleted:
+            emp.is_deleted = True
+            emp.deleted_at = datetime.datetime.utcnow()
+            archived_emps += 1
+
+    archived_tops = 0
+    for name in original_top_names - file_topic_names:
+        top = existing_top[name]
+        if not top.is_deleted:
+            top.is_deleted = True
+            top.deleted_at = datetime.datetime.utcnow()
+            archived_tops += 1
+
     db.commit()
     return {
         "imported_employees": added_emps,
         "imported_topics": added_tops,
         "imported_allocations": added_allocs,
-        "imported_additional_costs": added_costs
+        "imported_additional_costs": added_costs,
+        "archived_employees": archived_emps,
+        "archived_topics": archived_tops
     }
 
 
@@ -1694,10 +1733,17 @@ async def import_csv_data(file: UploadFile = File(...), column_mapping: Optional
         imported_employees=counts["imported_employees"],
         imported_topics=counts["imported_topics"],
         imported_allocations=counts["imported_allocations"],
-        imported_additional_costs=counts["imported_additional_costs"]
+        imported_additional_costs=counts["imported_additional_costs"],
+        archived_employees=counts["archived_employees"],
+        archived_topics=counts["archived_topics"]
     )
     db.add(upload_record)
     db.commit()
+
+    archived_note = ""
+    if counts["archived_employees"] or counts["archived_topics"]:
+        archived_note = (f" Moved {counts['archived_employees']} employee(s) and {counts['archived_topics']} topic(s) "
+                          f"to Trash (not present in this file).")
 
     write_system_log(
         db,
@@ -1705,6 +1751,7 @@ async def import_csv_data(file: UploadFile = File(...), column_mapping: Optional
         action="Import CSV",
         details=f"Successfully imported '{file.filename}'. Loaded {counts['imported_employees']} employees, "
                 f"{counts['imported_topics']} topics, {counts['imported_allocations']} allocations, {counts['imported_additional_costs']} costs."
+                f"{archived_note}"
     )
     return {
         "status": "success",
@@ -1761,6 +1808,11 @@ def apply_upload_from_history(upload_id: int, db: Session = Depends(get_db), adm
     rows, _ = parse_uploaded_file_to_rows(contents, record.original_filename, content_type)
     counts = apply_rows_to_scenario(rows, active_scenario, db)
 
+    archived_note = ""
+    if counts["archived_employees"] or counts["archived_topics"]:
+        archived_note = (f" Moved {counts['archived_employees']} employee(s) and {counts['archived_topics']} topic(s) "
+                          f"to Trash (not present in this file).")
+
     write_system_log(
         db,
         username=admin.username,
@@ -1768,6 +1820,7 @@ def apply_upload_from_history(upload_id: int, db: Session = Depends(get_db), adm
         details=f"Re-applied historical upload '{record.original_filename}' (originally uploaded {record.uploaded_at.strftime('%Y-%m-%d %H:%M')} UTC "
                 f"by {record.uploaded_by}) onto '{active_scenario.name}'. Loaded {counts['imported_employees']} employees, "
                 f"{counts['imported_topics']} topics, {counts['imported_allocations']} allocations, {counts['imported_additional_costs']} costs."
+                f"{archived_note}"
     )
     return {
         "status": "success",

@@ -1831,6 +1831,32 @@ th.sortable-emp:hover, th.sortable-topic:hover {
     gap: 8px;
 }
 
+.upload-sync-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--warning-color) 8%, var(--glass-bg));
+    border: 1px solid color-mix(in srgb, var(--warning-color) 25%, var(--glass-border));
+    font-size: 12px;
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+
+.upload-sync-note i {
+    color: var(--warning-color);
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.upload-sync-note a {
+    color: var(--primary-color);
+    font-weight: 600;
+    text-decoration: underline;
+}
+
 .upload-instructions {
     margin-top: 30px;
     padding-top: 20px;

@@ -189,6 +189,8 @@ class UploadHistoryResponse(BaseModel):
     imported_topics: int
     imported_allocations: int
     imported_additional_costs: int
+    archived_employees: int = 0
+    archived_topics: int = 0
 
     class Config:
         from_attributes = True

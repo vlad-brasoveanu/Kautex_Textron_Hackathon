@@ -709,6 +709,63 @@ def test_csv_importer_missing_columns_keeps_existing_values(setup_database):
     assert employee["available_hours"] == 1800.0
     assert employee["hourly_rate"] == 75.0
 
+def test_csv_importer_syncs_to_new_template(setup_database):
+    # Upload Template A: two employees, one topic column.
+    template_a = [
+        ["Employee", "Team", "Location", "Hourly Rate", "Legacy Topic"],
+        ["Alice Old", "Old Team", "Germany", "50", "40%"],
+        ["Bob Old", "Old Team", "Germany", "55", "60%"],
+    ]
+    output_a = io.StringIO()
+    csv.writer(output_a).writerows(template_a)
+    response = client.post("/api/import/csv", files={"file": ("template_a.csv", output_a.getvalue(), "text/csv")}, headers=admin_headers)
+    assert response.status_code == 200
+    data_a = response.json()
+    assert data_a["imported_employees"] == 2
+    assert data_a["imported_topics"] == 1
+    assert data_a["archived_employees"] == 0
+    assert data_a["archived_topics"] == 0
+
+    emp_resp = client.get("/api/employees", headers=admin_headers).json()
+    assert {e["name"] for e in emp_resp} == {"Alice Old", "Bob Old"}
+    top_resp = client.get("/api/topics", headers=admin_headers).json()
+    assert {t["name"] for t in top_resp} == {"Legacy Topic"}
+
+    # Upload Template B: a completely different roster and topic set - only
+    # "Alice Old" carries over, "Bob Old" and "Legacy Topic" are gone, and two
+    # brand-new employees plus a brand-new topic column show up.
+    template_b = [
+        ["Employee", "Team", "Location", "Hourly Rate", "New Topic"],
+        ["Alice Old", "New Team", "Romania", "65", "25%"],
+        ["Carol New", "New Team", "Romania", "45", "35%"],
+        ["Dave New", "New Team", "Romania", "48", "50%"],
+    ]
+    output_b = io.StringIO()
+    csv.writer(output_b).writerows(template_b)
+    response = client.post("/api/import/csv", files={"file": ("template_b.csv", output_b.getvalue(), "text/csv")}, headers=admin_headers)
+    assert response.status_code == 200
+    data_b = response.json()
+    assert data_b["imported_employees"] == 2  # Carol New, Dave New
+    assert data_b["imported_topics"] == 1  # New Topic
+    assert data_b["archived_employees"] == 1  # Bob Old
+    assert data_b["archived_topics"] == 1  # Legacy Topic
+
+    emp_resp = client.get("/api/employees", headers=admin_headers).json()
+    assert {e["name"] for e in emp_resp} == {"Alice Old", "Carol New", "Dave New"}
+    alice = next(e for e in emp_resp if e["name"] == "Alice Old")
+    assert alice["team"] == "New Team"
+    assert alice["location"] == "Romania"
+    assert alice["hourly_rate"] == 65.0
+
+    top_resp = client.get("/api/topics", headers=admin_headers).json()
+    assert {t["name"] for t in top_resp} == {"New Topic"}
+
+    # Bob Old and Legacy Topic are recoverable from Trash, not gone forever.
+    trash = client.get("/api/trash", headers=admin_headers).json()
+    assert any(e["name"] == "Bob Old" for e in trash["employees"])
+    assert any(t["name"] == "Legacy Topic" for t in trash["topics"])
+
+
 def test_csv_importer_new_manager_column(setup_database):
     csv_data = [
         ["Employee", "Team", "Location", "Manager", "Initiative A"],

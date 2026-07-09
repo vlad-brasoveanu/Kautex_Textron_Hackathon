@@ -3360,6 +3360,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const resData = await response.json();
             if (response.ok && resData.status === "success") {
+                const hasArchived = (resData.archived_employees || 0) > 0 || (resData.archived_topics || 0) > 0;
                 statusBox.innerHTML = `
                     <h4 class="text-green"><i class="fa-solid fa-circle-check"></i> Import Successful!</h4>
                     <p>${resData.message}</p>
@@ -3369,7 +3370,23 @@ document.addEventListener("DOMContentLoaded", () => {
                         <li><i class="fa-solid fa-link text-blue"></i> Allocation cells loaded: <strong>${resData.imported_allocations}</strong></li>
                         <li><i class="fa-solid fa-dollar-sign text-blue"></i> Additional costs rows loaded: <strong>${resData.imported_additional_costs}</strong></li>
                     </ul>
+                    ${hasArchived ? `
+                        <div class="upload-sync-note">
+                            <i class="fa-solid fa-broom"></i>
+                            Synced to this document: <strong>${resData.archived_employees || 0}</strong> employee(s) and
+                            <strong>${resData.archived_topics || 0}</strong> topic(s) not present in this file were moved to
+                            <a href="#" id="link-view-trash">Trash</a> (recoverable, not deleted).
+                        </div>
+                    ` : ""}
                 `;
+                const trashLink = document.getElementById("link-view-trash");
+                if (trashLink) {
+                    trashLink.addEventListener("click", (e) => {
+                        e.preventDefault();
+                        document.querySelector('[data-target="crud-section"]').click();
+                        setTimeout(() => document.getElementById("trash-card")?.scrollIntoView({ behavior: "smooth" }), 150);
+                    });
+                }
                 // Reload matrix planning data
                 await refreshAllData();
                 // Keep the history tab in sync in case the user switches to it next
@@ -3423,7 +3440,10 @@ document.addEventListener("DOMContentLoaded", () => {
                         <td>${typeBadge}</td>
                         <td style="font-size: 12px; color: var(--text-secondary);">${date.toLocaleString()}</td>
                         <td>${h.uploaded_by}</td>
-                        <td style="font-size: 12px;">${h.imported_employees} emp &middot; ${h.imported_topics} topics &middot; ${h.imported_allocations} allocs &middot; ${h.imported_additional_costs} costs</td>
+                        <td style="font-size: 12px;">
+                            ${h.imported_employees} emp &middot; ${h.imported_topics} topics &middot; ${h.imported_allocations} allocs &middot; ${h.imported_additional_costs} costs
+                            ${(h.archived_employees || h.archived_topics) ? `<br><span style="color: var(--warning-color);"><i class="fa-solid fa-broom"></i> ${h.archived_employees || 0} emp / ${h.archived_topics || 0} topics moved to Trash</span>` : ""}
+                        </td>
                         <td>
                             <button class="btn btn-secondary btn-sm btn-apply-upload" data-id="${h.id}" data-filename="${h.original_filename}"><i class="fa-solid fa-clock-rotate-left"></i> Apply</button>
                             <button class="btn btn-danger btn-sm btn-delete-upload master-only" data-id="${h.id}" data-filename="${h.original_filename}"><i class="fa-solid fa-trash-can"></i> Delete</button>
@@ -3436,14 +3456,18 @@ document.addEventListener("DOMContentLoaded", () => {
                 btn.addEventListener("click", async () => {
                     const id = btn.getAttribute("data-id");
                     const filename = btn.getAttribute("data-filename");
-                    if (!confirm(`Re-apply '${filename}' onto the active planning version? This will overwrite the current employees, topics, allocations, and additional costs, just like re-uploading it.`)) {
+                    if (!confirm(`Re-apply '${filename}' onto the active planning version? This will overwrite the current employees, topics, allocations, and additional costs, and any employee/topic not present in this file will be moved to Trash (recoverable).`)) {
                         return;
                     }
                     try {
                         const response = await fetch(`/api/uploads/history/${id}/apply`, { method: "POST" });
                         const resData = await response.json();
                         if (response.ok && resData.status === "success") {
-                            alert(resData.message);
+                            const archivedBits = [];
+                            if (resData.archived_employees) archivedBits.push(`${resData.archived_employees} employee(s)`);
+                            if (resData.archived_topics) archivedBits.push(`${resData.archived_topics} topic(s)`);
+                            const archivedMsg = archivedBits.length ? `\n\nMoved to Trash (not in this file): ${archivedBits.join(" and ")}.` : "";
+                            alert(resData.message + archivedMsg);
                             await refreshAllData();
                         } else {
                             alert(resData.detail || "Failed to apply this upload.");
