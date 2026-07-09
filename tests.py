@@ -186,6 +186,78 @@ def test_cost_calculation_engine(setup_database):
     assert data["total_recovery_cost"] == 1000.0
     assert data["total_annual_planning_cost"] == 56000.0
 
+def test_simulation_dashboard_report_for_arbitrary_scenario(setup_database):
+    db = setup_database
+    base_scenario = db.query(models.Scenario).filter(models.Scenario.is_active == True).first()
+
+    emp = models.Employee(
+        scenario_id=base_scenario.id, name="Sim Employee", team="Sim Team",
+        department="CAE", location="Germany", available_hours=1000.0, hourly_rate=100.0
+    )
+    topic = models.Topic(scenario_id=base_scenario.id, name="Sim Topic", category="Internal Efforts")
+    db.add(emp)
+    db.add(topic)
+    db.commit()
+    db.refresh(emp)
+    db.refresh(topic)
+    db.add(models.Allocation(employee_id=emp.id, topic_id=topic.id, percentage=50.0))
+    db.commit()
+
+    # Clone the base scenario into a simulation sandbox (this is what
+    # "Start a Simulation" does) - clone_scenario auto-activates the clone.
+    response = client.post(
+        f"/api/scenarios/{base_scenario.id}/clone",
+        json={"new_name": "Sim Sandbox", "new_description": "[Simulation Sandbox] Cloned from Test Scenario"},
+        headers=admin_headers
+    )
+    assert response.status_code == 200
+    sim_scenario_id = response.json()["id"]
+
+    # The dashboard report for an arbitrary (non-active) scenario works even
+    # though the sandbox is now the active one, proving Simulation's Compare
+    # feature can pull both sides without switching the active scenario back
+    # and forth.
+    response = client.get(f"/api/reports/dashboard/{base_scenario.id}", headers=admin_headers)
+    assert response.status_code == 200
+    base_report = response.json()
+    assert base_report["scenario_name"] == "Test Scenario"
+    assert base_report["total_headcount"] == 1
+
+    response = client.get(f"/api/reports/dashboard/{sim_scenario_id}", headers=admin_headers)
+    assert response.status_code == 200
+    sim_report = response.json()
+    assert sim_report["scenario_name"] == "Sim Sandbox"
+    assert sim_report["total_headcount"] == 1
+    assert sim_report["cost_by_team"] == base_report["cost_by_team"]
+
+    # Nonexistent scenario -> 404
+    response = client.get("/api/reports/dashboard/999999", headers=admin_headers)
+    assert response.status_code == 404
+
+    # Simulate a what-if edit on the now-active sandbox scenario (a "Change
+    # Hourly Rate" quick action) and confirm it's reflected in that
+    # scenario's report but not the original's.
+    sim_emp_resp = client.get("/api/employees", headers=admin_headers)
+    sim_emp = next(e for e in sim_emp_resp.json() if e["name"] == "Sim Employee")
+    response = client.put(
+        f"/api/employees/{sim_emp['id']}",
+        json={**sim_emp, "hourly_rate": 150.0},
+        headers=admin_headers
+    )
+    assert response.status_code == 200
+
+    sim_report_after = client.get(f"/api/reports/dashboard/{sim_scenario_id}", headers=admin_headers).json()
+    base_report_after = client.get(f"/api/reports/dashboard/{base_scenario.id}", headers=admin_headers).json()
+    assert sim_report_after["total_internal_employee_cost"] > base_report_after["total_internal_employee_cost"]
+
+    # "Apply to Real Planning Version" = switch the active scenario back to
+    # the original baseline, reusing the existing active-scenario endpoint.
+    response = client.post(f"/api/scenarios/active/{base_scenario.id}", headers=admin_headers)
+    assert response.status_code == 200
+    active_resp = client.get("/api/scenarios/active", headers=admin_headers)
+    assert active_resp.json()["id"] == base_scenario.id
+
+
 def test_local_ai_query_assistant(setup_database):
     db = setup_database
     scenario = db.query(models.Scenario).filter(models.Scenario.is_active == True).first()

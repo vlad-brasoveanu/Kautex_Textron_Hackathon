@@ -3358,6 +3358,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     fetchAndRenderAdminLogs();
                 } else if (activeSection === "users-section") {
                     fetchAndRenderUsers();
+                } else if (activeSection === "simulation-section") {
+                    renderSimulationTab();
                 }
             });
         });
@@ -5492,6 +5494,675 @@ document.addEventListener("DOMContentLoaded", () => {
     function setPdfPrintTheme(themeClass) {
         document.body.classList.remove("print-theme-light", "print-theme-dark");
         document.body.classList.add(themeClass);
+    }
+
+    // ==========================================
+    // SIMULATION MODULE (WHAT-IF PLANNING)
+    // ==========================================
+    // Ported from the "andreeabranch" simulation feature: clone the active
+    // scenario into a sandbox, apply what-if edits via the existing
+    // allocation/employee endpoints, then compare against a baseline via the
+    // per-scenario dashboard report endpoint. Extended with a pros/cons
+    // verdict + one-click "make this the real planning version" action when
+    // comparing against whatever scenario is currently active app-wide, and
+    // with a "send to Presentation Deck" export that plugs into the deck's
+    // existing custom-slide system.
+
+    function renderSimulationTab() {
+        const fillScenarioSelect = (select, selectValue) => {
+            const prevValue = select.value;
+            select.innerHTML = "";
+            scenarios.forEach(scen => {
+                const opt = document.createElement("option");
+                opt.value = scen.id;
+                opt.innerText = scen.name + (scen.is_active ? " (Active)" : "");
+                select.appendChild(opt);
+            });
+            const target = selectValue !== undefined ? selectValue : prevValue;
+            if (scenarios.some(s => s.id == target)) {
+                select.value = target;
+            }
+        };
+
+        fillScenarioSelect(document.getElementById("sim-base-scenario"), activeScenario ? activeScenario.id : undefined);
+        fillScenarioSelect(document.getElementById("sim-compare-a"));
+        fillScenarioSelect(document.getElementById("sim-compare-b"), activeScenario ? activeScenario.id : undefined);
+
+        document.getElementById("sim-new-name").value = activeScenario ? `${activeScenario.name} - Simulation` : "";
+
+        const fillEmployeeSelect = (select) => {
+            const prevValue = select.value;
+            select.innerHTML = "";
+            employees.forEach(emp => {
+                const opt = document.createElement("option");
+                opt.value = emp.id;
+                opt.innerText = `${emp.name} (${emp.team})`;
+                select.appendChild(opt);
+            });
+            if (employees.some(e => e.id == prevValue)) {
+                select.value = prevValue;
+            }
+        };
+        [document.getElementById("sim-rate-emp"), document.getElementById("sim-move-from"), document.getElementById("sim-move-to"), document.getElementById("sim-effort-emp")].forEach(fillEmployeeSelect);
+
+        const fillTopicSelect = (select) => {
+            const prevValue = select.value;
+            select.innerHTML = "";
+            topics.forEach(topic => {
+                const opt = document.createElement("option");
+                opt.value = topic.id;
+                opt.innerText = topic.name;
+                select.appendChild(opt);
+            });
+            if (topics.some(t => t.id == prevValue)) {
+                select.value = prevValue;
+            }
+        };
+        [document.getElementById("sim-move-topic"), document.getElementById("sim-effort-topic"), document.getElementById("sim-teammove-topic")].forEach(fillTopicSelect);
+
+        const fillTeamSelect = (select) => {
+            const prevValue = select.value;
+            const teams = [...new Set(employees.map(e => e.team))];
+            select.innerHTML = "";
+            teams.forEach(team => {
+                const opt = document.createElement("option");
+                opt.value = team;
+                opt.innerText = team;
+                select.appendChild(opt);
+            });
+            if (teams.includes(prevValue)) {
+                select.value = prevValue;
+            }
+        };
+        [document.getElementById("sim-teammove-from-team"), document.getElementById("sim-teammove-to-team")].forEach(fillTeamSelect);
+
+        // Prefill hourly rate field with the selected employee's current rate
+        const rateEmpSelect = document.getElementById("sim-rate-emp");
+        const prefillRate = () => {
+            const emp = employees.find(e => e.id == rateEmpSelect.value);
+            document.getElementById("sim-rate-value").value = emp ? emp.hourly_rate : "";
+        };
+        rateEmpSelect.onchange = prefillRate;
+        prefillRate();
+
+        // Prefill effort field with the current allocation for the selected employee/topic pair
+        const effortTopicSelect = document.getElementById("sim-effort-topic");
+        const effortEmpSelect = document.getElementById("sim-effort-emp");
+        const prefillEffort = () => {
+            const alloc = allocations.find(a => a.employee_id == effortEmpSelect.value && a.topic_id == effortTopicSelect.value);
+            document.getElementById("sim-effort-value").value = alloc ? alloc.percentage : 0;
+        };
+        effortTopicSelect.onchange = prefillEffort;
+        effortEmpSelect.onchange = prefillEffort;
+        prefillEffort();
+
+        document.getElementById("sim-compare-results").innerHTML = "";
+    }
+
+    async function simUpsertAllocation(employeeId, topicId, percentage) {
+        const clamped = Math.max(0, Math.min(100, percentage));
+        await fetch("/api/allocations", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ employee_id: parseInt(employeeId), topic_id: parseInt(topicId), percentage: clamped })
+        });
+    }
+
+    const btnStartSimulation = document.getElementById("btn-start-simulation");
+    if (btnStartSimulation) {
+        btnStartSimulation.addEventListener("click", async () => {
+            const baseId = document.getElementById("sim-base-scenario").value;
+            const newName = document.getElementById("sim-new-name").value.trim();
+            if (!baseId || !newName) {
+                alert("Choose a base scenario and enter a name for the new simulation.");
+                return;
+            }
+            try {
+                const baseScenario = scenarios.find(s => s.id == baseId);
+                const response = await fetch(`/api/scenarios/${baseId}/clone`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ new_name: newName, new_description: `[Simulation Sandbox] Cloned from ${baseScenario ? baseScenario.name : "scenario"}` })
+                });
+                if (response.ok) {
+                    await fetchScenarios();
+                    await fetchActiveScenario();
+                    await refreshAllData();
+                    renderSimulationTab();
+                } else {
+                    alert("Error starting simulation.");
+                }
+            } catch (err) {
+                console.error("Error starting simulation:", err);
+            }
+        });
+    }
+
+    const btnCleanupSandboxes = document.getElementById("btn-cleanup-sandboxes");
+    if (btnCleanupSandboxes) {
+        btnCleanupSandboxes.addEventListener("click", async () => {
+            const sandboxes = scenarios.filter(s => s.description && s.description.toLowerCase().includes("simulation sandbox") && (!activeScenario || s.id !== activeScenario.id));
+
+            if (sandboxes.length === 0) {
+                alert("No simulation sandboxes to clean up.");
+                return;
+            }
+
+            if (confirm(`Delete ${sandboxes.length} simulation sandbox scenario(s)? This cannot be undone:\n\n${sandboxes.map(s => `- ${s.name}`).join("\n")}`)) {
+                try {
+                    for (const scen of sandboxes) {
+                        await fetch(`/api/scenarios/${scen.id}`, { method: "DELETE" });
+                    }
+                    await fetchScenarios();
+                    await refreshAllData();
+                    renderSimulationTab();
+                } catch (err) {
+                    console.error("Error cleaning up sandboxes:", err);
+                }
+            }
+        });
+    }
+
+    const btnSimAddEmployee = document.getElementById("btn-sim-add-employee");
+    if (btnSimAddEmployee) {
+        btnSimAddEmployee.addEventListener("click", () => {
+            document.getElementById("btn-add-employee").click();
+        });
+    }
+
+    const btnSimApplyRate = document.getElementById("btn-sim-apply-rate");
+    if (btnSimApplyRate) {
+        btnSimApplyRate.addEventListener("click", async () => {
+            const empId = document.getElementById("sim-rate-emp").value;
+            const newRate = parseFloat(document.getElementById("sim-rate-value").value);
+            const emp = employees.find(e => e.id == empId);
+            if (!emp || isNaN(newRate)) return;
+
+            try {
+                const response = await fetch(`/api/employees/${empId}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        name: emp.name, team: emp.team, department: emp.department, location: emp.location,
+                        available_hours: emp.available_hours, hourly_rate: newRate, status: emp.status,
+                        manager: emp.manager, notes: emp.notes
+                    })
+                });
+                if (response.ok) {
+                    await refreshAllData();
+                    renderSimulationTab();
+                } else {
+                    alert("Error applying rate change.");
+                }
+            } catch (err) {
+                console.error("Error applying rate change:", err);
+            }
+        });
+    }
+
+    const btnSimMoveWork = document.getElementById("btn-sim-move-work");
+    if (btnSimMoveWork) {
+        btnSimMoveWork.addEventListener("click", async () => {
+            const topicId = document.getElementById("sim-move-topic").value;
+            const fromEmpId = document.getElementById("sim-move-from").value;
+            const toEmpId = document.getElementById("sim-move-to").value;
+            const amount = parseFloat(document.getElementById("sim-move-amount").value);
+
+            if (!topicId || !fromEmpId || !toEmpId || isNaN(amount) || amount <= 0) return;
+            if (fromEmpId === toEmpId) {
+                alert("Choose two different employees to move work between.");
+                return;
+            }
+
+            const fromAlloc = allocations.find(a => a.employee_id == fromEmpId && a.topic_id == topicId);
+            const toAlloc = allocations.find(a => a.employee_id == toEmpId && a.topic_id == topicId);
+            const fromPct = fromAlloc ? fromAlloc.percentage : 0;
+            const toPct = toAlloc ? toAlloc.percentage : 0;
+            const moved = Math.min(amount, fromPct);
+
+            try {
+                await simUpsertAllocation(fromEmpId, topicId, fromPct - moved);
+                await simUpsertAllocation(toEmpId, topicId, toPct + moved);
+                await refreshAllData();
+                renderSimulationTab();
+            } catch (err) {
+                console.error("Error moving work between employees:", err);
+            }
+        });
+    }
+
+    const btnSimMoveTeam = document.getElementById("btn-sim-move-team");
+    if (btnSimMoveTeam) {
+        btnSimMoveTeam.addEventListener("click", async () => {
+            const topicId = document.getElementById("sim-teammove-topic").value;
+            const sourceTeam = document.getElementById("sim-teammove-from-team").value;
+            const targetTeam = document.getElementById("sim-teammove-to-team").value;
+            const amount = parseFloat(document.getElementById("sim-teammove-amount").value);
+
+            if (!topicId || !sourceTeam || !targetTeam || isNaN(amount) || amount <= 0) return;
+            if (sourceTeam === targetTeam) {
+                alert("Choose two different teams to move work between.");
+                return;
+            }
+
+            const sourceMembers = employees.filter(e => e.team === sourceTeam);
+            const sourceAllocs = sourceMembers
+                .map(emp => ({ emp, alloc: allocations.find(a => a.employee_id == emp.id && a.topic_id == topicId) }))
+                .filter(entry => entry.alloc && entry.alloc.percentage > 0);
+
+            if (sourceAllocs.length === 0) {
+                alert("Selected source team has no effort on this topic to move.");
+                return;
+            }
+
+            const targetMembers = employees.filter(e => e.team === targetTeam);
+            if (targetMembers.length === 0) {
+                alert("Selected target team has no employees.");
+                return;
+            }
+
+            const sourceTotal = sourceAllocs.reduce((sum, entry) => sum + entry.alloc.percentage, 0);
+            const actualMove = Math.min(amount, sourceTotal);
+            const perPersonIncrease = actualMove / targetMembers.length;
+
+            try {
+                for (const entry of sourceAllocs) {
+                    const reduction = actualMove * (entry.alloc.percentage / sourceTotal);
+                    await simUpsertAllocation(entry.emp.id, topicId, entry.alloc.percentage - reduction);
+                }
+                for (const emp of targetMembers) {
+                    const existing = allocations.find(a => a.employee_id == emp.id && a.topic_id == topicId);
+                    const currentPct = existing ? existing.percentage : 0;
+                    await simUpsertAllocation(emp.id, topicId, currentPct + perPersonIncrease);
+                }
+                await refreshAllData();
+                renderSimulationTab();
+            } catch (err) {
+                console.error("Error moving team workload:", err);
+            }
+        });
+    }
+
+    const btnSimAdjustEffort = document.getElementById("btn-sim-adjust-effort");
+    if (btnSimAdjustEffort) {
+        btnSimAdjustEffort.addEventListener("click", async () => {
+            const topicId = document.getElementById("sim-effort-topic").value;
+            const empId = document.getElementById("sim-effort-emp").value;
+            const newPct = parseFloat(document.getElementById("sim-effort-value").value);
+            if (!topicId || !empId || isNaN(newPct)) return;
+
+            try {
+                await simUpsertAllocation(empId, topicId, newPct);
+                await refreshAllData();
+                renderSimulationTab();
+            } catch (err) {
+                console.error("Error adjusting topic effort:", err);
+            }
+        });
+    }
+
+    function simAvgUtilization(report) {
+        if (!report.team_summaries.length) return 0;
+        const totalWeighted = report.team_summaries.reduce((sum, t) => sum + (t.average_utilization * t.member_count), 0);
+        const totalMembers = report.team_summaries.reduce((sum, t) => sum + t.member_count, 0);
+        return totalMembers ? totalWeighted / totalMembers : 0;
+    }
+
+    const btnSimCompare = document.getElementById("btn-sim-compare");
+    if (btnSimCompare) {
+        btnSimCompare.addEventListener("click", async () => {
+            const scenarioAId = document.getElementById("sim-compare-a").value;
+            const scenarioBId = document.getElementById("sim-compare-b").value;
+            if (!scenarioAId || !scenarioBId) return;
+
+            try {
+                const [resA, resB] = await Promise.all([
+                    fetch(`/api/reports/dashboard/${scenarioAId}`),
+                    fetch(`/api/reports/dashboard/${scenarioBId}`)
+                ]);
+                const reportA = await resA.json();
+                const reportB = await resB.json();
+                renderScenarioComparison(reportA, reportB, parseInt(scenarioAId), parseInt(scenarioBId));
+            } catch (err) {
+                console.error("Error comparing scenarios:", err);
+            }
+        });
+    }
+
+    // Builds the pros/cons verdict shown when one side of the comparison is
+    // whatever scenario is currently active app-wide (i.e. "the real
+    // planning version"). `other` is the non-active side being weighed;
+    // `reference` is the active one it's being weighed against.
+    function buildSimVerdict(reference, other) {
+        const pros = [];
+        const cons = [];
+
+        const costDelta = other.total_annual_planning_cost - reference.total_annual_planning_cost;
+        if (costDelta < -0.005) {
+            pros.push(`Lowers total annual cost by $${Math.abs(costDelta).toLocaleString(undefined, { maximumFractionDigits: 0 })}.`);
+        } else if (costDelta > 0.005) {
+            cons.push(`Raises total annual cost by $${costDelta.toLocaleString(undefined, { maximumFractionDigits: 0 })}.`);
+        }
+
+        const overloadDelta = other.overloaded_employees.length - reference.overloaded_employees.length;
+        if (overloadDelta < 0) {
+            pros.push(`Reduces overloaded employees by ${Math.abs(overloadDelta)} (${reference.overloaded_employees.length} → ${other.overloaded_employees.length}).`);
+        } else if (overloadDelta > 0) {
+            cons.push(`Increases overloaded employees by ${overloadDelta} (${reference.overloaded_employees.length} → ${other.overloaded_employees.length}).`);
+        }
+
+        const utilRef = simAvgUtilization(reference);
+        const utilOther = simAvgUtilization(other);
+        const headcountDelta = other.total_headcount - reference.total_headcount;
+
+        let verdict, verdictClass, verdictIcon;
+        if (pros.length === 0 && cons.length === 0) {
+            verdict = "No material difference in cost or overload risk versus the current planning version.";
+            verdictClass = "neutral"; verdictIcon = "fa-circle-minus";
+        } else if (pros.length > cons.length) {
+            verdict = "This simulation looks favorable compared to the current planning version.";
+            verdictClass = "positive"; verdictIcon = "fa-thumbs-up";
+        } else if (cons.length > pros.length) {
+            verdict = "This simulation looks unfavorable compared to the current planning version.";
+            verdictClass = "negative"; verdictIcon = "fa-triangle-exclamation";
+        } else {
+            verdict = "This simulation has trade-offs versus the current planning version.";
+            verdictClass = "warning"; verdictIcon = "fa-scale-balanced";
+        }
+
+        const verdictColors = {
+            positive: "var(--success-color)", negative: "var(--danger-color)",
+            warning: "var(--warning-color)", neutral: "var(--text-secondary)"
+        };
+
+        return `
+            <div class="sim-verdict-banner">
+                <div class="sim-verdict-icon" style="background: ${verdictColors[verdictClass]};">
+                    <i class="fa-solid ${verdictIcon}"></i>
+                </div>
+                <div>
+                    <strong>${verdict}</strong>
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+                        Headcount ${reference.total_headcount} → ${other.total_headcount} &middot; Avg. Utilization ${utilRef.toFixed(1)}% → ${utilOther.toFixed(1)}%
+                    </div>
+                </div>
+            </div>
+            <div class="sim-pro-con-columns">
+                <div class="sim-pro-con-card">
+                    <h4 class="text-green"><i class="fa-solid fa-circle-check"></i> Pros</h4>
+                    <ul>${pros.length ? pros.map(p => `<li><i class="fa-solid fa-plus text-green"></i> ${p}</li>`).join("") : "<li style='color:var(--text-secondary);'>None identified.</li>"}</ul>
+                </div>
+                <div class="sim-pro-con-card">
+                    <h4 class="text-danger"><i class="fa-solid fa-circle-exclamation"></i> Cons</h4>
+                    <ul>${cons.length ? cons.map(c => `<li><i class="fa-solid fa-minus text-danger"></i> ${c}</li>`).join("") : "<li style='color:var(--text-secondary);'>None identified.</li>"}</ul>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderScenarioComparison(reportA, reportB, scenarioAId, scenarioBId) {
+        const container = document.getElementById("sim-compare-results");
+
+        const money = (val) => `$${val.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+        const deltaClass = (delta) => delta > 0 ? "delta-positive" : (delta < 0 ? "delta-negative" : "delta-neutral");
+        const deltaLabel = (delta, isPct) => `${delta > 0 ? "+" : ""}${isPct ? delta.toFixed(1) + "%" : money(delta)}`;
+
+        const headcountDelta = reportB.total_headcount - reportA.total_headcount;
+        const costDelta = reportB.total_annual_planning_cost - reportA.total_annual_planning_cost;
+        const utilA = simAvgUtilization(reportA);
+        const utilB = simAvgUtilization(reportB);
+        const utilDelta = utilB - utilA;
+        const overloadedDelta = reportB.overloaded_employees.length - reportA.overloaded_employees.length;
+
+        // If one side of the comparison IS the scenario currently active
+        // app-wide, show a pros/cons verdict plus an action to make the
+        // other side the new active ("real") planning version.
+        let verdictHtml = "";
+        let applyTargetId = null;
+        let applyTargetName = null;
+        if (activeScenario) {
+            if (scenarioAId === activeScenario.id && scenarioBId !== activeScenario.id) {
+                verdictHtml = buildSimVerdict(reportA, reportB);
+                applyTargetId = scenarioBId;
+                applyTargetName = reportB.scenario_name;
+            } else if (scenarioBId === activeScenario.id && scenarioAId !== activeScenario.id) {
+                verdictHtml = buildSimVerdict(reportB, reportA);
+                applyTargetId = scenarioAId;
+                applyTargetName = reportA.scenario_name;
+            }
+        }
+
+        let html = verdictHtml + `
+            <div class="detail-grid">
+                <div class="detail-card">
+                    <h4>Headcount</h4>
+                    <p>${reportA.scenario_name}: <strong>${reportA.total_headcount}</strong> &rarr; ${reportB.scenario_name}: <strong>${reportB.total_headcount}</strong></p>
+                    <p class="${deltaClass(headcountDelta)}">${headcountDelta > 0 ? "+" : ""}${headcountDelta}</p>
+                </div>
+                <div class="detail-card">
+                    <h4>Total Annual Cost</h4>
+                    <p>${money(reportA.total_annual_planning_cost)} &rarr; ${money(reportB.total_annual_planning_cost)}</p>
+                    <p class="${deltaClass(costDelta)}">${deltaLabel(costDelta, false)}</p>
+                </div>
+                <div class="detail-card">
+                    <h4>Average Utilization</h4>
+                    <p>${utilA.toFixed(1)}% &rarr; ${utilB.toFixed(1)}%</p>
+                    <p class="${deltaClass(utilDelta)}">${deltaLabel(utilDelta, true)}</p>
+                </div>
+                <div class="detail-card">
+                    <h4>Overloaded Employees</h4>
+                    <p>${reportA.overloaded_employees.length} &rarr; ${reportB.overloaded_employees.length}</p>
+                    <p class="${deltaClass(overloadedDelta)}">${overloadedDelta > 0 ? "+" : ""}${overloadedDelta}</p>
+                </div>
+            </div>
+        `;
+
+        const teamUtilA = {};
+        reportA.team_summaries.forEach(t => { teamUtilA[t.team_name] = t.average_utilization; });
+        const teamUtilB = {};
+        reportB.team_summaries.forEach(t => { teamUtilB[t.team_name] = t.average_utilization; });
+        const utilCell = (val) => `<span class="${val > 100 ? "text-danger" : ""}">${val.toFixed(1)}%</span>`;
+
+        const teams = [...new Set([...Object.keys(reportA.cost_by_team), ...Object.keys(reportB.cost_by_team)])].sort();
+        const teamRows = teams.map(team => {
+            const costA = reportA.cost_by_team[team] || 0;
+            const costB = reportB.cost_by_team[team] || 0;
+            const delta = costB - costA;
+            const deltaPct = costA !== 0 ? (delta / costA) * 100 : (costB !== 0 ? 100 : 0);
+            const teamUtilAVal = teamUtilA[team] || 0;
+            const teamUtilBVal = teamUtilB[team] || 0;
+            return `
+                <tr>
+                    <td>${team}</td>
+                    <td>${money(costA)}</td>
+                    <td>${money(costB)}</td>
+                    <td class="${deltaClass(delta)}">${deltaLabel(delta, false)}</td>
+                    <td class="${deltaClass(delta)}">${deltaLabel(deltaPct, true)}</td>
+                    <td>${utilCell(teamUtilAVal)} &rarr; ${utilCell(teamUtilBVal)}</td>
+                </tr>
+            `;
+        }).join("");
+
+        html += `
+            <div class="crud-card" style="max-height: none; margin-top: 16px;">
+                <div class="crud-card-header"><h3><i class="fa-solid fa-table"></i> Cost by Team</h3></div>
+                <div class="crud-table-wrapper">
+                    <table class="crud-table">
+                        <thead>
+                            <tr><th>Team</th><th>${reportA.scenario_name}</th><th>${reportB.scenario_name}</th><th>&Delta; Cost</th><th>&Delta; %</th><th>Utilization (&gt;100% = overloaded)</th></tr>
+                        </thead>
+                        <tbody>${teamRows || "<tr><td colspan='6'>No team cost data.</td></tr>"}</tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer" style="justify-content: flex-start; padding-top: 16px; flex-wrap: wrap;">
+                ${applyTargetId !== null ? `<button id="btn-sim-apply-to-real" class="btn btn-primary"><i class="fa-solid fa-check-double"></i> Apply "${applyTargetName}" as the New Active Planning Version</button>` : ""}
+                <button id="btn-add-to-deck" class="btn btn-secondary"><i class="fa-solid fa-file-circle-plus"></i> Add to Presentation Deck</button>
+                <button id="btn-export-comparison-csv" class="btn btn-secondary"><i class="fa-solid fa-file-csv"></i> Export to CSV</button>
+            </div>
+        `;
+
+        container.innerHTML = html;
+
+        if (applyTargetId !== null) {
+            document.getElementById("btn-sim-apply-to-real").addEventListener("click", async () => {
+                if (!confirm(`Make "${applyTargetName}" the active planning version? Every page in the app will start reflecting its data immediately. Your other scenarios (including the one it's replacing) stay saved and can be switched back to anytime.`)) {
+                    return;
+                }
+                try {
+                    const response = await fetch(`/api/scenarios/active/${applyTargetId}`, { method: "POST" });
+                    if (response.ok) {
+                        await fetchScenarios();
+                        await fetchActiveScenario();
+                        await refreshAllData();
+                        renderSimulationTab();
+                        alert(`"${applyTargetName}" is now the active planning version.`);
+                    } else {
+                        alert("Error applying simulation to the real planning version.");
+                    }
+                } catch (err) {
+                    console.error("Error applying simulation:", err);
+                }
+            });
+        }
+
+        document.getElementById("btn-add-to-deck").addEventListener("click", () => {
+            addSimComparisonToDeck(reportA, reportB);
+        });
+
+        document.getElementById("btn-export-comparison-csv").addEventListener("click", () => {
+            exportComparisonToCSV(reportA, reportB);
+        });
+    }
+
+    // Builds the inner body HTML for a Presentation Deck custom slide from a
+    // scenario comparison, reusing the deck's existing contenteditable
+    // custom-slide mechanism (see "Add Slide" in Customize Slides) so the
+    // exported comparison is reorderable/removable/editable exactly like any
+    // other slide, without needing separate rendering machinery.
+    function buildSimComparisonSlideBody(reportA, reportB) {
+        const money = (val) => `$${val.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+        const utilA = simAvgUtilization(reportA);
+        const utilB = simAvgUtilization(reportB);
+        const costDelta = reportB.total_annual_planning_cost - reportA.total_annual_planning_cost;
+        const overloadedDelta = reportB.overloaded_employees.length - reportA.overloaded_employees.length;
+
+        const teamUtilA = {};
+        reportA.team_summaries.forEach(t => { teamUtilA[t.team_name] = t.average_utilization; });
+        const teamUtilB = {};
+        reportB.team_summaries.forEach(t => { teamUtilB[t.team_name] = t.average_utilization; });
+        const utilText = (val) => `<span style="${val > 100 ? "color:#ef4444;font-weight:600;" : ""}">${val.toFixed(1)}%</span>`;
+
+        const teams = [...new Set([...Object.keys(reportA.cost_by_team), ...Object.keys(reportB.cost_by_team)])].sort();
+        const teamRows = teams.map(team => {
+            const costA = reportA.cost_by_team[team] || 0;
+            const costB = reportB.cost_by_team[team] || 0;
+            const delta = costB - costA;
+            return `<tr><td>${team}</td><td>${money(costA)}</td><td>${money(costB)}</td><td>${delta > 0 ? "+" : ""}${money(delta)}</td><td>${utilText(teamUtilA[team] || 0)} &rarr; ${utilText(teamUtilB[team] || 0)}</td></tr>`;
+        }).join("");
+
+        return `
+            <p style="font-weight: 600; margin-bottom: 10px;">Simulation Comparison: ${reportA.scenario_name} vs ${reportB.scenario_name}</p>
+            <div class="pres-kpi-grid">
+                <div class="pres-kpi-item">
+                    <span class="pres-kpi-label">Headcount</span>
+                    <span class="pres-kpi-number">${reportA.total_headcount} &rarr; ${reportB.total_headcount}</span>
+                </div>
+                <div class="pres-kpi-item">
+                    <span class="pres-kpi-label">Total Annual Cost</span>
+                    <span class="pres-kpi-number">${money(costDelta)} ${costDelta >= 0 ? "increase" : "decrease"}</span>
+                </div>
+                <div class="pres-kpi-item">
+                    <span class="pres-kpi-label">Average Utilization</span>
+                    <span class="pres-kpi-number">${utilA.toFixed(1)}% &rarr; ${utilB.toFixed(1)}%</span>
+                </div>
+                <div class="pres-kpi-item">
+                    <span class="pres-kpi-label">Overloaded Employees</span>
+                    <span class="pres-kpi-number">${reportA.overloaded_employees.length} &rarr; ${reportB.overloaded_employees.length} (${overloadedDelta > 0 ? "+" : ""}${overloadedDelta})</span>
+                </div>
+            </div>
+            <div class="pres-table-wrapper" style="margin-top: 14px;">
+                <table class="pres-table">
+                    <thead>
+                        <tr><th>Team</th><th>${reportA.scenario_name}</th><th>${reportB.scenario_name}</th><th>&Delta; Cost</th><th>Utilization</th></tr>
+                    </thead>
+                    <tbody>${teamRows || "<tr><td colspan='5'>No teams to compare.</td></tr>"}</tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    function addSimComparisonToDeck(reportA, reportB) {
+        if (!deckConfig) loadDeckConfig();
+        const newId = "custom_sim_" + Date.now();
+        deckConfig.push({
+            id: newId,
+            included: true,
+            isCustom: true,
+            overrides: {
+                "title-text": `Simulation Comparison: ${reportA.scenario_name} vs ${reportB.scenario_name}`,
+                "body-text": buildSimComparisonSlideBody(reportA, reportB)
+            }
+        });
+        saveDeckConfig();
+        renderDeckCustomizeList();
+        renderPresentationDeck();
+        alert("Comparison slide added to the Presentation Deck. Open the Presentation Deck tab to view, reorder, or remove it.");
+    }
+
+    async function exportComparisonToCSV(reportA, reportB) {
+        const esc = (val) => `"${String(val).replace(/"/g, '""')}"`;
+        const utilA = simAvgUtilization(reportA);
+        const utilB = simAvgUtilization(reportB);
+
+        let csvContent = `Metric,${esc(reportA.scenario_name)},${esc(reportB.scenario_name)},Delta\n`;
+        csvContent += `Headcount,${reportA.total_headcount},${reportB.total_headcount},${reportB.total_headcount - reportA.total_headcount}\n`;
+        csvContent += `Total Annual Cost,${reportA.total_annual_planning_cost.toFixed(2)},${reportB.total_annual_planning_cost.toFixed(2)},${(reportB.total_annual_planning_cost - reportA.total_annual_planning_cost).toFixed(2)}\n`;
+        csvContent += `Average Utilization %,${utilA.toFixed(1)},${utilB.toFixed(1)},${(utilB - utilA).toFixed(1)}\n`;
+        csvContent += `Overloaded Employees,${reportA.overloaded_employees.length},${reportB.overloaded_employees.length},${reportB.overloaded_employees.length - reportA.overloaded_employees.length}\n`;
+        csvContent += "\n";
+
+        const teamUtilA = {};
+        reportA.team_summaries.forEach(t => { teamUtilA[t.team_name] = t.average_utilization; });
+        const teamUtilB = {};
+        reportB.team_summaries.forEach(t => { teamUtilB[t.team_name] = t.average_utilization; });
+
+        csvContent += `Team,${esc(reportA.scenario_name)},${esc(reportB.scenario_name)},Delta Cost,Delta %,${esc(reportA.scenario_name)} Utilization %,${esc(reportB.scenario_name)} Utilization %,Overloaded (>100%)\n`;
+        const teams = [...new Set([...Object.keys(reportA.cost_by_team), ...Object.keys(reportB.cost_by_team)])].sort();
+        teams.forEach(team => {
+            const costA = reportA.cost_by_team[team] || 0;
+            const costB = reportB.cost_by_team[team] || 0;
+            const delta = costB - costA;
+            const deltaPct = costA !== 0 ? (delta / costA) * 100 : (costB !== 0 ? 100 : 0);
+            const teamUtilAVal = teamUtilA[team] || 0;
+            const teamUtilBVal = teamUtilB[team] || 0;
+            const overloadedFlag = (teamUtilAVal > 100 || teamUtilBVal > 100) ? "Yes" : "No";
+            csvContent += `${esc(team)},${costA.toFixed(2)},${costB.toFixed(2)},${delta.toFixed(2)},${deltaPct.toFixed(1)},${teamUtilAVal.toFixed(1)},${teamUtilBVal.toFixed(1)},${overloadedFlag}\n`;
+        });
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `Scenario_Comparison_${reportA.scenario_name.replace(/\s+/g, "_")}_vs_${reportB.scenario_name.replace(/\s+/g, "_")}.csv`);
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        try {
+            const token = localStorage.getItem("token");
+            await fetch("/api/reports/log-export", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                body: JSON.stringify({
+                    report_name: `Scenario Comparison (${reportA.scenario_name} vs ${reportB.scenario_name})`,
+                    format: "CSV"
+                })
+            });
+        } catch (err) {
+            console.error("Failed to log comparison export:", err);
+        }
     }
 
     // Launch Application Init

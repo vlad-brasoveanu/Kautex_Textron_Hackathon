@@ -18,6 +18,7 @@ A state-of-the-art, secure, and confidential resource planning platform built fo
 * 💬 **Click-to-View Cell Comments**: Allocation Matrix cells with a comment show a small badge - click it to open a popover with the full note, instead of relying on a hover-only tooltip.
 * ✏️ **Bulk Edit**: Select any number of employees in the Management Panel and apply a Team/Department/Location/Manager/Status change or a set/percentage-adjust Hourly Rate change to all of them in a single action.
 * 🧭 **AI-Assisted Column Mapping**: Uploading a sheet with a mistyped/abbreviated column (e.g. "Hrly Rate") surfaces a confirmation step suggesting the likely intended field before import, instead of silently treating it as a brand-new topic.
+* 🧪 **Simulation (What-If Planning)**: Clone the active plan into a sandbox scenario, apply quick what-if edits (add headcount, move work between employees/teams, adjust effort, change rates), then compare it against any baseline - KPI deltas, a per-team cost/utilization table, a pros/cons verdict when comparing against the real active planning version, a one-click non-destructive "make this the new active version" action, CSV export, and "Add to Presentation Deck" to drop the comparison straight into your deck as an editable slide.
 * 🔒 **Hierarchical Role-Based Security & Audit Logs**: `master_admin` (protected, cannot be deleted) → `admin` → `user` role hierarchy, searchable/filterable Audit Log and User Settings tables, and full scenario Backup/Restore as portable JSON.
 
 ---

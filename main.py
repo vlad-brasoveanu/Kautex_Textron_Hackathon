@@ -1103,16 +1103,13 @@ def save_allocation(alloc: schemas.AllocationUpdate, db: Session = Depends(get_d
 # 5. DASHBOARDS & REPORTS AGGREGATION ENGINE
 # ==========================================
 
-@app.get("/api/reports/dashboard")
-def get_dashboard_reports(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    active_scenario = get_active_scenario_db(db)
-
-    employees = db.query(models.Employee).filter(models.Employee.scenario_id == active_scenario.id, models.Employee.is_deleted == False).all()
-    topics = db.query(models.Topic).filter(models.Topic.scenario_id == active_scenario.id, models.Topic.is_deleted == False).all()
+def build_dashboard_report(db: Session, scenario: models.Scenario) -> dict:
+    employees = db.query(models.Employee).filter(models.Employee.scenario_id == scenario.id, models.Employee.is_deleted == False).all()
+    topics = db.query(models.Topic).filter(models.Topic.scenario_id == scenario.id, models.Topic.is_deleted == False).all()
 
     # Pre-map allocations for performance
     allocations = db.query(models.Allocation).join(models.Employee).join(models.Topic).filter(
-        models.Employee.scenario_id == active_scenario.id,
+        models.Employee.scenario_id == scenario.id,
         models.Employee.is_deleted == False,
         models.Topic.is_deleted == False
     ).all()
@@ -1256,7 +1253,7 @@ def get_dashboard_reports(db: Session = Depends(get_db), current_user: models.Us
         })
 
     return {
-        "scenario_name": active_scenario.name,
+        "scenario_name": scenario.name,
         "total_headcount": total_headcount,
         "total_internal_employee_cost": total_internal_employee_cost,
         "total_additional_internal_cost": total_additional_internal,
@@ -1272,6 +1269,24 @@ def get_dashboard_reports(db: Session = Depends(get_db), current_user: models.Us
         "topic_summaries": topic_summaries,
         "team_summaries": team_summaries
     }
+
+
+@app.get("/api/reports/dashboard")
+def get_dashboard_reports(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    active_scenario = get_active_scenario_db(db)
+    return build_dashboard_report(db, active_scenario)
+
+
+@app.get("/api/reports/dashboard/{scenario_id}")
+def get_dashboard_report_for_scenario(scenario_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """Same aggregation as /api/reports/dashboard but for an arbitrary scenario
+    (not just the active one) - used by the Simulation tab to compare a
+    what-if sandbox scenario against a baseline without switching which
+    scenario is currently active."""
+    scenario = db.query(models.Scenario).filter(models.Scenario.id == scenario_id).first()
+    if not scenario:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+    return build_dashboard_report(db, scenario)
 
 # ==========================================
 # 6. SMART EXCEL / CSV IMPORTER

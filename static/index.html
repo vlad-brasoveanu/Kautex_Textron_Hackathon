@@ -114,6 +114,9 @@
                     <li class="nav-item" data-target="presentation-section">
                         <i class="fa-solid fa-display"></i> Presentation Deck
                     </li>
+                    <li class="nav-item admin-only" data-target="simulation-section" style="display: none;">
+                        <i class="fa-solid fa-flask"></i> Simulation
+                    </li>
                     <li class="nav-item" data-target="crud-section">
                         <i class="fa-solid fa-sliders"></i> Management Panel
                     </li>
@@ -461,6 +464,170 @@
                             </select>
                         </div>
                     </aside>
+                </div>
+            </section>
+
+            <!-- SECTION 3B: SIMULATION (WHAT-IF PLANNING, ADMIN ONLY) -->
+            <section id="simulation-section" class="main-section admin-only" style="display: none;">
+                <div class="section-header">
+                    <h2><i class="fa-solid fa-flask"></i> Simulation</h2>
+                    <p class="section-desc">Test planning scenarios before committing them &mdash; clone the active plan into a sandbox, try what-if edits, and compare the results against the original.</p>
+                </div>
+
+                <!-- Setup: start a simulation sandbox from an existing scenario -->
+                <div class="crud-card" style="max-height: none; margin-bottom: 20px;">
+                    <div class="crud-card-header">
+                        <h3><i class="fa-solid fa-flask-vial"></i> Start a Simulation</h3>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-col">
+                            <label for="sim-base-scenario">Base Scenario</label>
+                            <select id="sim-base-scenario"></select>
+                        </div>
+                        <div class="form-col">
+                            <label for="sim-new-name">New Simulation Name</label>
+                            <input type="text" id="sim-new-name" placeholder="e.g. Q3 What-If">
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="justify-content: flex-start; padding-top: 10px;">
+                        <button id="btn-start-simulation" class="btn btn-primary"><i class="fa-solid fa-play"></i> Start Simulation</button>
+                        <button id="btn-cleanup-sandboxes" class="btn btn-secondary"><i class="fa-solid fa-broom"></i> Clean Up Sandboxes</button>
+                    </div>
+                    <p class="section-desc" style="margin-top: 8px;">Clones the base scenario into a new one and makes it active. All Quick Actions below apply to the currently active scenario.</p>
+                </div>
+
+                <!-- Quick Actions: apply what-if edits to the active (simulation) scenario -->
+                <h3 style="font-size: 15px; margin-bottom: 4px;"><i class="fa-solid fa-bolt"></i> Quick Actions</h3>
+                <div class="detail-grid">
+                    <div class="detail-card">
+                        <h4><i class="fa-solid fa-user-plus"></i> Add New Employee</h4>
+                        <p>Add a new headcount to the active scenario using the standard employee form.</p>
+                        <div class="modal-footer" style="justify-content: flex-start; padding-top: 10px;">
+                            <button id="btn-sim-add-employee" class="btn btn-secondary"><i class="fa-solid fa-user-plus"></i> Add Employee</button>
+                        </div>
+                    </div>
+
+                    <div class="detail-card">
+                        <h4><i class="fa-solid fa-people-arrows"></i> Move Work Between Employees</h4>
+                        <div class="form-row">
+                            <div class="form-col-full">
+                                <label for="sim-move-topic">Topic</label>
+                                <select id="sim-move-topic"></select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col">
+                                <label for="sim-move-from">From Employee</label>
+                                <select id="sim-move-from"></select>
+                            </div>
+                            <div class="form-col">
+                                <label for="sim-move-to">To Employee</label>
+                                <select id="sim-move-to"></select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col-full">
+                                <label for="sim-move-amount">Percentage Points to Move</label>
+                                <input type="number" id="sim-move-amount" min="0" max="100" step="1" value="10">
+                            </div>
+                        </div>
+                        <div class="modal-footer" style="justify-content: flex-start; padding-top: 10px;">
+                            <button id="btn-sim-move-work" class="btn btn-secondary"><i class="fa-solid fa-check"></i> Apply</button>
+                        </div>
+                    </div>
+
+                    <div class="detail-card">
+                        <h4><i class="fa-solid fa-people-group"></i> Move Team Workload</h4>
+                        <p style="margin-bottom: 8px;">Shift a topic's effort from every member of one team to another, proportionally.</p>
+                        <div class="form-row">
+                            <div class="form-col-full">
+                                <label for="sim-teammove-topic">Topic</label>
+                                <select id="sim-teammove-topic"></select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col">
+                                <label for="sim-teammove-from-team">From Team</label>
+                                <select id="sim-teammove-from-team"></select>
+                            </div>
+                            <div class="form-col">
+                                <label for="sim-teammove-to-team">To Team</label>
+                                <select id="sim-teammove-to-team"></select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col-full">
+                                <label for="sim-teammove-amount">Percentage Points to Move</label>
+                                <input type="number" id="sim-teammove-amount" min="0" max="100" step="1" value="10">
+                            </div>
+                        </div>
+                        <div class="modal-footer" style="justify-content: flex-start; padding-top: 10px;">
+                            <button id="btn-sim-move-team" class="btn btn-secondary"><i class="fa-solid fa-check"></i> Apply</button>
+                        </div>
+                    </div>
+
+                    <div class="detail-card">
+                        <h4><i class="fa-solid fa-sliders"></i> Adjust Topic Effort</h4>
+                        <div class="form-row">
+                            <div class="form-col-full">
+                                <label for="sim-effort-topic">Topic</label>
+                                <select id="sim-effort-topic"></select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col-full">
+                                <label for="sim-effort-emp">Employee</label>
+                                <select id="sim-effort-emp"></select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col-full">
+                                <label for="sim-effort-value">New Allocation (%)</label>
+                                <input type="number" id="sim-effort-value" min="0" max="100" step="1">
+                            </div>
+                        </div>
+                        <div class="modal-footer" style="justify-content: flex-start; padding-top: 10px;">
+                            <button id="btn-sim-adjust-effort" class="btn btn-secondary"><i class="fa-solid fa-check"></i> Apply</button>
+                        </div>
+                    </div>
+
+                    <div class="detail-card">
+                        <h4><i class="fa-solid fa-sack-dollar"></i> Change Hourly Rate</h4>
+                        <div class="form-row">
+                            <div class="form-col-full">
+                                <label for="sim-rate-emp">Employee</label>
+                                <select id="sim-rate-emp"></select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col-full">
+                                <label for="sim-rate-value">New Hourly Rate ($)</label>
+                                <input type="number" id="sim-rate-value" step="0.01" min="0">
+                            </div>
+                        </div>
+                        <div class="modal-footer" style="justify-content: flex-start; padding-top: 10px;">
+                            <button id="btn-sim-apply-rate" class="btn btn-secondary"><i class="fa-solid fa-check"></i> Apply</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Compare: original scenario vs. simulated scenario -->
+                <h3 style="font-size: 15px; margin: 24px 0 4px;"><i class="fa-solid fa-scale-balanced"></i> Compare Scenarios</h3>
+                <div class="crud-card" style="max-height: none;">
+                    <div class="form-row">
+                        <div class="form-col">
+                            <label for="sim-compare-a">Scenario A (Baseline)</label>
+                            <select id="sim-compare-a"></select>
+                        </div>
+                        <div class="form-col">
+                            <label for="sim-compare-b">Scenario B (Simulation)</label>
+                            <select id="sim-compare-b"></select>
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="justify-content: flex-start; padding-top: 10px;">
+                        <button id="btn-sim-compare" class="btn btn-primary"><i class="fa-solid fa-scale-balanced"></i> Compare</button>
+                    </div>
+                    <div id="sim-compare-results" style="margin-top: 16px;"></div>
                 </div>
             </section>
 
