@@ -691,10 +691,24 @@ body.role-user-active .matrix-cell-pct:hover {
 
 /* Cell Comment indicator */
 .matrix-comment-indicator {
-    color: var(--primary-color);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    background: var(--warning-color, #f5a623);
     font-size: 10px;
-    margin-left: 4px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    margin-left: 5px;
+    box-shadow: 0 0 0 2px var(--bg-secondary), 0 1px 3px rgba(0, 0, 0, 0.35);
     cursor: help;
+    vertical-align: middle;
+    transition: transform 0.15s ease;
+}
+
+.matrix-comment-indicator:hover {
+    transform: scale(1.2);
 }
 
 /* Row/Column remove controls (full grid control for admin/master admin) */
@@ -1017,6 +1031,222 @@ tr.overview-row:hover td {
     white-space: nowrap;
 }
 
+/* Admin Insights banner header */
+.ai-insights-banner {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.16), rgba(16, 185, 129, 0.08));
+    border: 1px solid var(--glass-border);
+    border-radius: 14px;
+    padding: 22px 26px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+.ai-insights-banner::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.18), transparent 55%);
+    pointer-events: none;
+}
+
+.ai-insights-banner-icon {
+    flex-shrink: 0;
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: #ffffff;
+    background: linear-gradient(135deg, var(--accent-color), var(--primary-color));
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.35);
+}
+
+.ai-insights-banner-text {
+    flex: 1;
+    min-width: 0;
+    z-index: 1;
+}
+
+.ai-insights-banner-text h3 {
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.ai-insights-banner-text p {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    max-width: 640px;
+}
+
+.ai-insights-banner-pill {
+    flex-shrink: 0;
+    font-size: 11px;
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    z-index: 1;
+}
+
+/* Admin Insights stat strip */
+.ai-insights-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 22px;
+}
+
+.ai-stat-tile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-left: 4px solid var(--text-secondary);
+    border-radius: 10px;
+    padding: 14px 16px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ai-stat-tile:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
+.ai-stat-tile-danger { border-left-color: var(--danger-color); }
+.ai-stat-tile-warning { border-left-color: var(--warning-color); }
+.ai-stat-tile-primary { border-left-color: var(--primary-color); }
+.ai-stat-tile-success { border-left-color: var(--success-color); }
+
+.ai-stat-icon {
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+}
+
+.ai-stat-tile-danger .ai-stat-icon { color: var(--danger-color); }
+.ai-stat-tile-warning .ai-stat-icon { color: var(--warning-color); }
+.ai-stat-tile-primary .ai-stat-icon { color: var(--primary-color); }
+.ai-stat-tile-success .ai-stat-icon { color: var(--success-color); }
+
+.ai-stat-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.ai-stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.ai-stat-label {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.ai-stat-sub {
+    font-size: 10.5px;
+    color: var(--text-secondary);
+    opacity: 0.75;
+}
+
+/* Admin Insights redesigned cards */
+.ai-insights-grid {
+    margin-bottom: 18px;
+}
+
+.ai-insight-card {
+    height: auto;
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
+    border-top: 3px solid var(--text-secondary);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ai-insight-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+}
+
+.ai-insight-card-danger { border-top-color: var(--danger-color); }
+.ai-insight-card-warning { border-top-color: var(--warning-color); }
+.ai-insight-card-primary { border-top-color: var(--primary-color); }
+
+.ai-insight-card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    margin-bottom: 10px;
+    color: #ffffff;
+}
+
+.ai-insight-card-danger .ai-insight-card-icon { background: linear-gradient(135deg, var(--danger-color), #b91c1c); }
+.ai-insight-card-warning .ai-insight-card-icon { background: linear-gradient(135deg, var(--warning-color), #b45309); }
+.ai-insight-card-primary .ai-insight-card-icon { background: linear-gradient(135deg, var(--primary-color), var(--accent-color)); }
+
+.ai-insight-card h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0;
+}
+
+.ai-insight-card .ai-insight-list {
+    flex: 1;
+}
+
+.ai-insight-card .local-pill {
+    align-self: flex-start;
+    margin-top: 15px;
+}
+
+.ai-insight-item {
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.025);
+    padding: 10px 12px;
+    border-bottom: none;
+    border-left: 3px solid var(--glass-border);
+}
+
+.ai-insight-item + .ai-insight-item {
+    margin-top: 10px;
+}
+
+.ai-insights-footer-note {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    opacity: 0.75;
+    padding: 12px 4px 0;
+}
+
 /* ==========================================================
    PRESENTATION DECK CUSTOMIZATION LIST
    ========================================================== */
@@ -1147,6 +1377,66 @@ tr.overview-row:hover td {
     gap: 20px;
 }
 
+/* Executive Summary "Customize View" toolbar/panel */
+.exec-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 14px;
+}
+
+.exec-customize-panel {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    width: 320px;
+    max-height: 60vh;
+    overflow-y: auto;
+    background: var(--bg-secondary);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+    padding: 14px;
+    z-index: 50;
+}
+
+.exec-customize-panel h4 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 10px 0;
+}
+
+.exec-customize-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.exec-customize-list li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 9px;
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--glass-border);
+    font-size: 12.5px;
+    color: var(--text-primary);
+}
+
+.exec-customize-list input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    accent-color: var(--primary-color);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.exec-widget-hidden {
+    display: none !important;
+}
+
 .chart-box {
     position: relative;
     background: var(--glass-bg);
@@ -1215,6 +1505,22 @@ th.sortable-emp:hover, th.sortable-topic:hover {
     color: var(--text-secondary);
     text-transform: uppercase;
     margin-bottom: 8px;
+}
+
+.detail-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.detail-card-header h4 {
+    margin-bottom: 0;
+}
+
+.btn-detail-edit {
+    flex-shrink: 0;
 }
 
 .detail-card p {

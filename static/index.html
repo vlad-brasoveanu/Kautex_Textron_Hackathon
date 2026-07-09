@@ -187,8 +187,19 @@
 
                 <!-- TAB: EXECUTIVE SUMMARY -->
                 <div id="tab-executive" class="dash-tab-content active">
+                    <div class="exec-toolbar">
+                        <div style="position: relative;">
+                            <button type="button" class="btn btn-secondary" id="btn-exec-customize"><i class="fa-solid fa-sliders"></i> Customize View</button>
+                            <div id="exec-customize-panel" class="exec-customize-panel" style="display: none;">
+                                <h4>Show / Hide Components</h4>
+                                <ul id="exec-customize-list" class="exec-customize-list"></ul>
+                                <button type="button" class="btn btn-secondary" id="btn-exec-customize-reset" style="width: 100%; margin-top: 10px;">Reset to Default</button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Stat Cards -->
-                    <div class="kpi-cards">
+                    <div class="kpi-cards" data-widget-id="kpi-cards" data-widget-label="Headline KPI Cards">
                         <div class="kpi-card">
                             <div class="kpi-icon icon-headcount"><i class="fa-solid fa-users"></i></div>
                             <div class="kpi-details">
@@ -234,19 +245,19 @@
                     </div>
 
                     <!-- Risk / Alert Strip -->
-                    <div class="exec-alert-strip" id="exec-alert-strip">
+                    <div class="exec-alert-strip" id="exec-alert-strip" data-widget-id="risk-strip" data-widget-label="Risk / Alert Strip">
                         <!-- Populated dynamically -->
                     </div>
 
                     <!-- Layout splits -->
                     <div class="dashboard-grid">
-                        <div class="chart-box">
+                        <div class="chart-box" data-widget-id="chart-location" data-widget-label="Cost Distribution by Location">
                             <h3>Cost Distribution by Location</h3>
                             <div class="chart-canvas-container">
                                 <canvas id="chart-location"></canvas>
                             </div>
                         </div>
-                        <div class="chart-box">
+                        <div class="chart-box" data-widget-id="chart-category" data-widget-label="Cost Distribution by Category">
                             <h3>Cost Distribution by Category</h3>
                             <div class="chart-canvas-container">
                                 <canvas id="chart-category"></canvas>
@@ -255,13 +266,13 @@
                     </div>
 
                     <div class="dashboard-grid" style="margin-top: 20px;">
-                        <div class="chart-box">
+                        <div class="chart-box" data-widget-id="chart-composition" data-widget-label="Gross Cost Composition">
                             <h3>Gross Cost Composition</h3>
                             <div class="chart-canvas-container">
                                 <canvas id="chart-composition"></canvas>
                             </div>
                         </div>
-                        <div class="chart-box">
+                        <div class="chart-box" data-widget-id="chart-department" data-widget-label="Cost Distribution by Department">
                             <h3>Cost Distribution by Department</h3>
                             <div class="chart-canvas-container">
                                 <canvas id="chart-department"></canvas>
@@ -270,13 +281,13 @@
                     </div>
 
                     <div class="dashboard-grid" style="margin-top: 20px;">
-                        <div class="chart-box" style="height: auto; min-height: 350px;">
+                        <div class="chart-box" style="height: auto; min-height: 350px;" data-widget-id="top-drivers" data-widget-label="Top 5 Cost Drivers">
                             <h3>Top 5 Cost Drivers</h3>
                             <div id="exec-top-drivers-list" class="ranked-list">
                                 <!-- Populated dynamically -->
                             </div>
                         </div>
-                        <div class="chart-box">
+                        <div class="chart-box" data-widget-id="chart-utilization" data-widget-label="Staff Utilization Distribution">
                             <h3>Staff Utilization Distribution</h3>
                             <div class="chart-canvas-container">
                                 <canvas id="chart-utilization"></canvas>
@@ -363,42 +374,51 @@
                 </div>
                 <!-- TAB: ADMIN INSIGHTS (AI) -->
                 <div id="tab-admin-insights" class="dash-tab-content admin-only" style="display: none;">
-                    <div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
-                        <div class="chart-box" style="height: auto; min-height: 240px; display: flex; flex-direction: column; justify-content: space-between;">
-                            <div>
-                                <h3 style="color: var(--accent-color); display: flex; align-items: center; gap: 8px; font-size: 14px;">
-                                    <i class="fa-solid fa-triangle-exclamation"></i> Staff Bottleneck Predictions
-                                </h3>
-                                <div class="ai-insight-list" id="ai-insight-bottlenecks-list">
-                                    Analyzing allocations load...
-                                </div>
-                            </div>
-                            <span class="local-pill" style="align-self: flex-start; margin-top: 15px;">Local AI Forecast</span>
+                    <div class="ai-insights-banner">
+                        <div class="ai-insights-banner-icon"><i class="fa-solid fa-brain"></i></div>
+                        <div class="ai-insights-banner-text">
+                            <h3>AI-Powered Portfolio Insights</h3>
+                            <p>Continuously analyzing the active planning version's real allocation, staffing, and cost data - enriched with the local LLM when available - to surface risks and opportunities before they become budget or delivery problems.</p>
                         </div>
-                        
-                        <div class="chart-box" style="height: auto; min-height: 240px; display: flex; flex-direction: column; justify-content: space-between;">
-                            <div>
-                                <h3 style="color: var(--warning-color); display: flex; align-items: center; gap: 8px; font-size: 14px;">
-                                    <i class="fa-solid fa-sack-dollar"></i> Cost Optimization Advice
-                                </h3>
-                                <div class="ai-insight-list" id="ai-insight-costs-list">
-                                    Analyzing project cost margins...
-                                </div>
+                        <span class="local-pill ai-insights-banner-pill"><i class="fa-solid fa-lock"></i> Fully Local & Confidential</span>
+                    </div>
+
+                    <div class="ai-insights-stats" id="ai-insights-stats">
+                        <!-- Populated dynamically -->
+                    </div>
+
+                    <div class="dashboard-grid ai-insights-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+                        <div class="chart-box ai-insight-card ai-insight-card-danger">
+                            <div class="ai-insight-card-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                            <h3>Staff Bottleneck Predictions</h3>
+                            <div class="ai-insight-list" id="ai-insight-bottlenecks-list">
+                                Analyzing allocations load...
                             </div>
-                            <span class="local-pill" style="align-self: flex-start; margin-top: 15px;">Local AI Forecast</span>
+                            <span class="local-pill">Local AI Forecast</span>
                         </div>
-                        
-                        <div class="chart-box" style="height: auto; min-height: 240px; display: flex; flex-direction: column; justify-content: space-between;">
-                            <div>
-                                <h3 style="color: var(--primary-color); display: flex; align-items: center; gap: 8px; font-size: 14px;">
-                                    <i class="fa-solid fa-shuffle"></i> Overload Mitigation Actions
-                                </h3>
-                                <div class="ai-insight-list" id="ai-insight-reallocations-list">
-                                    Scanning bandwidth levels...
-                                </div>
+
+                        <div class="chart-box ai-insight-card ai-insight-card-warning">
+                            <div class="ai-insight-card-icon"><i class="fa-solid fa-sack-dollar"></i></div>
+                            <h3>Cost Optimization Advice</h3>
+                            <div class="ai-insight-list" id="ai-insight-costs-list">
+                                Analyzing project cost margins...
                             </div>
-                            <span class="local-pill" style="align-self: flex-start; margin-top: 15px;">Local AI Forecast</span>
+                            <span class="local-pill">Local AI Forecast</span>
                         </div>
+
+                        <div class="chart-box ai-insight-card ai-insight-card-primary">
+                            <div class="ai-insight-card-icon"><i class="fa-solid fa-shuffle"></i></div>
+                            <h3>Overload Mitigation Actions</h3>
+                            <div class="ai-insight-list" id="ai-insight-reallocations-list">
+                                Scanning bandwidth levels...
+                            </div>
+                            <span class="local-pill">Local AI Forecast</span>
+                        </div>
+                    </div>
+
+                    <div class="ai-insights-footer-note">
+                        <i class="fa-solid fa-circle-info"></i>
+                        Predictions combine deterministic portfolio math (utilization thresholds, cost margins) with optional local LLM narrative enrichment. Nothing here ever leaves this server.
                     </div>
                 </div>
             </section>

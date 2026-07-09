@@ -634,6 +634,72 @@ document.addEventListener("DOMContentLoaded", () => {
         renderEmployeeDashboard();
         renderTeamOverviewTable();
         renderEmployeeOverviewTable();
+
+        applyExecWidgetVisibility();
+        renderExecCustomizeList();
+    }
+
+    // ==========================================
+    // 2B. EXECUTIVE SUMMARY - CUSTOMIZABLE WIDGETS
+    // ==========================================
+    // Lets an admin/master show or hide individual KPI cards / charts on the
+    // Executive Summary tab (e.g. drop "Cost by Department" if it's not
+    // relevant to this planning version). Persisted per-browser, mirroring
+    // the Presentation Deck's "Customize Slides" pattern.
+    const EXEC_CONFIG_STORAGE_KEY = "execSummaryWidgetConfig_v1";
+    let execWidgetConfig = null;
+
+    function loadExecWidgetConfig() {
+        try {
+            const raw = localStorage.getItem(EXEC_CONFIG_STORAGE_KEY);
+            if (raw) {
+                execWidgetConfig = JSON.parse(raw);
+                return;
+            }
+        } catch (e) {
+            console.error("Failed to load exec summary widget config, resetting to default:", e);
+        }
+        execWidgetConfig = {};
+    }
+
+    function saveExecWidgetConfig() {
+        localStorage.setItem(EXEC_CONFIG_STORAGE_KEY, JSON.stringify(execWidgetConfig));
+    }
+
+    function applyExecWidgetVisibility() {
+        if (!execWidgetConfig) loadExecWidgetConfig();
+        document.querySelectorAll("#tab-executive [data-widget-id]").forEach(el => {
+            const id = el.getAttribute("data-widget-id");
+            const visible = execWidgetConfig[id] !== false;
+            el.classList.toggle("exec-widget-hidden", !visible);
+        });
+    }
+
+    function renderExecCustomizeList() {
+        const list = document.getElementById("exec-customize-list");
+        if (!list) return;
+        if (!execWidgetConfig) loadExecWidgetConfig();
+
+        const widgets = [...document.querySelectorAll("#tab-executive [data-widget-id]")];
+        list.innerHTML = widgets.map(el => {
+            const id = el.getAttribute("data-widget-id");
+            const label = el.getAttribute("data-widget-label") || id;
+            const visible = execWidgetConfig[id] !== false;
+            return `
+                <li>
+                    <input type="checkbox" class="exec-widget-toggle" data-id="${id}" ${visible ? "checked" : ""}>
+                    <span>${label}</span>
+                </li>
+            `;
+        }).join("");
+
+        list.querySelectorAll(".exec-widget-toggle").forEach(cb => {
+            cb.addEventListener("change", () => {
+                execWidgetConfig[cb.getAttribute("data-id")] = cb.checked;
+                saveExecWidgetConfig();
+                applyExecWidgetVisibility();
+            });
+        });
     }
 
     function renderLocationChart() {
@@ -1025,7 +1091,10 @@ document.addEventListener("DOMContentLoaded", () => {
         detailsContainer.innerHTML = `
             <div class="detail-grid">
                 <div class="detail-card">
-                    <h4>About Project</h4>
+                    <div class="detail-card-header">
+                        <h4>About Project</h4>
+                        <button type="button" class="btn btn-secondary btn-detail-edit admin-only" id="btn-edit-topic-dash" style="padding: 4px 10px; font-size: 12px;"><i class="fa-solid fa-pen"></i> Edit Topic</button>
+                    </div>
                     <p><strong>Category:</strong> ${summary.category}</p>
                     <p><strong>Topic Area:</strong> ${summary.area || "General"}</p>
                     <p style="margin-top:8px;"><strong>Description:</strong> ${summary.description || "N/A"}</p>
@@ -1077,6 +1146,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 </div>
             </div>
         `;
+
+        const btnEditTopic = document.getElementById("btn-edit-topic-dash");
+        if (btnEditTopic) {
+            btnEditTopic.addEventListener("click", () => editTopicPrompt(summary.id));
+        }
+        toggleRoleUIVisibility();
     }
 
     function renderTeamDashboard() {
@@ -1092,7 +1167,10 @@ document.addEventListener("DOMContentLoaded", () => {
         detailsContainer.innerHTML = `
             <div class="detail-grid">
                 <div class="detail-card">
-                    <h4>Team Overview</h4>
+                    <div class="detail-card-header">
+                        <h4>Team Overview</h4>
+                        <button type="button" class="btn btn-secondary btn-detail-edit admin-only" id="btn-edit-team-dash" style="padding: 4px 10px; font-size: 12px;"><i class="fa-solid fa-users-gear"></i> Bulk Edit Team</button>
+                    </div>
                     <p><strong>Team Name:</strong> ${summary.team_name}</p>
                     <p><strong>Total Planned Resources:</strong> ${summary.member_count} headcount</p>
                     <p><strong>Total Annual Cost:</strong> $${summary.total_cost.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
@@ -1131,6 +1209,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 </div>
             </div>
         `;
+
+        const btnEditTeam = document.getElementById("btn-edit-team-dash");
+        if (btnEditTeam) {
+            btnEditTeam.addEventListener("click", () => {
+                selectedEmployeeIds = new Set(employees.filter(e => e.team === teamName).map(e => e.id));
+                openBulkEditModal();
+            });
+        }
+        toggleRoleUIVisibility();
     }
 
     function renderEmployeeDashboard() {
@@ -1151,7 +1238,10 @@ document.addEventListener("DOMContentLoaded", () => {
         detailsContainer.innerHTML = `
             <div class="detail-grid">
                 <div class="detail-card">
-                    <h4>Profile Information</h4>
+                    <div class="detail-card-header">
+                        <h4>Profile Information</h4>
+                        <button type="button" class="btn btn-secondary btn-detail-edit admin-only" id="btn-edit-employee-dash" style="padding: 4px 10px; font-size: 12px;"><i class="fa-solid fa-pen"></i> Edit Employee</button>
+                    </div>
                     <p><strong>Name:</strong> ${emp.name}</p>
                     <p><strong>Team:</strong> ${emp.team}</p>
                     <p><strong>Department:</strong> ${emp.department}</p>
@@ -1206,6 +1296,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 </div>
             </div>
         `;
+
+        const btnEditEmployee = document.getElementById("btn-edit-employee-dash");
+        if (btnEditEmployee) {
+            btnEditEmployee.addEventListener("click", () => editEmployeePrompt(emp.id));
+        }
+        toggleRoleUIVisibility();
     }
 
     // ==========================================
@@ -1766,45 +1862,80 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    function renderAIInsightsStats(data) {
+        const container = document.getElementById("ai-insights-stats");
+        if (!container) return;
+
+        const highBottlenecks = data.bottlenecks.filter(b => b.severity === "High").length;
+        const highReallocations = data.reallocations.filter(r => r.priority === "High").length;
+
+        const totalSavings = data.cost_optimizations.reduce((sum, c) => {
+            const match = String(c.impact || "").match(/\$([\d,]+(?:\.\d+)?)/);
+            return match ? sum + parseFloat(match[1].replace(/,/g, "")) : sum;
+        }, 0);
+
+        const stats = [
+            { icon: "fa-triangle-exclamation", label: "Bottleneck Risks", value: data.bottlenecks.length, tone: "danger", sub: `${highBottlenecks} high severity` },
+            { icon: "fa-sack-dollar", label: "Cost Opportunities", value: data.cost_optimizations.length, tone: "warning", sub: totalSavings > 0 ? `~$${totalSavings.toLocaleString(undefined, {maximumFractionDigits: 0})} identified` : "portfolio scanned" },
+            { icon: "fa-shuffle", label: "Reallocation Actions", value: data.reallocations.length, tone: "primary", sub: `${highReallocations} high priority` },
+            { icon: "fa-shield-halved", label: "Overall Risk Level", value: highBottlenecks > 0 ? "High" : (data.bottlenecks.length > 0 ? "Medium" : "Low"), tone: highBottlenecks > 0 ? "danger" : (data.bottlenecks.length > 0 ? "warning" : "success"), sub: "based on current allocations" }
+        ];
+
+        container.innerHTML = stats.map(s => `
+            <div class="ai-stat-tile ai-stat-tile-${s.tone}">
+                <div class="ai-stat-icon"><i class="fa-solid ${s.icon}"></i></div>
+                <div class="ai-stat-info">
+                    <span class="ai-stat-value">${s.value}</span>
+                    <span class="ai-stat-label">${s.label}</span>
+                    <span class="ai-stat-sub">${s.sub}</span>
+                </div>
+            </div>
+        `).join("");
+    }
+
     function renderAIPredictions(data) {
         aiPredictionsData = data;
+        renderAIInsightsStats(data);
 
         const bList = document.getElementById("ai-insight-bottlenecks-list");
         const cList = document.getElementById("ai-insight-costs-list");
         const rList = document.getElementById("ai-insight-reallocations-list");
         
+        const severityBorderColor = (level) => level === "High" ? "var(--danger-color)" : level === "Medium" ? "var(--warning-color)" : "var(--success-color)";
+        const mdBold = (text) => String(text ?? "").replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+
         if (bList) {
             bList.innerHTML = data.bottlenecks.map(b => `
-                <div class="ai-insight-item">
+                <div class="ai-insight-item" style="border-left-color: ${severityBorderColor(b.severity)};">
                     <div class="ai-insight-header">
                         <strong class="ai-insight-label">${b.type}</strong>
                         <span class="badge ${b.severity === 'High' ? 'badge-danger' : b.severity === 'Medium' ? 'badge-warning' : 'badge-success'}" style="font-size:10px; padding:2px 7px;">${b.severity}</span>
                     </div>
-                    <p class="ai-insight-desc">${b.description}</p>
+                    <p class="ai-insight-desc">${mdBold(b.description)}</p>
                 </div>
             `).join("") || "<p class='ai-insight-desc' style='opacity:0.6;'>No bottlenecks predicted.</p>";
         }
 
         if (cList) {
             cList.innerHTML = data.cost_optimizations.map(c => `
-                <div class="ai-insight-item">
+                <div class="ai-insight-item" style="border-left-color: var(--warning-color);">
                     <div class="ai-insight-header">
                         <strong class="ai-insight-label">${c.category}</strong>
                         <span class="ai-insight-impact">${c.impact}</span>
                     </div>
-                    <p class="ai-insight-desc">${c.description}</p>
+                    <p class="ai-insight-desc">${mdBold(c.description)}</p>
                 </div>
             `).join("") || "<p class='ai-insight-desc' style='opacity:0.6;'>No cost optimizations found.</p>";
         }
 
         if (rList) {
             rList.innerHTML = data.reallocations.map(r => `
-                <div class="ai-insight-item">
+                <div class="ai-insight-item" style="border-left-color: ${severityBorderColor(r.priority)};">
                     <div class="ai-insight-header">
                         <strong class="ai-insight-label">${r.action}</strong>
                         <span class="badge ${r.priority === 'High' ? 'badge-danger' : r.priority === 'Medium' ? 'badge-warning' : 'badge-success'}" style="font-size:10px; padding:2px 7px;">${r.priority}</span>
                     </div>
-                    <p class="ai-insight-desc">${r.description}</p>
+                    <p class="ai-insight-desc">${mdBold(r.description)}</p>
                 </div>
             `).join("") || "<p class='ai-insight-desc' style='opacity:0.6;'>No load balancing needed.</p>";
         }
@@ -1940,6 +2071,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Hide/Show action buttons based on Active Role
         toggleRoleUIVisibility();
+    }
+
+    function openBulkEditModal() {
+        if (selectedEmployeeIds.size === 0) return;
+        document.getElementById("form-bulk-edit").reset();
+        document.querySelectorAll("#form-bulk-edit input, #form-bulk-edit select").forEach(el => {
+            if (el.type !== "checkbox") el.disabled = true;
+        });
+        document.getElementById("bulk-edit-target-desc").textContent =
+            `Applying to ${selectedEmployeeIds.size} employee${selectedEmployeeIds.size === 1 ? "" : "s"}. Leave a field blank/unchecked to leave it unchanged.`;
+        document.getElementById("modal-bulk-edit").classList.add("active");
     }
 
     function updateBulkEditToolbar() {
@@ -2198,16 +2340,7 @@ document.addEventListener("DOMContentLoaded", () => {
             renderCRUDTables();
         });
 
-        document.getElementById("btn-bulk-edit").addEventListener("click", () => {
-            if (selectedEmployeeIds.size === 0) return;
-            document.getElementById("form-bulk-edit").reset();
-            document.querySelectorAll("#form-bulk-edit input, #form-bulk-edit select").forEach(el => {
-                if (el.type !== "checkbox") el.disabled = true;
-            });
-            document.getElementById("bulk-edit-target-desc").textContent =
-                `Applying to ${selectedEmployeeIds.size} employee${selectedEmployeeIds.size === 1 ? "" : "s"}. Leave a field blank/unchecked to leave it unchanged.`;
-            document.getElementById("modal-bulk-edit").classList.add("active");
-        });
+        document.getElementById("btn-bulk-edit").addEventListener("click", openBulkEditModal);
 
         // Each bulk-set-* checkbox enables/disables its paired input(s)
         [
@@ -2561,6 +2694,31 @@ document.addEventListener("DOMContentLoaded", () => {
                 saveDeckConfig();
                 renderDeckCustomizeList();
                 renderPresentationDeck();
+            });
+        }
+
+        // Executive Summary "Customize View" panel
+        const btnExecCustomize = document.getElementById("btn-exec-customize");
+        const execCustomizePanel = document.getElementById("exec-customize-panel");
+        if (btnExecCustomize && execCustomizePanel) {
+            btnExecCustomize.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const isOpen = execCustomizePanel.style.display !== "none";
+                execCustomizePanel.style.display = isOpen ? "none" : "block";
+            });
+            document.addEventListener("click", (e) => {
+                if (!execCustomizePanel.contains(e.target) && e.target !== btnExecCustomize) {
+                    execCustomizePanel.style.display = "none";
+                }
+            });
+        }
+        const btnExecCustomizeReset = document.getElementById("btn-exec-customize-reset");
+        if (btnExecCustomizeReset) {
+            btnExecCustomizeReset.addEventListener("click", () => {
+                execWidgetConfig = {};
+                saveExecWidgetConfig();
+                applyExecWidgetVisibility();
+                renderExecCustomizeList();
             });
         }
 
