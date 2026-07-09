@@ -537,9 +537,12 @@
                 </div>
 
                 <div class="crud-card admin-only" id="trash-card" style="margin-top: 20px;">
-                    <div class="crud-card-header">
-                        <h3><i class="fa-solid fa-trash-can"></i> Trash</h3>
-                        <p class="section-desc" style="margin: 0;">Soft-deleted employees and topics land here. Restore them to bring them back into the active scenario, allocations and all.</p>
+                    <div class="crud-card-header" style="align-items: flex-start;">
+                        <div>
+                            <h3><i class="fa-solid fa-trash-can"></i> Trash</h3>
+                            <p class="section-desc" style="margin: 0;">Soft-deleted employees and topics land here. Restore them to bring them back into the active scenario, allocations and all.</p>
+                        </div>
+                        <button type="button" id="btn-empty-trash" class="btn btn-danger master-only" style="flex-shrink: 0;"><i class="fa-solid fa-fire"></i> Empty Trash</button>
                     </div>
                     <div class="crud-table-wrapper">
                         <table class="crud-table" id="trash-table">
@@ -633,7 +636,10 @@
                         <h2><i class="fa-solid fa-list-check"></i> System Audit Logs</h2>
                         <p class="section-desc">Real-time audit log of CSV imports, report exports, planning version management, registrations, and login actions.</p>
                     </div>
-                    <button id="btn-refresh-logs" class="btn btn-primary"><i class="fa-solid fa-rotate"></i> Refresh Logs</button>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="btn-refresh-logs" class="btn btn-primary"><i class="fa-solid fa-rotate"></i> Refresh Logs</button>
+                        <button id="btn-clear-logs" class="btn btn-danger master-only"><i class="fa-solid fa-fire"></i> Clear All Logs</button>
+                    </div>
                 </div>
 
                 <div class="crud-card" style="margin-top: 20px; width: 100%;">
@@ -759,6 +765,12 @@
 
         </main>
 
+        <!-- Click-to-view popover for Allocation Matrix cell comments -->
+        <div id="comment-popover" class="comment-popover" style="display: none;">
+            <div class="comment-popover-arrow"></div>
+            <p id="comment-popover-text"></p>
+        </div>
+
         <!-- AI Assistant Drawer Slide Out -->
         <div id="ai-drawer" class="ai-drawer">
             <div class="ai-drawer-header">
@@ -860,6 +872,64 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary modal-close" data-modal="modal-employee">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save Employee</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: EDIT USER ACCOUNT -->
+    <div id="modal-edit-user" class="modal">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h3>Edit User Account</h3>
+                <button class="modal-close btn-close" data-modal="modal-edit-user"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="form-edit-user" class="modal-form">
+                <input type="hidden" id="edit-user-id">
+                <p class="section-desc" id="edit-user-username-label" style="margin: 0 0 4px;"></p>
+                <div class="form-row">
+                    <div class="form-col">
+                        <label for="edit-user-name">Full Name</label>
+                        <input type="text" id="edit-user-name" required placeholder="e.g. John Doe">
+                    </div>
+                    <div class="form-col" id="edit-user-role-wrap">
+                        <label for="edit-user-role">Access Privilege</label>
+                        <select id="edit-user-role">
+                            <option value="user">Standard User (Read-Only)</option>
+                            <option value="admin">Admin Manager (Read/Write)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-col">
+                        <label for="edit-user-email">Email Address</label>
+                        <input type="email" id="edit-user-email" placeholder="e.g. jdoe@textron.com">
+                    </div>
+                    <div class="form-col">
+                        <label for="edit-user-department">Department</label>
+                        <input type="text" id="edit-user-department" placeholder="e.g. CAE Engineering">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-col">
+                        <label for="edit-user-position">Position in Company</label>
+                        <input type="text" id="edit-user-position" placeholder="e.g. Senior Test Engineer">
+                    </div>
+                    <div class="form-col">
+                        <label for="edit-user-supervisor">Supervisor</label>
+                        <input type="text" id="edit-user-supervisor" placeholder="e.g. Jane Smith">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-col-full">
+                        <label for="edit-user-password">Reset Password (optional)</label>
+                        <input type="password" id="edit-user-password" placeholder="Leave blank to keep current password">
+                    </div>
+                </div>
+                <div id="edit-user-error" style="display: none; color: var(--danger-color); font-size: 11px; margin-top: 4px;"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary modal-close" data-modal="modal-edit-user">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
                 </div>
             </form>
         </div>

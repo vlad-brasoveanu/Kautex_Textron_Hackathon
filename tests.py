@@ -406,6 +406,112 @@ def test_hierarchical_role_management(setup_database):
     assert response.status_code == 400
     assert "protected" in response.json()["detail"]
 
+def test_edit_user_role_hierarchy(setup_database):
+    # Seed an admin and a user account to edit
+    client.post("/api/users", json={"username": "edit_admin", "password": "password123", "name": "Edit Admin", "role": "admin"}, headers=master_headers)
+    client.post("/api/users", json={"username": "edit_user", "password": "password123", "name": "Edit User", "role": "user"}, headers=master_headers)
+    admin_id = next(u["id"] for u in client.get("/api/users", headers=master_headers).json() if u["username"] == "edit_admin")
+    user_id = next(u["id"] for u in client.get("/api/users", headers=master_headers).json() if u["username"] == "edit_user")
+
+    # Admin can edit a User's profile details, but cannot change roles
+    response = client.put(f"/api/users/{user_id}", json={"name": "Edited By Admin", "department": "Test Dept"}, headers=admin_headers)
+    assert response.status_code == 200
+    assert response.json()["name"] == "Edited By Admin"
+    assert response.json()["department"] == "Test Dept"
+
+    response = client.put(f"/api/users/{user_id}", json={"role": "admin"}, headers=admin_headers)
+    assert response.status_code == 403
+
+    # Admin cannot edit the Master Admin's account at all
+    response = client.put("/api/users/1", json={"name": "Hacked Name"}, headers=admin_headers)
+    assert response.status_code == 403
+
+    # Master can edit anyone, including changing an Admin's role down to User
+    response = client.put(f"/api/users/{admin_id}", json={"role": "user"}, headers=master_headers)
+    assert response.status_code == 200
+    assert response.json()["role"] == "user"
+
+    # Master cannot change their own Master Admin role
+    response = client.put("/api/users/1", json={"role": "admin"}, headers=master_headers)
+    assert response.status_code == 400
+
+    # Master can edit their own profile details and reset a password
+    response = client.put("/api/users/1", json={"name": "Master Manager Updated"}, headers=master_headers)
+    assert response.status_code == 200
+    assert response.json()["name"] == "Master Manager Updated"
+
+    response = client.put(f"/api/users/{user_id}", json={"password": "newpassword456"}, headers=master_headers)
+    assert response.status_code == 200
+    login_resp = client.post("/api/auth/login", json={"username": "edit_user", "password": "newpassword456"})
+    assert login_resp.status_code == 200
+
+
+def test_master_only_purge_actions(setup_database):
+    db = setup_database
+    scenario = db.query(models.Scenario).filter(models.Scenario.is_active == True).first()
+
+    emp = models.Employee(scenario_id=scenario.id, name="Purge Employee", team="Test Team", department="Test", location="Romania", hourly_rate=50.0)
+    db.add(emp)
+    db.commit()
+    db.refresh(emp)
+
+    # Cannot permanently delete a live (non-trashed) employee
+    response = client.delete(f"/api/employees/{emp.id}/permanent", headers=master_headers)
+    assert response.status_code == 400
+
+    client.delete(f"/api/employees/{emp.id}", headers=admin_headers)
+
+    # An admin cannot permanently delete from Trash - only Master can
+    response = client.delete(f"/api/employees/{emp.id}/permanent", headers=admin_headers)
+    assert response.status_code == 403
+
+    response = client.delete(f"/api/employees/{emp.id}/permanent", headers=master_headers)
+    assert response.status_code == 200
+
+    trash_resp = client.get("/api/trash", headers=master_headers)
+    assert not any(e["name"] == "Purge Employee" for e in trash_resp.json()["employees"])
+
+    # Empty Trash bulk-purges everything remaining
+    topic = models.Topic(scenario_id=scenario.id, name="Purge Topic", category="Internal Efforts")
+    db.add(topic)
+    db.commit()
+    client.delete(f"/api/topics/{topic.id}", headers=admin_headers)
+
+    response = client.delete("/api/trash", headers=admin_headers)
+    assert response.status_code == 403
+
+    response = client.delete("/api/trash", headers=master_headers)
+    assert response.status_code == 200
+    trash_resp = client.get("/api/trash", headers=master_headers).json()
+    assert trash_resp["employees"] == []
+    assert trash_resp["topics"] == []
+
+    # Clear Audit Logs (Master only)
+    response = client.delete("/api/admin/logs", headers=admin_headers)
+    assert response.status_code == 403
+    response = client.delete("/api/admin/logs", headers=master_headers)
+    assert response.status_code == 200
+    logs = client.get("/api/admin/logs", headers=master_headers).json()
+    # Only the "Clear Audit Logs" entry itself should remain
+    assert len(logs) == 1
+    assert logs[0]["action"] == "Clear Audit Logs"
+
+    # Delete Upload History record (Master only)
+    csv_data = [["Employee", "Team", "Location", "Hours/Year", "Hourly Rate"], ["Purge Upload User", "Test Team", "Romania", "1800", "60.0"]]
+    output = io.StringIO()
+    csv.writer(output).writerows(csv_data)
+    client.post("/api/import/csv", files={"file": ("purge_test.csv", output.getvalue(), "text/csv")}, headers=admin_headers)
+    history = client.get("/api/uploads/history", headers=admin_headers).json()
+    record_id = history[0]["id"]
+
+    response = client.delete(f"/api/uploads/history/{record_id}", headers=admin_headers)
+    assert response.status_code == 403
+    response = client.delete(f"/api/uploads/history/{record_id}", headers=master_headers)
+    assert response.status_code == 200
+    history = client.get("/api/uploads/history", headers=admin_headers).json()
+    assert not any(h["id"] == record_id for h in history)
+
+
 def test_create_user_optional_profile_fields(setup_database):
     # Optional fields (email, department, position, supervisor) can be supplied...
     payload = {

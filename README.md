@@ -14,7 +14,8 @@ A state-of-the-art, secure, and confidential resource planning platform built fo
 * 📤 **Styled Excel Export**: `/api/export/excel` produces a branded workbook (title banner, formatted currency/percentage columns, frozen header, zebra striping) that reflects whichever matrix filters are currently active, not a bare data dump.
 * 🎨 **Theme System**: Four selectable themes - Glass (default), Midnight Dark (a distinct near-opaque, cyan/teal palette rather than just "darker"), Light Mode, and a High Contrast accessibility mode - persisted per browser.
 * 🤖 **Confidential Local AI assistant**: Natural language planning chatbot running locally (with an optional Ollama LLM fallback), using fuzzy entity matching plus intent detection so it understands varied phrasings, asks a clarifying question when a query is too vague, and keeps conversation memory for as long as the chat drawer stays open. It can also *act*: phrasings like "set X's allocation on Y to 30%" or "move 20% of X's Y time to Z" are executed directly (admin/master_admin only), and its Admin Insights predictions are enriched by feeding the same real computed utilization/cost data to the local LLM for additional, less templated suggestions.
-* 🗑️ **Soft Delete & Trash**: Deleting an employee or topic moves it to a recoverable Trash instead of destroying it - a "Trash" panel in the Management Panel lists everything soft-deleted with one-click Restore.
+* 🗑️ **Soft Delete & Trash**: Deleting an employee or topic moves it to a recoverable Trash instead of destroying it - a "Trash" panel in the Management Panel lists everything soft-deleted with one-click Restore. Master Admin can also permanently purge individual Trash items, empty the whole Trash, delete Upload History records, and clear the Audit Log.
+* 💬 **Click-to-View Cell Comments**: Allocation Matrix cells with a comment show a small badge - click it to open a popover with the full note, instead of relying on a hover-only tooltip.
 * ✏️ **Bulk Edit**: Select any number of employees in the Management Panel and apply a Team/Department/Location/Manager/Status change or a set/percentage-adjust Hourly Rate change to all of them in a single action.
 * 🧭 **AI-Assisted Column Mapping**: Uploading a sheet with a mistyped/abbreviated column (e.g. "Hrly Rate") surfaces a confirmation step suggesting the likely intended field before import, instead of silently treating it as a brand-new topic.
 * 🔒 **Hierarchical Role-Based Security & Audit Logs**: `master_admin` (protected, cannot be deleted) → `admin` → `user` role hierarchy, searchable/filterable Audit Log and User Settings tables, and full scenario Backup/Restore as portable JSON.
@@ -62,8 +63,8 @@ Use the following credentials to access the platform:
 
 | Role | Username | Password | Access Privileges |
 | :--- | :--- | :--- | :--- |
-| **Master Admin** | `master` | `master123` | Everything Admin can do, plus create/delete Admin and User accounts. The account itself is protected and cannot be deleted. |
-| **Admin** | `admin` | `admin123` | Can edit the matrix, view AI insights, import/export CSV & Excel, view audit logs, create/delete User accounts |
+| **Master Admin** | `master` | `master123` | Everything Admin can do, plus create/delete Admin and User accounts, edit any account's role, and permanently purge Trash / Audit Logs / Upload History. The account itself is protected and cannot be deleted or have its role changed. |
+| **Admin** | `admin` | `admin123` | Can edit the matrix, view AI insights, import/export CSV & Excel, view audit logs, create/delete User accounts, and edit Admin/User account details (but not roles, and not the Master Admin's account) |
 | **User** | `user` | `user123` | Read-only matrix, no import/export, no audit logs, no account management |
 
 ---

@@ -247,11 +247,54 @@ document.addEventListener("DOMContentLoaded", () => {
     // ==========================================
     // 2. INTERACTIVE RESOURCE MATRIX RENDER
     // ==========================================
-    
+
+    // Click-to-view comment popover: a single shared element repositioned next
+    // to whichever comment badge was clicked, instead of a per-cell tooltip
+    // (which would get clipped by the matrix's scroll container) or a
+    // hover-only title (easy to miss / can't be read on touch devices).
+    let commentPopoverOpenIcon = null;
+
+    function toggleCommentPopover(iconEl, commentText) {
+        const popover = document.getElementById("comment-popover");
+        if (!popover) return;
+
+        if (commentPopoverOpenIcon === iconEl) {
+            popover.style.display = "none";
+            commentPopoverOpenIcon = null;
+            return;
+        }
+
+        document.getElementById("comment-popover-text").innerText = commentText;
+        popover.style.display = "block";
+        commentPopoverOpenIcon = iconEl;
+
+        const rect = iconEl.getBoundingClientRect();
+        const popRect = popover.getBoundingClientRect();
+        let left = rect.left + rect.width / 2 - popRect.width / 2;
+        left = Math.max(8, Math.min(left, window.innerWidth - popRect.width - 8));
+        popover.style.left = `${left}px`;
+        popover.style.top = `${rect.bottom + 8}px`;
+    }
+
+    function closeCommentPopover() {
+        const popover = document.getElementById("comment-popover");
+        if (popover) popover.style.display = "none";
+        commentPopoverOpenIcon = null;
+    }
+
+    document.addEventListener("click", (e) => {
+        const popover = document.getElementById("comment-popover");
+        if (popover && popover.style.display !== "none" && !popover.contains(e.target)) {
+            closeCommentPopover();
+        }
+    });
+    window.addEventListener("scroll", closeCommentPopover, true);
+
     function renderAllocationMatrix() {
+        closeCommentPopover();
         const container = document.getElementById("allocation-matrix-container");
         container.innerHTML = "";
-        
+
         // 1. Apply Filters to local variables
         const filteredEmployees = employees.filter(emp => {
             if (filters.location && emp.location !== filters.location) return false;
@@ -468,7 +511,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (comment) {
                     const icon = document.createElement("i");
                     icon.className = "fa-solid fa-comment-dots matrix-comment-indicator";
-                    icon.title = comment;
+                    icon.addEventListener("click", (e) => {
+                        e.stopPropagation();
+                        toggleCommentPopover(icon, comment);
+                    });
                     tdCell.appendChild(icon);
                 }
 
@@ -2128,7 +2174,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 <td><strong>${r.name}</strong></td>
                 <td>${r.details}</td>
                 <td>${when}</td>
-                <td><button class="btn btn-secondary btn-restore-trash" data-type="${r.type}" data-id="${r.id}" style="padding: 4px 10px; font-size: 12px;"><i class="fa-solid fa-trash-arrow-up"></i> Restore</button></td>
+                <td>
+                    <button class="btn btn-secondary btn-restore-trash" data-type="${r.type}" data-id="${r.id}" style="padding: 4px 10px; font-size: 12px;"><i class="fa-solid fa-trash-arrow-up"></i> Restore</button>
+                    <button class="btn btn-danger btn-permanent-delete-trash master-only" data-type="${r.type}" data-id="${r.id}" data-name="${r.name}" style="padding: 4px 10px; font-size: 12px;"><i class="fa-solid fa-fire"></i> Delete Forever</button>
+                </td>
             `;
             body.appendChild(tr);
         });
@@ -2148,6 +2197,26 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
         });
+
+        document.querySelectorAll(".btn-permanent-delete-trash").forEach(btn => {
+            btn.addEventListener("click", async () => {
+                const type = btn.getAttribute("data-type");
+                const id = btn.getAttribute("data-id");
+                const name = btn.getAttribute("data-name");
+                if (!confirm(`Permanently delete ${type.toLowerCase()} '${name}'? This cannot be undone.`)) return;
+                const endpoint = type === "Employee" ? `/api/employees/${id}/permanent` : `/api/topics/${id}/permanent`;
+                try {
+                    const response = await fetch(endpoint, { method: "DELETE" });
+                    if (response.ok) {
+                        await refreshAllData();
+                    }
+                } catch (err) {
+                    console.error("Error permanently deleting from trash:", err);
+                }
+            });
+        });
+
+        toggleRoleUIVisibility();
     }
 
     function toggleRoleUIVisibility() {
@@ -2184,6 +2253,14 @@ document.addEventListener("DOMContentLoaded", () => {
             document.querySelectorAll(".admin-only").forEach(el => el.style.display = "");
         } else {
             document.querySelectorAll(".admin-only").forEach(el => el.style.display = "none");
+        }
+
+        // Show or hide master-only elements (permanently destructive actions:
+        // emptying Trash, clearing Audit Logs, deleting Upload History)
+        if (activeRole === "master_admin") {
+            document.querySelectorAll(".master-only").forEach(el => el.style.display = "");
+        } else {
+            document.querySelectorAll(".master-only").forEach(el => el.style.display = "none");
         }
     }
 
@@ -2405,6 +2482,26 @@ document.addEventListener("DOMContentLoaded", () => {
                 console.error("Error applying bulk edit:", err);
             }
         });
+
+        // Empty Trash (Master Admin only - permanently purges every soft-deleted
+        // employee/topic in the active scenario)
+        const btnEmptyTrash = document.getElementById("btn-empty-trash");
+        if (btnEmptyTrash) {
+            btnEmptyTrash.addEventListener("click", async () => {
+                const total = trashData.employees.length + trashData.topics.length;
+                if (total === 0) return;
+                if (!confirm(`Permanently delete all ${total} item(s) in Trash? This cannot be undone.`)) return;
+                try {
+                    const response = await fetch("/api/trash", { method: "DELETE" });
+                    if (response.ok) {
+                        await refreshAllData();
+                    }
+                } catch (err) {
+                    console.error("Error emptying trash:", err);
+                }
+            });
+        }
+
         document.getElementById("btn-matrix-add-employee").addEventListener("click", openAddEmployeeModal);
         document.getElementById("btn-matrix-add-topic").addEventListener("click", openAddTopicModal);
 
@@ -2746,6 +2843,22 @@ document.addEventListener("DOMContentLoaded", () => {
             btnRefreshLogs.addEventListener("click", fetchAndRenderAdminLogs);
         }
 
+        // Clear All Audit Logs (Master Admin only)
+        const btnClearLogs = document.getElementById("btn-clear-logs");
+        if (btnClearLogs) {
+            btnClearLogs.addEventListener("click", async () => {
+                if (!confirm("Permanently clear the entire audit log? This cannot be undone.")) return;
+                try {
+                    const response = await fetch("/api/admin/logs", { method: "DELETE" });
+                    if (response.ok) {
+                        await fetchAndRenderAdminLogs();
+                    }
+                } catch (err) {
+                    console.error("Error clearing audit logs:", err);
+                }
+            });
+        }
+
         // Theme selector binding
         const themeSelect = document.getElementById("theme-select");
         if (themeSelect) {
@@ -2952,6 +3065,58 @@ document.addEventListener("DOMContentLoaded", () => {
                 } catch (err) {
                     console.error("Create user error:", err);
                     errDiv.innerText = "Network error creating user.";
+                    errDiv.style.display = "block";
+                }
+            });
+        }
+
+        // Edit User Account (Master Admin can edit anyone; Admin can edit
+        // Admin/User accounts but not Master Admin)
+        const formEditUser = document.getElementById("form-edit-user");
+        if (formEditUser) {
+            formEditUser.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const id = document.getElementById("edit-user-id").value;
+                const errDiv = document.getElementById("edit-user-error");
+                errDiv.style.display = "none";
+
+                const payload = {
+                    name: document.getElementById("edit-user-name").value.trim(),
+                    email: document.getElementById("edit-user-email").value.trim(),
+                    department: document.getElementById("edit-user-department").value.trim(),
+                    position: document.getElementById("edit-user-position").value.trim(),
+                    supervisor: document.getElementById("edit-user-supervisor").value.trim()
+                };
+                const roleWrap = document.getElementById("edit-user-role-wrap");
+                if (roleWrap.style.display !== "none") {
+                    payload.role = document.getElementById("edit-user-role").value;
+                }
+                const newPassword = document.getElementById("edit-user-password").value;
+                if (newPassword) {
+                    payload.password = newPassword;
+                }
+
+                try {
+                    const token = localStorage.getItem("token");
+                    const response = await fetch(`/api/users/${id}`, {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${token}`
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    if (response.ok) {
+                        document.getElementById("modal-edit-user").classList.remove("active");
+                        fetchAndRenderUsers();
+                    } else {
+                        const errData = await response.json();
+                        errDiv.innerText = errData.detail || "Failed to update user account.";
+                        errDiv.style.display = "block";
+                    }
+                } catch (err) {
+                    console.error("Edit user error:", err);
+                    errDiv.innerText = "Network error updating user.";
                     errDiv.style.display = "block";
                 }
             });
@@ -3259,7 +3424,10 @@ document.addEventListener("DOMContentLoaded", () => {
                         <td style="font-size: 12px; color: var(--text-secondary);">${date.toLocaleString()}</td>
                         <td>${h.uploaded_by}</td>
                         <td style="font-size: 12px;">${h.imported_employees} emp &middot; ${h.imported_topics} topics &middot; ${h.imported_allocations} allocs &middot; ${h.imported_additional_costs} costs</td>
-                        <td><button class="btn btn-secondary btn-sm btn-apply-upload" data-id="${h.id}" data-filename="${h.original_filename}"><i class="fa-solid fa-clock-rotate-left"></i> Apply</button></td>
+                        <td>
+                            <button class="btn btn-secondary btn-sm btn-apply-upload" data-id="${h.id}" data-filename="${h.original_filename}"><i class="fa-solid fa-clock-rotate-left"></i> Apply</button>
+                            <button class="btn btn-danger btn-sm btn-delete-upload master-only" data-id="${h.id}" data-filename="${h.original_filename}"><i class="fa-solid fa-trash-can"></i> Delete</button>
+                        </td>
                     </tr>
                 `;
             }).join("");
@@ -3286,6 +3454,24 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 });
             });
+
+            document.querySelectorAll(".btn-delete-upload").forEach(btn => {
+                btn.addEventListener("click", async () => {
+                    const id = btn.getAttribute("data-id");
+                    const filename = btn.getAttribute("data-filename");
+                    if (!confirm(`Permanently delete the upload history record for '${filename}'? This cannot be undone.`)) return;
+                    try {
+                        const response = await fetch(`/api/uploads/history/${id}`, { method: "DELETE" });
+                        if (response.ok) {
+                            await fetchAndRenderUploadHistory();
+                        }
+                    } catch (err) {
+                        console.error("Error deleting upload history record:", err);
+                    }
+                });
+            });
+
+            toggleRoleUIVisibility();
         } catch (err) {
             console.error("Error fetching upload history:", err);
             tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--danger-color);">Failed to connect to backend server.</td></tr>';
@@ -3342,6 +3528,31 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    function openEditUserModal(user) {
+        document.getElementById("edit-user-id").value = user.id;
+        document.getElementById("edit-user-username-label").innerText = `Editing account: ${user.username}`;
+        document.getElementById("edit-user-name").value = user.name || "";
+        document.getElementById("edit-user-email").value = user.email || "";
+        document.getElementById("edit-user-department").value = user.department || "";
+        document.getElementById("edit-user-position").value = user.position || "";
+        document.getElementById("edit-user-supervisor").value = user.supervisor || "";
+        document.getElementById("edit-user-password").value = "";
+
+        const roleWrap = document.getElementById("edit-user-role-wrap");
+        const roleSelect = document.getElementById("edit-user-role");
+        // Only Master Admin can change roles, and never for a Master Admin
+        // account (there must always be exactly one).
+        if (activeRole === "master_admin" && user.role !== "master_admin") {
+            roleWrap.style.display = "";
+            roleSelect.value = user.role;
+        } else {
+            roleWrap.style.display = "none";
+        }
+
+        document.getElementById("edit-user-error").style.display = "none";
+        document.getElementById("modal-edit-user").classList.add("active");
+    }
+
     function editTopicPrompt(id) {
         const topic = topics.find(t => t.id == id);
         if (!topic) return;
@@ -3391,6 +3602,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 auditLogsCache = await response.json();
                 populateAuditLogFilterDropdowns();
                 renderAuditLogsTable();
+                toggleRoleUIVisibility();
             } else {
                 tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--danger-color);"><i class="fa-solid fa-triangle-exclamation"></i> Error loading logs. Access denied.</td></tr>';
             }
@@ -3589,8 +3801,19 @@ document.addEventListener("DOMContentLoaded", () => {
             const canDeleteAdmin = activeRole === "admin" && u.role === "user" && u.username !== currentUsername;
 
             if (canDeleteMaster || canDeleteAdmin) {
-                deleteBtn = `<button class="btn btn-secondary btn-sm btn-delete-user" data-id="${u.id}" style="color: var(--danger-color); padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(239, 68, 68, 0.2);"><i class="fa-solid fa-trash-can"></i> Delete</button>`;
+                deleteBtn = `<button class="btn btn-secondary btn-sm btn-delete-user" data-id="${u.id}" style="color: var(--danger-color); padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(239, 68, 68, 0.2);"><i class="fa-solid fa-trash-can"></i></button>`;
             } else {
+                deleteBtn = "";
+            }
+
+            // Master Admin can edit every account; Admin can edit Admin and User
+            // accounts (but not Master Admin's own account).
+            const canEdit = activeRole === "master_admin" || (activeRole === "admin" && u.role !== "master_admin");
+            const editBtn = canEdit
+                ? `<button class="btn btn-secondary btn-sm btn-edit-user" data-id="${u.id}" style="padding: 4px 8px; border-radius: 4px;"><i class="fa-solid fa-pen"></i></button>`
+                : "";
+
+            if (!editBtn && !deleteBtn) {
                 deleteBtn = `<span style="font-size: 11px; color: var(--text-muted);">Protected</span>`;
             }
 
@@ -3608,9 +3831,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 <td${tooltipAttr}><strong>${u.name}</strong>${subtitle}</td>
                 <td style="font-size: 12px; color: var(--text-secondary);">${u.username}</td>
                 <td><span class="badge ${roleBadgeClass}">${u.role}</span></td>
-                <td>${deleteBtn}</td>
+                <td style="display: flex; gap: 6px;">${editBtn}${deleteBtn}</td>
             `;
             tbody.appendChild(tr);
+        });
+
+        document.querySelectorAll(".btn-edit-user").forEach(b => {
+            b.addEventListener("click", () => {
+                const id = b.getAttribute("data-id");
+                const userRow = usersCache.find(u => u.id == id);
+                if (userRow) openEditUserModal(userRow);
+            });
         });
 
         // Add event listeners to delete buttons

@@ -143,6 +143,16 @@ class UserRegister(BaseModel):
     supervisor: Optional[str] = None
 
 
+class UserUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    department: Optional[str] = None
+    position: Optional[str] = None
+    supervisor: Optional[str] = None
+    role: Optional[str] = None
+    password: Optional[str] = None
+
+
 class UserManageResponse(BaseModel):
     id: int
     username: str

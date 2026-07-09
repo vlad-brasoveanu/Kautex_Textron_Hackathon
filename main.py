@@ -87,6 +87,12 @@ def require_admin(user: models.User = Depends(get_current_user)):
     return user
 
 
+def require_master(user: models.User = Depends(get_current_user)):
+    if user.role != "master_admin":
+        raise HTTPException(status_code=403, detail="Master Admin privileges required for this action")
+    return user
+
+
 def write_system_log(db: Session, username: str, action: str, details: str):
     try:
         log = models.SystemLog(username=username, action=action, details=details)
@@ -189,6 +195,51 @@ def create_user(payload: schemas.UserRegister, db: Session = Depends(get_db), cu
     return new_user
 
 
+# Update User (Master Admin can edit any account; Admin can edit Admin/User
+# accounts but not Master Admin; only Master Admin can change roles)
+@app.put("/api/users/{user_id}", response_model=schemas.UserManageResponse)
+def update_user(user_id: int, payload: schemas.UserUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(require_admin)):
+    target_user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User account not found")
+
+    if target_user.role == "master_admin" and current_user.role != "master_admin":
+        raise HTTPException(status_code=403, detail="Only Master Admin can edit Master Admin accounts")
+
+    if payload.role is not None:
+        if current_user.role != "master_admin":
+            raise HTTPException(status_code=403, detail="Only Master Admin can change user roles")
+        if target_user.role == "master_admin":
+            raise HTTPException(status_code=400, detail="Cannot change the Master Admin's own role")
+        if payload.role not in ("admin", "user"):
+            raise HTTPException(status_code=400, detail="Role must be 'admin' or 'user'")
+        target_user.role = payload.role
+
+    if payload.name is not None:
+        target_user.name = payload.name
+    if payload.email is not None:
+        target_user.email = payload.email or None
+    if payload.department is not None:
+        target_user.department = payload.department or None
+    if payload.position is not None:
+        target_user.position = payload.position or None
+    if payload.supervisor is not None:
+        target_user.supervisor = payload.supervisor or None
+    if payload.password:
+        target_user.password_hash = hash_password(payload.password)
+
+    db.commit()
+    db.refresh(target_user)
+
+    write_system_log(
+        db,
+        username=current_user.username,
+        action="Edit User",
+        details=f"Updated user account '{target_user.username}' (Name: '{target_user.name}', Role: '{target_user.role}')"
+    )
+    return target_user
+
+
 # Delete User (Admin/Master Admin only, subject to deletion safeguards)
 @app.delete("/api/users/{user_id}")
 def delete_user(user_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(require_admin)):
@@ -239,6 +290,15 @@ def log_report_export(payload: ExportLogPayload, db: Session = Depends(get_db), 
 def get_admin_logs(db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
     logs = db.query(models.SystemLog).order_by(models.SystemLog.timestamp.desc()).all()
     return logs
+
+
+@app.delete("/api/admin/logs")
+def clear_admin_logs(db: Session = Depends(get_db), master: models.User = Depends(require_master)):
+    count = db.query(models.SystemLog).delete()
+    db.commit()
+    # Written after the wipe so it survives as the first entry of the fresh log.
+    write_system_log(db, username=master.username, action="Clear Audit Logs", details=f"Permanently cleared {count} audit log entries")
+    return {"message": f"Cleared {count} audit log entries"}
 
 
 def get_planning_rag_context(db: Session, scenario_id: int) -> str:
@@ -908,6 +968,54 @@ def get_trash(db: Session = Depends(get_db), admin: models.User = Depends(requir
         models.Topic.is_deleted == True
     ).order_by(models.Topic.deleted_at.desc()).all()
     return {"employees": deleted_employees, "topics": deleted_topics}
+
+
+@app.delete("/api/employees/{employee_id}/permanent")
+def permanently_delete_employee(employee_id: int, db: Session = Depends(get_db), master: models.User = Depends(require_master)):
+    db_employee = db.query(models.Employee).filter(models.Employee.id == employee_id).first()
+    if not db_employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    if not db_employee.is_deleted:
+        raise HTTPException(status_code=400, detail="Employee must be in Trash before it can be permanently deleted")
+    name = db_employee.name
+    db.delete(db_employee)
+    db.commit()
+    write_system_log(db, username=master.username, action="Permanently Delete Employee", details=f"Permanently deleted employee '{name}' from Trash")
+    return {"message": "Employee permanently deleted"}
+
+
+@app.delete("/api/topics/{topic_id}/permanent")
+def permanently_delete_topic(topic_id: int, db: Session = Depends(get_db), master: models.User = Depends(require_master)):
+    db_topic = db.query(models.Topic).filter(models.Topic.id == topic_id).first()
+    if not db_topic:
+        raise HTTPException(status_code=404, detail="Topic not found")
+    if not db_topic.is_deleted:
+        raise HTTPException(status_code=400, detail="Topic must be in Trash before it can be permanently deleted")
+    name = db_topic.name
+    db.delete(db_topic)
+    db.commit()
+    write_system_log(db, username=master.username, action="Permanently Delete Topic", details=f"Permanently deleted topic '{name}' from Trash")
+    return {"message": "Topic permanently deleted"}
+
+
+@app.delete("/api/trash")
+def empty_trash(db: Session = Depends(get_db), master: models.User = Depends(require_master)):
+    active_scenario = get_active_scenario_db(db)
+    deleted_employees = db.query(models.Employee).filter(
+        models.Employee.scenario_id == active_scenario.id, models.Employee.is_deleted == True
+    ).all()
+    deleted_topics = db.query(models.Topic).filter(
+        models.Topic.scenario_id == active_scenario.id, models.Topic.is_deleted == True
+    ).all()
+    emp_count = len(deleted_employees)
+    top_count = len(deleted_topics)
+    for e in deleted_employees:
+        db.delete(e)
+    for t in deleted_topics:
+        db.delete(t)
+    db.commit()
+    write_system_log(db, username=master.username, action="Empty Trash", details=f"Permanently deleted {emp_count} employee(s) and {top_count} topic(s) from Trash")
+    return {"message": f"Trash emptied: {emp_count} employee(s) and {top_count} topic(s) permanently deleted"}
 
 # ==========================================
 # 3.1 TOPICS ADDITIONAL COSTS API
@@ -1614,6 +1722,23 @@ def get_upload_history(db: Session = Depends(get_db), admin: models.User = Depen
         .order_by(models.UploadHistory.uploaded_at.desc())
         .all()
     )
+
+
+@app.delete("/api/uploads/history/{upload_id}")
+def delete_upload_history(upload_id: int, db: Session = Depends(get_db), master: models.User = Depends(require_master)):
+    record = db.query(models.UploadHistory).filter(models.UploadHistory.id == upload_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="Upload history record not found")
+
+    stored_path = os.path.join(UPLOAD_STORAGE_DIR, record.stored_filename)
+    if os.path.exists(stored_path):
+        os.remove(stored_path)
+
+    filename = record.original_filename
+    db.delete(record)
+    db.commit()
+    write_system_log(db, username=master.username, action="Delete Upload History", details=f"Permanently deleted upload history record for '{filename}'")
+    return {"message": f"Deleted upload history record for '{filename}'"}
 
 
 @app.post("/api/uploads/history/{upload_id}/apply")

@@ -689,26 +689,65 @@ body.role-user-active .matrix-cell-pct:hover {
     background: transparent;
 }
 
-/* Cell Comment indicator */
+/* Cell Comment indicator - click to view, not just hover */
 .matrix-comment-indicator {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     color: #ffffff;
     background: var(--warning-color, #f5a623);
-    font-size: 10px;
-    width: 16px;
-    height: 16px;
+    font-size: 9px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
     margin-left: 5px;
     box-shadow: 0 0 0 2px var(--bg-secondary), 0 1px 3px rgba(0, 0, 0, 0.35);
-    cursor: help;
+    cursor: pointer;
     vertical-align: middle;
     transition: transform 0.15s ease;
 }
 
 .matrix-comment-indicator:hover {
     transform: scale(1.2);
+}
+
+/* Click-to-view comment popover */
+.comment-popover {
+    position: fixed;
+    z-index: 500;
+    max-width: 280px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+    padding: 12px 14px;
+    animation: popoverFadeIn 0.12s ease;
+}
+
+.comment-popover-arrow {
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    width: 12px;
+    height: 12px;
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--glass-border);
+    border-top: 1px solid var(--glass-border);
+}
+
+.comment-popover p {
+    font-size: 13px;
+    color: var(--text-primary);
+    line-height: 1.5;
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+@keyframes popoverFadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 /* Row/Column remove controls (full grid control for admin/master admin) */
