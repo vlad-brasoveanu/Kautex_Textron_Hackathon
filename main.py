@@ -9,6 +9,7 @@ from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Header, s
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
@@ -32,19 +33,19 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     token = credentials.credentials
     if not token or not token.startswith("token_"):
         raise HTTPException(status_code=401, detail="Invalid or missing session token")
-        
+
     parts = token.split("_")
     if len(parts) < 3:
         raise HTTPException(status_code=401, detail="Malformed session token")
-        
+
     username = parts[1]
     role = parts[2]
-    
+
     # Verify in DB
     user = db.query(models.User).filter(models.User.username == username).first()
     if not user or user.role != role:
         raise HTTPException(status_code=401, detail="User session context invalid")
-        
+
     return user
 
 def require_admin(user: models.User = Depends(get_current_user)):
@@ -69,7 +70,7 @@ def login(payload: schemas.UserLogin, db: Session = Depends(get_db)):
     if not user or user.password_hash != hash_password(payload.password):
         write_system_log(db, username=payload.username, action="Failed Login", details="Invalid username or password")
         raise HTTPException(status_code=401, detail="Invalid username or password")
-        
+
     write_system_log(db, username=user.username, action="Login", details=f"Successful login. Role: {user.role}")
     token = f"token_{user.username}_{user.role}"
     return {
@@ -85,7 +86,7 @@ def register(payload: schemas.UserRegister, db: Session = Depends(get_db)):
     existing = db.query(models.User).filter(models.User.username == payload.username).first()
     if existing:
         raise HTTPException(status_code=400, detail="Username already exists")
-        
+
     new_user = models.User(
         username=payload.username,
         password_hash=hash_password(payload.password),
@@ -94,7 +95,7 @@ def register(payload: schemas.UserRegister, db: Session = Depends(get_db)):
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    
+
     write_system_log(db, username=new_user.username, action="Registration", details=f"New user registered with role: {new_user.role}")
     token = f"token_{new_user.username}_{new_user.role}"
     return {
@@ -130,24 +131,24 @@ def get_planning_rag_context(db: Session, scenario_id: int) -> str:
     scenario = db.query(models.Scenario).filter(models.Scenario.id == scenario_id).first()
     if not scenario:
         return "No active planning scenario data."
-        
+
     employees = db.query(models.Employee).filter(models.Employee.scenario_id == scenario_id).all()
     topics = db.query(models.Topic).filter(models.Topic.scenario_id == scenario_id).all()
     allocations = db.query(models.Allocation).join(models.Employee).filter(models.Employee.scenario_id == scenario_id).all()
     additional_costs = db.query(models.AdditionalCost).join(models.Topic).filter(models.Topic.scenario_id == scenario_id).all()
-    
+
     lines = []
     lines.append(f"Scenario Name: {scenario.name}")
     lines.append(f"Scenario Description: {scenario.description or ''}")
-    
+
     lines.append("\n## Employees")
     for e in employees:
         lines.append(f"- Name: {e.name}, Team: {e.team}, Location: {e.location}, Rate: ${e.hourly_rate}/hr, Hours: {e.available_hours}h/yr, Status: {e.status}")
-        
+
     lines.append("\n## Projects / Topics")
     for t in topics:
         lines.append(f"- Topic Name: {t.name}, Category: {t.category}, Area: {t.area or 'N/A'}, Recovery Savings: ${t.recovery}")
-        
+
     lines.append("\n## Allocations (%)")
     alloc_map = {(a.employee_id, a.topic_id): a for a in allocations}
     emp_names = {e.id: e.name for e in employees}
@@ -155,12 +156,12 @@ def get_planning_rag_context(db: Session, scenario_id: int) -> str:
     for (eid, tid), a in alloc_map.items():
         if eid in emp_names and tid in top_names:
             lines.append(f"- Employee '{emp_names[eid]}' is allocated to Topic '{top_names[tid]}' at {a.percentage}%" + (f" (Reason/Comment: {a.comment})" if a.comment else ""))
-            
+
     lines.append("\n## Additional Cost Items")
     for ac in additional_costs:
         if ac.topic_id in top_names:
             lines.append(f"- Topic '{top_names[ac.topic_id]}': Category '{ac.category}', Type: '{ac.cost_type}', Amount: ${ac.amount}")
-            
+
     return "\n".join(lines)
 
 
@@ -174,7 +175,7 @@ def query_local_ollama(prompt: str) -> Optional[str]:
             "temperature": 0.2
         }
     }).encode("utf-8")
-    
+
     req = urllib.request.Request(
         url,
         data=data,
@@ -236,7 +237,7 @@ def set_active_scenario(scenario_id: int, db: Session = Depends(get_db), current
 def create_scenario(scenario: schemas.ScenarioCreate, db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
     # Deactivate other scenarios
     db.query(models.Scenario).update({models.Scenario.is_active: False})
-    
+
     db_scenario = models.Scenario(
         name=scenario.name,
         description=scenario.description,
@@ -252,10 +253,10 @@ def clone_scenario(scenario_id: int, clone_data: schemas.ScenarioClone, db: Sess
     source_scenario = db.query(models.Scenario).filter(models.Scenario.id == scenario_id).first()
     if not source_scenario:
         raise HTTPException(status_code=404, detail="Source scenario not found")
-    
+
     # Deactivate others
     db.query(models.Scenario).update({models.Scenario.is_active: False})
-    
+
     # Create new scenario
     new_scenario = models.Scenario(
         name=clone_data.new_name,
@@ -265,7 +266,7 @@ def clone_scenario(scenario_id: int, clone_data: schemas.ScenarioClone, db: Sess
     db.add(new_scenario)
     db.commit()
     db.refresh(new_scenario)
-    
+
     # 1. Clone Employees
     db_employees = db.query(models.Employee).filter(models.Employee.scenario_id == scenario_id).all()
     emp_id_mapping = {} # Old ID -> New ID
@@ -286,7 +287,7 @@ def clone_scenario(scenario_id: int, clone_data: schemas.ScenarioClone, db: Sess
         db.commit()
         db.refresh(new_emp)
         emp_id_mapping[emp.id] = new_emp.id
-        
+
     # 2. Clone Topics & Additional Costs
     db_topics = db.query(models.Topic).filter(models.Topic.scenario_id == scenario_id).all()
     topic_id_mapping = {} # Old ID -> New ID
@@ -309,7 +310,7 @@ def clone_scenario(scenario_id: int, clone_data: schemas.ScenarioClone, db: Sess
         db.commit()
         db.refresh(new_topic)
         topic_id_mapping[topic.id] = new_topic.id
-        
+
         # Clone Additional Costs for this topic
         for cost in topic.additional_costs:
             new_cost = models.AdditionalCost(
@@ -321,7 +322,7 @@ def clone_scenario(scenario_id: int, clone_data: schemas.ScenarioClone, db: Sess
             )
             db.add(new_cost)
         db.commit()
-        
+
     # 3. Clone Allocations
     for old_emp_id, new_emp_id in emp_id_mapping.items():
         old_allocations = db.query(models.Allocation).filter(models.Allocation.employee_id == old_emp_id).all()
@@ -335,7 +336,7 @@ def clone_scenario(scenario_id: int, clone_data: schemas.ScenarioClone, db: Sess
                 )
                 db.add(new_alloc)
         db.commit()
-        
+
     return new_scenario
 
 @app.delete("/api/scenarios/{scenario_id}")
@@ -343,18 +344,18 @@ def delete_scenario(scenario_id: int, db: Session = Depends(get_db), admin: mode
     scenario = db.query(models.Scenario).filter(models.Scenario.id == scenario_id).first()
     if not scenario:
         raise HTTPException(status_code=404, detail="Scenario not found")
-    
+
     # If active was deleted, make another one active if exists
     was_active = scenario.is_active
     db.delete(scenario)
     db.commit()
-    
+
     if was_active:
         next_scenario = db.query(models.Scenario).first()
         if next_scenario:
             next_scenario.is_active = True
             db.commit()
-            
+
     return {"message": "Scenario deleted successfully"}
 
 # ==========================================
@@ -391,7 +392,7 @@ def update_employee(employee_id: int, employee: schemas.EmployeeCreate, db: Sess
     db_employee = db.query(models.Employee).filter(models.Employee.id == employee_id).first()
     if not db_employee:
         raise HTTPException(status_code=404, detail="Employee not found")
-    
+
     db_employee.name = employee.name
     db_employee.team = employee.team
     db_employee.department = employee.department
@@ -401,7 +402,7 @@ def update_employee(employee_id: int, employee: schemas.EmployeeCreate, db: Sess
     db_employee.status = employee.status
     db_employee.manager = employee.manager
     db_employee.notes = employee.notes
-    
+
     db.commit()
     db.refresh(db_employee)
     return db_employee
@@ -423,7 +424,7 @@ def delete_employee(employee_id: int, db: Session = Depends(get_db), admin: mode
 def get_topics(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     active_scenario = get_active_scenario_db(db)
     topics = db.query(models.Topic).filter(models.Topic.scenario_id == active_scenario.id).all()
-    
+
     # Include additional costs in topic structure for easy frontend consumption
     result = []
     for topic in topics:
@@ -436,7 +437,7 @@ def get_topics(db: Session = Depends(get_db), current_user: models.User = Depend
                 "amount": cost.amount,
                 "notes": cost.notes
             })
-            
+
         result.append({
             "id": topic.id,
             "name": topic.name,
@@ -481,7 +482,7 @@ def update_topic(topic_id: int, topic: schemas.TopicCreate, db: Session = Depend
     db_topic = db.query(models.Topic).filter(models.Topic.id == topic_id).first()
     if not db_topic:
         raise HTTPException(status_code=404, detail="Topic not found")
-        
+
     db_topic.name = topic.name
     db_topic.category = topic.category
     db_topic.area = topic.area
@@ -493,7 +494,7 @@ def update_topic(topic_id: int, topic: schemas.TopicCreate, db: Session = Depend
     db_topic.comments = topic.comments
     db_topic.notes = topic.notes
     db_topic.recovery = topic.recovery
-    
+
     db.commit()
     db.refresh(db_topic)
     return db_topic
@@ -516,7 +517,7 @@ def add_topic_cost(topic_id: int, cost: schemas.AdditionalCostCreate, db: Sessio
     topic = db.query(models.Topic).filter(models.Topic.id == topic_id).first()
     if not topic:
         raise HTTPException(status_code=404, detail="Topic not found")
-        
+
     db_cost = models.AdditionalCost(
         topic_id=topic_id,
         cost_type=cost.cost_type,
@@ -554,7 +555,7 @@ def save_allocation(alloc: schemas.AllocationUpdate, db: Session = Depends(get_d
         models.Allocation.employee_id == alloc.employee_id,
         models.Allocation.topic_id == alloc.topic_id
     ).first()
-    
+
     if db_alloc:
         db_alloc.percentage = alloc.percentage
         if alloc.comment is not None:
@@ -567,7 +568,7 @@ def save_allocation(alloc: schemas.AllocationUpdate, db: Session = Depends(get_d
             comment=alloc.comment
         )
         db.add(db_alloc)
-        
+
     db.commit()
     db.refresh(db_alloc)
     return db_alloc
@@ -579,30 +580,30 @@ def save_allocation(alloc: schemas.AllocationUpdate, db: Session = Depends(get_d
 @app.get("/api/reports/dashboard")
 def get_dashboard_reports(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     active_scenario = get_active_scenario_db(db)
-    
+
     employees = db.query(models.Employee).filter(models.Employee.scenario_id == active_scenario.id).all()
     topics = db.query(models.Topic).filter(models.Topic.scenario_id == active_scenario.id).all()
-    
+
     # Pre-map allocations for performance
     allocations = db.query(models.Allocation).join(models.Employee).filter(models.Employee.scenario_id == active_scenario.id).all()
     alloc_map = {} # (emp_id, topic_id) -> percentage
     emp_alloc_sums = {} # emp_id -> total percentage sum
-    
+
     for a in allocations:
         alloc_map[(a.employee_id, a.topic_id)] = a.percentage
         emp_alloc_sums[a.employee_id] = emp_alloc_sums.get(a.employee_id, 0.0) + a.percentage
 
     total_headcount = len(employees)
-    
+
     # 1. Calculate Employee Internal Costs
     total_internal_employee_cost = 0.0
     employee_costs_by_topic = {} # topic_id -> cost
     employee_costs_by_team = {} # team -> cost
     employee_costs_by_location = {} # location -> cost
     employee_costs_by_dept = {} # department -> cost
-    
+
     overloaded_employees = []
-    
+
     for emp in employees:
         utilization = emp_alloc_sums.get(emp.id, 0.0)
         if utilization > 100.0:
@@ -613,13 +614,13 @@ def get_dashboard_reports(db: Session = Depends(get_db), current_user: models.Us
                 "location": emp.location,
                 "utilization": utilization
             })
-            
+
         for topic in topics:
             pct = alloc_map.get((emp.id, topic.id), 0.0)
             if pct > 0.0:
                 cost = emp.available_hours * emp.hourly_rate * (pct / 100.0)
                 total_internal_employee_cost += cost
-                
+
                 employee_costs_by_topic[topic.id] = employee_costs_by_topic.get(topic.id, 0.0) + cost
                 employee_costs_by_team[emp.team] = employee_costs_by_team.get(emp.team, 0.0) + cost
                 employee_costs_by_location[emp.location] = employee_costs_by_location.get(emp.location, 0.0) + cost
@@ -629,13 +630,13 @@ def get_dashboard_reports(db: Session = Depends(get_db), current_user: models.Us
     total_additional_internal = 0.0
     total_external_cost = 0.0
     total_recovery = 0.0
-    
+
     topic_additional_costs = {} # topic_id -> {"internal": val, "external": val}
-    
+
     for topic in topics:
         total_recovery += topic.recovery
         topic_additional_costs[topic.id] = {"internal": 0.0, "external": 0.0}
-        
+
         for cost in topic.additional_costs:
             if cost.cost_type == "internal":
                 total_additional_internal += cost.amount
@@ -643,19 +644,19 @@ def get_dashboard_reports(db: Session = Depends(get_db), current_user: models.Us
             elif cost.cost_type == "external":
                 total_external_cost += cost.amount
                 topic_additional_costs[topic.id]["external"] += cost.amount
-                
+
     total_annual_planning_cost = total_internal_employee_cost + total_additional_internal + total_external_cost - total_recovery
 
     # 3. Topic Summaries
     topic_summaries = []
     cost_by_category = {}
-    
+
     for topic in topics:
         emp_cost = employee_costs_by_topic.get(topic.id, 0.0)
         add_int = topic_additional_costs.get(topic.id, {}).get("internal", 0.0)
         ext_cost = topic_additional_costs.get(topic.id, {}).get("external", 0.0)
         total_topic_cost = emp_cost + add_int + ext_cost - topic.recovery
-        
+
         # Get employees involved
         involved_staff = []
         for emp in employees:
@@ -668,7 +669,7 @@ def get_dashboard_reports(db: Session = Depends(get_db), current_user: models.Us
                     "percentage": pct,
                     "cost": emp.available_hours * emp.hourly_rate * (pct / 100.0)
                 })
-                
+
         topic_summaries.append({
             "id": topic.id,
             "name": topic.name,
@@ -685,25 +686,25 @@ def get_dashboard_reports(db: Session = Depends(get_db), current_user: models.Us
             "objective": topic.objective,
             "deliverables": topic.deliverables
         })
-        
+
         cost_by_category[topic.category] = cost_by_category.get(topic.category, 0.0) + total_topic_cost
 
     # Sort topics by highest cost
     highest_cost_topics = sorted(topic_summaries, key=lambda x: x["total_cost"], reverse=True)[:5]
-    
+
     # 4. Team summaries
     team_summaries = []
     unique_teams = set(emp.team for emp in employees)
     for team in unique_teams:
         team_members = [e for e in employees if e.team == team]
         team_emp_ids = [e.id for e in team_members]
-        
+
         # Calculate team total cost and average utilization
         team_cost = employee_costs_by_team.get(team, 0.0)
         utils = [emp_alloc_sums.get(eid, 0.0) for eid in team_emp_ids]
         avg_util = sum(utils) / len(utils) if utils else 0.0
         over_limit = len([u for u in utils if u > 100.0])
-        
+
         # Split topics where team contributes
         contributing_topics = []
         for t in topics:
@@ -714,7 +715,7 @@ def get_dashboard_reports(db: Session = Depends(get_db), current_user: models.Us
                     "total_percentage": team_pct,
                     "generated_cost": sum(emp.available_hours * emp.hourly_rate * (alloc_map.get((emp.id, t.id), 0.0) / 100.0) for emp in team_members)
                 })
-                
+
         team_summaries.append({
             "team_name": team,
             "member_count": len(team_members),
@@ -749,19 +750,19 @@ def get_dashboard_reports(db: Session = Depends(get_db), current_user: models.Us
 @app.post("/api/import/csv")
 async def import_csv_data(file: UploadFile = File(...), db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
     active_scenario = get_active_scenario_db(db)
-    
+
     contents = await file.read()
     decoded = contents.decode("utf-8")
     csv_file = io.StringIO(decoded)
     reader = csv.reader(csv_file)
-    
+
     rows = list(reader)
     if not rows:
         raise HTTPException(status_code=400, detail="CSV is empty")
-        
+
     # Standard header checking
     headers = [h.strip() for h in rows[0]]
-    
+
     # Locate index indices
     try:
         emp_idx = headers.index("Employee")
@@ -771,7 +772,7 @@ async def import_csv_data(file: UploadFile = File(...), db: Session = Depends(ge
         rate_idx = headers.index("Hourly Rate") if "Hourly Rate" in headers else headers.index("Hourly rate")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"Required header columns missing. Ensure columns: Employee, Team, Location, Hours/Year, Hourly Rate. Missing: {str(e)}")
-        
+
     # Topic columns start after Hourly Rate, and ignore any "Total" or "Utilization" columns
     topic_cols = []
     for idx, h in enumerate(headers):
@@ -795,27 +796,27 @@ async def import_csv_data(file: UploadFile = File(...), db: Session = Depends(ge
     if additional_cost_ids:
         db.query(models.AdditionalCost).filter(models.AdditionalCost.id.in_(additional_cost_ids)).delete(synchronize_session=False)
 
-    
+
     # Note: We keep employees and topics, but we'll update or create them.
     # To prevent duplicates, we map existing employees/topics
     existing_emp = {e.name: e for e in db.query(models.Employee).filter(models.Employee.scenario_id == active_scenario.id).all()}
     existing_top = {t.name: t for t in db.query(models.Topic).filter(models.Topic.scenario_id == active_scenario.id).all()}
-    
+
     added_emps = 0
     added_tops = 0
     added_allocs = 0
     added_costs = 0
-    
+
     # We will process each row
     for r_idx in range(1, len(rows)):
         row = rows[r_idx]
         if not row or len(row) <= max(emp_idx, team_idx, loc_idx, hours_idx, rate_idx):
             continue
-            
+
         emp_name = row[emp_idx].strip()
         team = row[team_idx].strip() if team_idx < len(row) else ""
         location = row[loc_idx].strip() if loc_idx < len(row) else ""
-        
+
         if not emp_name or (not team and not location):
             # Check if this row is a bottom row for additional costs
             # Formats: "CAD", "Internal Costs Subtotal", "Tooling", etc.
@@ -830,7 +831,7 @@ async def import_csv_data(file: UploadFile = File(...), db: Session = Depends(ge
                     cost_type = "recovery"
                 else:
                     cost_type = "external"
-                    
+
                 # Loop through topic columns
                 for col_idx, topic_name in topic_cols:
                     if col_idx < len(row) and row[col_idx].strip():
@@ -857,21 +858,21 @@ async def import_csv_data(file: UploadFile = File(...), db: Session = Depends(ge
                         except ValueError:
                             pass
             continue
-            
+
         # Parse standard employee row
-        
+
         # Parse hours
         try:
             available_hours = float(row[hours_idx].replace(",", "").strip())
         except ValueError:
             available_hours = 1800.0
-            
+
         # Parse hourly rate
         try:
             hourly_rate = float(row[rate_idx].replace("$", "").replace(",", "").strip())
         except ValueError:
             hourly_rate = 50.0
-            
+
         # Create or update Employee
         employee = existing_emp.get(emp_name)
         if not employee:
@@ -898,7 +899,7 @@ async def import_csv_data(file: UploadFile = File(...), db: Session = Depends(ge
             employee.available_hours = available_hours
             employee.hourly_rate = hourly_rate
             db.commit()
-            
+
         # Loop through Topic Columns for allocations
         for col_idx, topic_name in topic_cols:
             if col_idx < len(row):
@@ -909,7 +910,7 @@ async def import_csv_data(file: UploadFile = File(...), db: Session = Depends(ge
                         # Clean decimal percentages if input is, say, 0.2 instead of 20
                         if 0.0 < pct <= 1.0:
                             pct = pct * 100.0
-                            
+
                         if pct > 0.0:
                             # Create Topic if missing
                             topic = existing_top.get(topic_name)
@@ -927,7 +928,7 @@ async def import_csv_data(file: UploadFile = File(...), db: Session = Depends(ge
                                 db.refresh(topic)
                                 existing_top[topic_name] = topic
                                 added_tops += 1
-                                
+
                             # Save allocation
                             db_alloc = models.Allocation(
                                 employee_id=employee.id,
@@ -939,7 +940,7 @@ async def import_csv_data(file: UploadFile = File(...), db: Session = Depends(ge
                             added_allocs += 1
                     except ValueError:
                         pass
-                        
+
     db.commit()
     write_system_log(
         db,
@@ -966,20 +967,20 @@ def get_ai_predictions(db: Session = Depends(get_db), current_user: models.User 
     employees = db.query(models.Employee).filter(models.Employee.scenario_id == active_scenario.id).all()
     topics = db.query(models.Topic).filter(models.Topic.scenario_id == active_scenario.id).all()
     allocations = db.query(models.Allocation).join(models.Employee).filter(models.Employee.scenario_id == active_scenario.id).all()
-    
+
     # Calculate utilization
     emp_alloc_sums = {}
     for a in allocations:
         emp_alloc_sums[a.employee_id] = emp_alloc_sums.get(a.employee_id, 0.0) + a.percentage
-        
+
     overloaded = [e for e in employees if emp_alloc_sums.get(e.id, 0.0) > 100.0]
-    
+
     predictions = {
         "bottlenecks": [],
         "cost_optimizations": [],
         "reallocations": []
     }
-    
+
     # 1. Bottlenecks
     if overloaded:
         for emp in overloaded:
@@ -995,12 +996,12 @@ def get_ai_predictions(db: Session = Depends(get_db), current_user: models.User 
             "severity": "Low",
             "description": "All employee allocations are within safe bounds (<= 100%). Overall staff utilization risk is low."
         })
-        
+
     # Find underallocated critical projects
     alloc_topic_sums = {}
     for a in allocations:
         alloc_topic_sums[a.topic_id] = alloc_topic_sums.get(a.topic_id, 0.0) + a.percentage
-        
+
     for t in topics:
         tot = alloc_topic_sums.get(t.id, 0.0)
         if tot > 0.0 and tot < 50.0:
@@ -1018,7 +1019,7 @@ def get_ai_predictions(db: Session = Depends(get_db), current_user: models.User 
         for emp in employees:
             alloc_pct = sum(a.percentage for a in allocations if a.employee_id == emp.id and a.topic_id == t.id)
             emp_cost += emp.available_hours * emp.hourly_rate * (alloc_pct / 100.0)
-            
+
         if add_ext > emp_cost and emp_cost > 0:
             savings = add_ext * 0.15
             predictions["cost_optimizations"].append({
@@ -1026,7 +1027,7 @@ def get_ai_predictions(db: Session = Depends(get_db), current_user: models.User 
                 "impact": f"Save ~${savings:,.2f}",
                 "description": f"Topic **{t.name}** has high external vendor tooling/costs (${add_ext:,.2f}) compared to internal employee cost (${emp_cost:,.2f}). Suggest sampling internally to cut costs."
             })
-            
+
     if not predictions["cost_optimizations"]:
         predictions["cost_optimizations"].append({
             "category": "Portfolio Savings",
@@ -1059,7 +1060,7 @@ def get_ai_predictions(db: Session = Depends(get_db), current_user: models.User 
             "priority": "Low",
             "description": "No reallocations needed. Bandwidths are balanced across all planned employees."
         })
-        
+
     return predictions
 
 
@@ -1070,59 +1071,59 @@ def fuzzy_match_ambiguous(query: str, choices: list, key_extractor, threshold: f
     query_tokens = set(query_clean.split())
     if not query_tokens:
         return None, []
-        
+
     scored_items = []
-    
+
     for item in choices:
         val = key_extractor(item).lower()
         val_tokens = set(val.split())
-        
+
         # Jaccard overlap
         intersection = query_tokens.intersection(val_tokens)
         union = query_tokens.union(val_tokens)
         jaccard = len(intersection) / len(union) if union else 0
-        
+
         # Word containment
         containment = sum(1.0 for q_t in query_tokens if q_t in val) / len(query_tokens)
-        
+
         score = jaccard * 0.6 + containment * 0.4
-        
+
         # Direct substring containment boost
         if query_clean in val:
             score += 0.5
-            
+
         # Exact match boost
         if query_clean == val:
             score += 1.0
-            
+
         if score >= threshold:
             scored_items.append((score, item))
-            
+
     if not scored_items:
         return None, []
-        
+
     # Sort descending
     scored_items.sort(key=lambda x: x[0], reverse=True)
-    
+
     # Exact match override
     if scored_items[0][0] >= 1.4:
         return scored_items[0][1], []
-        
+
     # Only one candidate
     if len(scored_items) == 1:
         return scored_items[0][1], []
-        
+
     # Large score difference (clear winner)
     if scored_items[0][0] - scored_items[1][0] > 0.35:
         return scored_items[0][1], []
-        
+
     # Return all candidates within range of top score
     top_score = scored_items[0][0]
     candidates = [item for score, item in scored_items if top_score - score <= 0.3]
-    
+
     if len(candidates) == 1:
         return candidates[0], []
-        
+
     return None, candidates
 
 
@@ -1132,40 +1133,40 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
     history = payload.get("history", [])
     if not query:
         raise HTTPException(status_code=400, detail="Query is empty")
-        
+
     # Strict Guardrails & Rules Checks (Scope validation)
     out_of_scope_keywords = ["recipe", "capital of", "weather", "translate", "how to build a", "write a code", "python script", "javascript script", "history of", "who is the president", "poem", "joke"]
     planning_words = ["cost", "employee", "topic", "project", "allocat", "team", "recovery", "utiliz", "hour", "rate", "overload", "justif", "area", "cae", "test", "where", "who", "what", "budget"]
-    
+
     q_lower = query.lower()
     is_out_of_scope = any(keyword in q_lower for keyword in out_of_scope_keywords)
-    
+
     # Only enforce planning terms restriction for the initial query (history is empty)
     has_no_planning_terms = False
     if not history:
         has_no_planning_terms = not any(word in q_lower for word in planning_words)
-    
+
     if is_out_of_scope or has_no_planning_terms:
         return {
             "answer": "I am a confidential resource planning assistant for Textron. "
                       "Under strict local guardrails, I am only authorized to answer planning, staffing, cost calculations, "
                       "and allocations questions based on the active scenario."
         }
-        
+
     active_scenario = get_active_scenario_db(db)
-    
+
     # 2. Fallback to smart pattern matching (Heuristic Local Engine)
     # We load database tables early to resolve both Heuristics and potential Follow-up ambiguities
     employees = db.query(models.Employee).filter(models.Employee.scenario_id == active_scenario.id).all()
     topics = db.query(models.Topic).filter(models.Topic.scenario_id == active_scenario.id).all()
     allocations = db.query(models.Allocation).join(models.Employee).filter(models.Employee.scenario_id == active_scenario.id).all()
-    
+
     alloc_map = {}
     emp_alloc_sums = {}
     for a in allocations:
         alloc_map[(a.employee_id, a.topic_id)] = a.percentage
         emp_alloc_sums[a.employee_id] = emp_alloc_sums.get(a.employee_id, 0.0) + a.percentage
-        
+
     prefix = "[Local Heuristic Engine Fallback] "
 
     # Check conversation history for follow-up choice questions
@@ -1175,7 +1176,7 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
             if msg.get("role") == "assistant":
                 last_assistant_msg = msg.get("content", "")
                 break
-                
+
         if last_assistant_msg and "Did you mean:" in last_assistant_msg:
             # Extract candidates bullet points
             lines = last_assistant_msg.split("\n")
@@ -1186,11 +1187,11 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
                     cand = line.replace("*", "").replace("[Local Heuristic Engine Fallback]", "").strip()
                     if cand:
                         candidates.append(cand)
-            
+
             if candidates:
                 user_sel = q_lower.strip()
                 matched_candidate_strs = []
-                
+
                 # Check for "all of them", "both", "every one", "all"
                 if any(x in user_sel for x in ["all", "both", "every", "each"]):
                     matched_candidate_strs = candidates
@@ -1207,13 +1208,13 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
                             if idx < len(candidates):
                                 matched_candidate_strs = [candidates[idx]]
                                 break
-                                
+
                     if not matched_candidate_strs:
                         # Try fuzzy match directly against candidate strings
                         cand_match, _ = fuzzy_match_ambiguous(user_sel, candidates, lambda x: x)
                         if cand_match:
                             matched_candidate_strs = [cand_match]
-                            
+
                 if matched_candidate_strs:
                     results = []
                     for cand_str in matched_candidate_strs:
@@ -1224,7 +1225,7 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
                         else:
                             c_type = "unknown"
                             c_val = cand_str.strip()
-                            
+
                         if "location" in c_type:
                             matched_emps = [e for e in employees if e.location.lower() == c_val.lower()]
                             staff_list = [f"**{e.name}** ({e.team}) - {emp_alloc_sums.get(e.id, 0.0):.1f}% utilization" for e in matched_emps]
@@ -1250,13 +1251,13 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
                                 results.append(res)
                             else:
                                 results.append(f"Could not resolve project '{c_val}'.")
-                                
+
                     nl_double = "\n\n"
                     return {"answer": prefix + f"Here are the details for your selection:\n\n{nl_double.join(results)}"}
 
     # 1. Try real local LLM (Ollama)
     rag_context = get_planning_rag_context(db, active_scenario.id)
-    
+
     # Format conversational history for LLM
     history_context = ""
     if history:
@@ -1265,7 +1266,7 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
             role_name = "User" if h.get("role") == "user" else "Assistant"
             history_context += f"{role_name}: {h.get('content')}\n"
         history_context += "\n"
-        
+
     system_prompt = (
         "You are the Textron engineering planning AI assistant. You run locally and confidentially on Textron's server.\n"
         "Here are your STRICT rules and guardrails:\n"
@@ -1281,42 +1282,42 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
         f"User Question: {query}\n"
         "Answer:"
     )
-    
+
     ollama_answer = query_local_ollama(system_prompt)
     if ollama_answer:
         return {"answer": ollama_answer}
 
     q = query.lower().rstrip("?.! ")
-    
+
     # Who is working on/in/at [target]... (Unified Dispatcher)
     match_who = re.search(r"(?:who is working on|who works on|who is allocated to|who is working in|who works in|who is located in|who is on|who works for|employees in|staff in|employees on|staff on)\s+(.+)", q)
     if match_who:
         target = match_who.group(1).strip().replace("project", "").replace("team", "").strip()
-        
+
         # Match against locations
         unique_locs = list(set(e.location for e in employees))
         loc_match, loc_cands = fuzzy_match_ambiguous(target, unique_locs, lambda l: l)
-        
+
         # Match against teams
         unique_teams = list(set(e.team for e in employees))
         team_match, team_cands = fuzzy_match_ambiguous(target, unique_teams, lambda t: t)
-        
+
         # Match against topics
         topic_match, topic_cands = fuzzy_match_ambiguous(target, topics, lambda t: t.name + " " + t.category)
-        
+
         matches = []
         if loc_match: matches.append(("location", loc_match))
         if team_match: matches.append(("team", team_match))
         if topic_match: matches.append(("topic", topic_match))
-        
+
         cands = []
         if loc_cands: cands.extend(("location", c) for c in loc_cands)
         if team_cands: cands.extend(("team", c) for c in team_cands)
         if topic_cands: cands.extend(("topic", c) for c in topic_cands)
-        
+
         if len(matches) == 0 and len(cands) == 0:
             return {"answer": prefix + f"I couldn't find any location, team, or project matching '{target}'."}
-            
+
         if len(cands) > 0 or len(matches) > 1:
             all_options = []
             for m_type, item in matches:
@@ -1327,20 +1328,20 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
                 all_options.append(f"{c_type.capitalize()}: **{name}**")
             c_str = "\n".join(f"* {opt}" for opt in set(all_options))
             return {"answer": prefix + f"I found multiple matches for '{target}'. Did you mean:\n{c_str}\nPlease clarify your query."}
-            
+
         m_type, item = matches[0]
         if m_type == "location":
             matched_emps = [e for e in employees if e.location == item]
             staff_list = [f"**{e.name}** ({e.team}) - {emp_alloc_sums.get(e.id, 0.0):.1f}% utilization" for e in matched_emps]
             nl = "\n"
             return {"answer": prefix + f"Here are the employees working in location **{item}**:\n\n{nl.join(staff_list)}" if staff_list else prefix + f"No employees are currently planned in location **{item}**."}
-            
+
         elif m_type == "team":
             matched_emps = [e for e in employees if e.team == item]
             staff_list = [f"**{e.name}** - {emp_alloc_sums.get(e.id, 0.0):.1f}% utilization" for e in matched_emps]
             nl = "\n"
             return {"answer": prefix + f"Here are the employees working on team **{item}**:\n\n{nl.join(staff_list)}" if staff_list else prefix + f"No employees are currently planned on team **{item}**."}
-            
+
         elif m_type == "topic":
             allocated_staff = []
             for emp in employees:
@@ -1354,26 +1355,26 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
     match_what_topics = re.search(r"(?:what projects|what topics|list projects|list topics|projects in|topics in|projects of|topics of|projects on|topics on)\s+(.+)", q)
     if match_what_topics:
         target = match_what_topics.group(1).strip().replace("location", "").replace("category", "").strip()
-        
+
         # Match against locations
         unique_locs = list(set(e.location for e in employees))
         loc_match, loc_cands = fuzzy_match_ambiguous(target, unique_locs, lambda l: l)
-        
+
         # Match against categories
         unique_cats = list(set(t.category for t in topics))
         cat_match, cat_cands = fuzzy_match_ambiguous(target, unique_cats, lambda c: c)
-        
+
         matches = []
         if loc_match: matches.append(("location", loc_match))
         if cat_match: matches.append(("category", cat_match))
-        
+
         cands = []
         if loc_cands: cands.extend(("location", c) for c in loc_cands)
         if cat_cands: cands.extend(("category", c) for c in cat_cands)
-        
+
         if len(matches) == 0 and len(cands) == 0:
             return {"answer": prefix + f"I couldn't find any location or topic category matching '{target}'."}
-            
+
         if len(cands) > 0 or len(matches) > 1:
             all_options = []
             for m_type, item in matches:
@@ -1382,7 +1383,7 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
                 all_options.append(f"{c_type.capitalize()}: **{item}**")
             c_str = "\n".join(f"* {opt}" for opt in set(all_options))
             return {"answer": prefix + f"I found multiple matches for '{target}'. Did you mean:\n{c_str}\nPlease clarify your query."}
-            
+
         m_type, item = matches[0]
         if m_type == "location":
             loc_emps = [e for e in employees if e.location == item]
@@ -1392,13 +1393,13 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
                 allocated = any(alloc_map.get((emp_id, t.id), 0.0) > 0 for emp_id in loc_emp_ids)
                 if allocated:
                     loc_topics.append(t)
-                    
+
             if not loc_topics:
                 return {"answer": prefix + f"No topics have allocations from the **{item}** location."}
             t_list = [f"* **{t.name}** ({t.category}) - recovery: ${t.recovery:,.0f}" for t in loc_topics]
             nl = "\n"
             return {"answer": prefix + f"Here are the active topics/projects planned in location **{item}**:\n\n{nl.join(t_list)}"}
-            
+
         elif m_type == "category":
             cat_topics = [t for t in topics if t.category == item]
             if not cat_topics:
@@ -1420,7 +1421,7 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
             add_int = sum(cost.amount for cost in topic.additional_costs if cost.cost_type == "internal")
             ext_cost = sum(cost.amount for cost in topic.additional_costs if cost.cost_type == "external")
             total = emp_cost + add_int + ext_cost - topic.recovery
-            
+
             return {
                 "answer": prefix + f"The total planning cost for **{topic.name}** is **${total:,.2f} USD**.\n\n"
                                    f"* *Internal Staff Cost*: ${emp_cost:,.2f} USD\n"
@@ -1453,7 +1454,7 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
             return {"answer": prefix + f"I found multiple locations matching '{loc}'. Did you mean:\n{c_str}\nPlease clarify your query."}
         if not loc_match:
             return {"answer": prefix + f"I couldn't find any data for location '{loc}'."}
-        
+
         matched_emps = [e for e in employees if e.location == loc_match]
         loc_cost = 0.0
         for emp in matched_emps:
@@ -1473,7 +1474,7 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
             return {"answer": prefix + f"I found multiple teams matching '{team_search}'. Did you mean:\n{c_str}\nPlease clarify your query."}
         if not team_match:
             return {"answer": prefix + f"I couldn't find any team matching '{team_search}'."}
-            
+
         team_cost = 0.0
         team_members = [e for e in employees if e.team == team_match]
         for emp in team_members:
@@ -1504,7 +1505,7 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
     # Fallback to search profile (Fuzzy Matcher)
     emp, emp_candidates = fuzzy_match_ambiguous(q, employees, lambda e: e.name)
     topic, topic_candidates = fuzzy_match_ambiguous(q, topics, lambda t: t.name)
-    
+
     if emp_candidates or topic_candidates:
         all_candidates = []
         if emp_candidates:
@@ -1513,7 +1514,7 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
             all_candidates.extend(f"Topic/Project: **{c.name}**" for c in topic_candidates)
         c_str = "\n".join(all_candidates)
         return {"answer": prefix + f"I found multiple matches for '{query}'. Did you mean:\n{c_str}\nPlease clarify your query."}
-        
+
     if emp:
         tot = emp_alloc_sums.get(emp.id, 0.0)
         cost_contrib = sum(emp.available_hours * emp.hourly_rate * (alloc_map.get((emp.id, t.id), 0.0) / 100.0) for t in topics)
@@ -1525,7 +1526,7 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
                                f"* *Total Utilization*: **{tot:.1f}%**\n"
                                f"* *Total Allocated Cost*: **${cost_contrib:,.2f} USD**"
         }
-        
+
     if topic:
         emp_cost = sum(emp.available_hours * emp.hourly_rate * (alloc_map.get((emp.id, topic.id), 0.0) / 100.0) for emp in employees)
         return {
@@ -1545,14 +1546,141 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
                            "* *'Cost of location Germany'*"
     }
 
-    return {
-        "answer": prefix + "I'm sorry, I could not understand that question locally. Try asking:\n"
-                           "* *'Who is working on Agentic AI?'*\n"
-                           "* *'What is the total cost of Fuel Project?'*\n"
-                           "* *'List overloaded employees'*\n"
-                           "* *'Cost of team CAE Romania'*\n"
-                           "* *'Cost of location Germany'*"
-    }
+# ==========================================
+# 8. EXPORT HTML ENDPOINT (DYNAMIC REPORT)
+# ==========================================
+
+@app.get("/export-html")
+async def export_html(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    active_scenario = db.query(models.Scenario).filter(models.Scenario.is_active == True).first()
+    if not active_scenario:
+        return HTMLResponse(content="<h3>Eroare: Nu exista un scenariu activ.</h3>", status_code=404)
+
+    employees = db.query(models.Employee).filter(models.Employee.scenario_id == active_scenario.id).all()
+    topics = db.query(models.Topic).filter(models.Topic.scenario_id == active_scenario.id).all()
+    allocations = db.query(models.Allocation).join(models.Employee).filter(models.Employee.scenario_id == active_scenario.id).all()
+
+    alloc_map = {(a.employee_id, a.topic_id): a.percentage for a in allocations}
+    emp_alloc_sums = {}
+    for a in allocations:
+        emp_alloc_sums[a.employee_id] = emp_alloc_sums.get(a.employee_id, 0.0) + a.percentage
+
+    total_headcount = len(employees)
+    total_internal_cost = 0.0
+    for emp in employees:
+        for topic in topics:
+            pct = alloc_map.get((emp.id, topic.id), 0.0)
+            if pct > 0.0:
+                total_internal_cost += emp.available_hours * emp.hourly_rate * (pct / 100.0)
+
+    html_content = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Textron Presentation Report</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {{ font-family: 'Outfit', sans-serif; background: #0f172a; color: #f8fafc; padding: 40px; margin: 0; }}
+        .slide {{ background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 40px; margin-bottom: 40px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); min-height: 400px; display: flex; flex-direction: column; justify-content: space-between; page-break-after: always; }}
+        h2 {{ font-size: 32px; color: #3b82f6; margin: 0 0 10px 0; }}
+        h3 {{ font-size: 24px; color: #cbd5e1; margin: 0 0 20px 0; border-bottom: 2px solid #334155; padding-bottom: 10px; }}
+        .kpi-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-top: 30px; }}
+        .kpi-card {{ background: #0f172a; padding: 20px; border-radius: 8px; border: 1px solid #475569; text-align: center; }}
+        .kpi-title {{ font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }}
+        .kpi-val {{ font-size: 28px; font-weight: bold; color: #f59e0b; margin-top: 10px; }}
+        table {{ width: 100%; border-collapse: collapse; margin-top: 20px; background: #0f172a; border-radius: 8px; overflow: hidden; }}
+        th, td {{ padding: 14px; text-align: left; border-bottom: 1px solid #334155; }}
+        th {{ background: #334155; color: #3b82f6; font-weight: 600; }}
+        ul {{ line-height: 1.8; font-size: 14px; color: #cbd5e1; margin-top: 20px; }}
+        .footer {{ display: flex; justify-content: space-between; font-size: 12px; color: #64748b; border-top: 1px solid #334155; padding-top: 15px; margin-top: 30px; }}
+        .confidential {{ color: #ef4444; font-weight: bold; letter-spacing: 2px; font-size: 14px; border: 1px solid #ef4444; padding: 6px 16px; border-radius: 4px; display: inline-block; }}
+    </style>
+</head>
+<body>
+
+    <div class="slide" style="justify-content: center; text-align: center;">
+        <div>
+            <div style="color: #3b82f6; font-weight: 600; letter-spacing: 1px; margin-bottom: 20px;">TEXTRON DIGITAL ENGINEERING</div>
+            <h2 style="font-size: 42px; color: #fff;">Engineering Planning & Budget Report</h2>
+            <p style="font-size: 18px; color: #94a3b8; margin-top: 15px;">Active Scenario: {active_scenario.name}</p>
+            <div style="width: 80px; height: 4px; background: #3b82f6; margin: 30px auto;"></div>
+            <span class="confidential">STRICTLY CONFIDENTIAL</span>
+        </div>
+        <div class="footer"><span>Textron Inc. Planning Platform</span><span>Slide 1 of 4</span></div>
+    </div>
+
+    <div class="slide">
+        <div>
+            <h3>Executive Planning Overview</h3>
+            <div class="kpi-grid">
+                <div class="kpi-card"><div class="kpi-title">Total Headcount</div><div class="kpi-val">{total_headcount}</div></div>
+                <div class="kpi-card"><div class="kpi-title">Internal Employee Cost</div><div class="kpi-val">${total_internal_cost:,.2f}</div></div>
+                <div class="kpi-card"><div class="kpi-title">Scenario Status</div><div class="kpi-val" style="color: #10b981;">ACTIVE</div></div>
+            </div>
+        </div>
+        <div class="footer"><span>Textron Inc. Planning Platform</span><span>Slide 2 of 4</span></div>
+    </div>
+
+    <div class="slide">
+        <div>
+            <h3>Key Strategic Initiatives Budget</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Initiative / Topic</th>
+                        <th>Category</th>
+                        <th>Topic Area</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+    """
+
+    for t in topics:
+        html_content += f"""
+                    <tr>
+                        <td><strong>{t.name}</strong></td>
+                        <td>{t.category}</td>
+                        <td>{t.area or 'General'}</td>
+                        <td><span style="color: #10b981;">{t.status}</span></td>
+                    </tr>"""
+
+    html_content += f"""
+                </tbody>
+            </table>
+        </div>
+        <div class="footer"><span>Textron Inc. Planning Platform</span><span>Slide 3 of 4</span></div>
+    </div>
+
+    <div class="slide">
+        <div>
+            <h3>Resource Allocations & Overload Alerts</h3>
+            <p style="font-size: 14px; color: #94a3b8;">Staff exceeding 100% bandwidth capacity:</p>
+            <ul>
+    """
+
+    overloaded_count = 0
+    for emp in employees:
+        utilization = emp_alloc_sums.get(emp.id, 0.0)
+        if utilization > 100.0:
+            overloaded_count += 1
+            html_content += f"<li style='margin-bottom: 10px;'><strong style='color: #ef4444;'>⚠ {emp.name}</strong> ({emp.team}) — Total Allocation: <strong>{utilization:.1f}%</strong>. High risk of delivery delay.</li>"
+
+    if overloaded_count == 0:
+        html_content += "<li>✅ All planned staff are within nominal bandwidth limits.</li>"
+
+    html_content += f"""
+            </ul>
+        </div>
+        <div class="footer"><span>Textron Inc. Planning Platform</span><span>Slide 4 of 4</span></div>
+    </div>
+
+</body>
+</html>
+    """
+
+    headers = {"Content-Disposition": f"attachment; filename=Raport_Textron_{active_scenario.id}.html"}
+    return HTMLResponse(content=html_content, headers=headers)
 
 # Serve static files for frontend SPA
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

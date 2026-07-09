@@ -4,20 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Digital Engineering Planning Dashboard</title>
-    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Custom CSS -->
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-    <!-- Login Screen Overlay -->
     <div id="login-overlay" class="login-overlay">
         <div class="login-card glass animate-login-pop">
             <div class="login-header">
@@ -47,10 +42,8 @@
         </div>
     </div>
 
-    <!-- Main Container Grid -->
     <div class="app-container">
         
-        <!-- Header: Top bar with Scenario Switcher and Role Switcher -->
         <header class="app-header">
             <div class="header-logo">
                 <i class="fa-solid fa-layer-group logo-icon"></i>
@@ -60,23 +53,18 @@
                 </div>
             </div>
             
-            <!-- Active Scenario and Role widgets -->
             <div class="header-controls">
-                <!-- Scenario Controls -->
                 <div class="control-group">
                     <label for="scenario-select"><i class="fa-solid fa-database"></i> Scenario:</label>
                     <select id="scenario-select" class="scenario-dropdown">
-                        <!-- Populated dynamically -->
-                    </select>
+                        </select>
                     <button id="btn-clone-scenario" title="Clone Active Scenario" class="btn btn-secondary btn-icon-only"><i class="fa-solid fa-copy"></i></button>
                     <button id="btn-create-scenario" title="Create Blank Scenario" class="btn btn-secondary btn-icon-only"><i class="fa-solid fa-plus"></i></button>
                     <button id="btn-delete-scenario" title="Delete Active Scenario" class="btn btn-danger btn-icon-only"><i class="fa-solid fa-trash"></i></button>
                 </div>
 
-                <!-- Divider -->
                 <div class="control-divider"></div>
 
-                <!-- User Profile & Logout -->
                 <div class="user-profile-widget" style="display: flex; align-items: center; gap: 14px;">
                     <span id="user-display-name" class="user-display-name" style="font-size: 13px; font-weight: 500; color: var(--text-primary); text-transform: capitalize;"><i class="fa-solid fa-user-circle" style="color: var(--primary-color);"></i> admin</span>
                     <button id="btn-logout" class="btn btn-danger" style="padding: 6px 12px; font-size: 11px;"><i class="fa-solid fa-power-off"></i> Logout</button>
@@ -84,7 +72,6 @@
             </div>
         </header>
 
-        <!-- Sidebar Navigation & Filters -->
         <aside class="app-sidebar">
             <nav class="sidebar-nav">
                 <ul>
@@ -109,7 +96,6 @@
                 </ul>
             </nav>
 
-            <!-- Filters Section -->
             <div class="sidebar-filters">
                 <h3><i class="fa-solid fa-filter"></i> Matrix Filters</h3>
                 <div class="filter-group">
@@ -139,7 +125,6 @@
                 <button id="btn-reset-filters" class="btn btn-secondary btn-full"><i class="fa-solid fa-filter-circle-xmark"></i> Reset Filters</button>
             </div>
 
-            <!-- AI Trigger Button -->
             <div class="ai-trigger-container">
                 <button id="btn-toggle-ai" class="btn btn-ai btn-full">
                     <i class="fa-solid fa-robot"></i> Confidential AI Chat
@@ -147,10 +132,8 @@
             </div>
         </aside>
 
-        <!-- Main Display Content Area -->
         <main class="app-main">
             
-            <!-- SECTION 1: ALLOCATION MATRIX -->
             <section id="matrix-section" class="main-section active">
                 <div class="section-header" style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
@@ -161,18 +144,15 @@
                 </div>
                 
                 <div class="matrix-wrapper">
-                    <!-- Matrix Grid will be rendered dynamically -->
                     <div id="allocation-matrix-container"></div>
                 </div>
             </section>
 
-            <!-- SECTION 2: DASHBOARDS -->
             <section id="dashboards-section" class="main-section">
                 <div class="section-header">
                     <h2><i class="fa-solid fa-chart-pie"></i> KPI Dashboards</h2>
                 </div>
 
-                <!-- Tab system inside Dashboard -->
                 <div class="dash-tabs">
                     <button class="dash-tab active" data-tab="tab-executive">Executive Summary</button>
                     <button class="dash-tab" data-tab="tab-topics">Topic Breakdown</button>
@@ -181,9 +161,7 @@
                     <button class="dash-tab admin-only" data-tab="tab-admin-insights" style="display: none;"><i class="fa-solid fa-brain" style="color: var(--accent-color);"></i> Admin Insights (AI)</button>
                 </div>
 
-                <!-- TAB: EXECUTIVE SUMMARY -->
                 <div id="tab-executive" class="dash-tab-content active">
-                    <!-- Stat Cards -->
                     <div class="kpi-cards">
                         <div class="kpi-card">
                             <div class="kpi-icon icon-headcount"><i class="fa-solid fa-users"></i></div>
@@ -229,7 +207,6 @@
                         </div>
                     </div>
 
-                    <!-- Layout splits -->
                     <div class="dashboard-grid">
                         <div class="chart-box">
                             <h3>Cost Distribution by Location</h3>
@@ -246,39 +223,32 @@
                     </div>
                 </div>
 
-                <!-- TAB: TOPIC BREAKDOWN -->
                 <div id="tab-topics" class="dash-tab-content">
                     <div class="dashboard-control-header">
                         <label for="select-dash-topic">Select Topic/Project:</label>
                         <select id="select-dash-topic" class="control-dropdown"></select>
                     </div>
                     <div class="topic-dashboard-layout" id="topic-dash-details">
-                        <!-- Dynamically generated -->
-                    </div>
+                        </div>
                 </div>
 
-                <!-- TAB: TEAM UTILIZATION -->
                 <div id="tab-teams" class="dash-tab-content">
                     <div class="dashboard-control-header">
                         <label for="select-dash-team">Select Team:</label>
                         <select id="select-dash-team" class="control-dropdown"></select>
                     </div>
                     <div class="team-dashboard-layout" id="team-dash-details">
-                        <!-- Dynamically generated -->
-                    </div>
+                        </div>
                 </div>
 
-                <!-- TAB: EMPLOYEE PROFILES -->
                 <div id="tab-employees" class="dash-tab-content">
                     <div class="dashboard-control-header">
                         <label for="select-dash-employee">Select Employee:</label>
                         <select id="select-dash-employee" class="control-dropdown"></select>
                     </div>
                     <div class="employee-dashboard-layout" id="employee-dash-details">
-                        <!-- Dynamically generated -->
-                    </div>
+                        </div>
                 </div>
-                <!-- TAB: ADMIN INSIGHTS (AI) -->
                 <div id="tab-admin-insights" class="dash-tab-content admin-only" style="display: none;">
                     <div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
                         <div class="chart-box" style="height: auto; min-height: 240px; display: flex; flex-direction: column; justify-content: space-between;">
@@ -320,17 +290,24 @@
                 </div>
             </section>
 
-            <!-- SECTION 3: PRESENTATION DECK (High-End visual report) -->
             <section id="presentation-section" class="main-section">
                 <div class="section-header no-print">
                     <h2><i class="fa-solid fa-display"></i> Visual Presentation Deck</h2>
                     <p class="section-desc">Formatted slides suitable for presenting directly to Textron executive leadership.</p>
-                    <button id="btn-print-deck" class="btn btn-primary"><i class="fa-solid fa-print"></i> Export Presentation to PDF</button>
+                    
+                    <div style="display: flex; gap: 10px;">
+                        <button id="btn-print-deck" class="btn btn-primary" onclick="window.print()">
+                            <i class="fa-solid fa-print"></i> Export PDF
+                        </button>
+                        
+                        <button id="btn-export-html-local" class="btn btn-primary">
+                            <i class="fa-solid fa-file-code"></i> Export HTML
+                        </button>
+                    </div>
                 </div>
 
                 <div class="presentation-deck">
                     
-                    <!-- SLIDE 1: Title Slide -->
                     <div class="presentation-slide slide-title">
                         <div class="slide-header-brand">
                             <i class="fa-solid fa-layer-group"></i> Textron Digital Engineering
@@ -347,7 +324,6 @@
                         </div>
                     </div>
 
-                    <!-- SLIDE 2: Executive Summary KPIs -->
                     <div class="presentation-slide">
                         <div class="slide-title-bar">
                             <h3>Executive Planning Overview</h3>
@@ -387,7 +363,6 @@
                         </div>
                     </div>
 
-                    <!-- SLIDE 3: Key Initiatives Breakdown -->
                     <div class="presentation-slide">
                         <div class="slide-title-bar">
                             <h3>Key Strategic Initiatives Budget</h3>
@@ -407,8 +382,7 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <!-- Dynamically populated -->
-                                        </tbody>
+                                            </tbody>
                                     </table>
                                 </div>
                             </div>
@@ -419,7 +393,6 @@
                         </div>
                     </div>
 
-                    <!-- SLIDE 4: Staffing Overload & Risks -->
                     <div class="presentation-slide">
                         <div class="slide-title-bar">
                             <h3>Resource Allocations & Overload Alerts</h3>
@@ -429,8 +402,7 @@
                             <div class="slide-col-left">
                                 <h4 class="risk-title"><i class="fa-solid fa-triangle-exclamation"></i> Overloaded Resources (>100% Allocation)</h4>
                                 <ul class="risk-list" id="pres-overloaded-list">
-                                    <!-- Dynamic -->
-                                </ul>
+                                    </ul>
                             </div>
                             <div class="slide-col-right">
                                 <h4 class="risk-title"><i class="fa-solid fa-list-check"></i> Management Comments & Strategic Notes</h4>
@@ -445,7 +417,6 @@
                         </div>
                     </div>
 
-                    <!-- SLIDE 5: AI Portfolio Predictions & Suggestions -->
                     <div class="presentation-slide">
                         <div class="slide-title-bar">
                             <h3>AI-Driven Portfolio Predictions & Suggestions</h3>
@@ -455,14 +426,12 @@
                             <div class="slide-col-left">
                                 <h4 class="risk-title" style="color: var(--accent-color); font-size: 13px;"><i class="fa-solid fa-brain"></i> Predicted Resource Bottlenecks</h4>
                                 <ul class="risk-list" id="pres-ai-bottlenecks-list" style="max-height: 180px;">
-                                    <!-- Dynamic -->
-                                </ul>
+                                    </ul>
                             </div>
                             <div class="slide-col-right">
                                 <h4 class="risk-title" style="color: var(--warning-color); font-size: 13px;"><i class="fa-solid fa-chart-line"></i> Strategic Optimization Suggestions</h4>
                                 <ul class="risk-list" id="pres-ai-suggestions-list" style="max-height: 180px; gap: 6px;">
-                                    <!-- Dynamic -->
-                                </ul>
+                                    </ul>
                             </div>
                         </div>
                         <div class="slide-footer">
@@ -474,7 +443,6 @@
                 </div>
             </section>
 
-            <!-- SECTION 4: CRUD MANAGEMENT -->
             <section id="crud-section" class="main-section">
                 <div class="section-header">
                     <h2><i class="fa-solid fa-sliders"></i> Management Panel</h2>
@@ -482,7 +450,6 @@
                 </div>
 
                 <div class="crud-layout">
-                    <!-- Left Column: Employees CRUD -->
                     <div class="crud-card">
                         <div class="crud-card-header" style="flex-direction: column; align-items: stretch; gap: 8px;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -508,13 +475,11 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <!-- Dynamically populated -->
-                                </tbody>
+                                    </tbody>
                             </table>
                         </div>
                     </div>
 
-                    <!-- Right Column: Topics CRUD -->
                     <div class="crud-card">
                         <div class="crud-card-header" style="flex-direction: column; align-items: stretch; gap: 8px;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -539,15 +504,13 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <!-- Dynamically populated -->
-                                </tbody>
+                                    </tbody>
                             </table>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <!-- SECTION 5: CSV FILE UPLOAD -->
             <section id="upload-section" class="main-section">
                 <div class="section-header">
                     <h2><i class="fa-solid fa-cloud-arrow-up"></i> Upload Planning Sheet</h2>
@@ -562,12 +525,9 @@
                         <button class="btn btn-primary">Browse Files</button>
                     </div>
 
-                    <!-- Status Display -->
                     <div id="upload-status" class="upload-status-box" style="display: none;">
-                        <!-- Status results populated dynamically -->
-                    </div>
+                        </div>
 
-                    <!-- Instructions and Sample Layout -->
                     <div class="upload-instructions">
                         <h3><i class="fa-solid fa-circle-info"></i> CSV Layout Format Instructions</h3>
                         <p>Your uploaded CSV must match the standard matrix planning sheet layout:</p>
@@ -580,7 +540,6 @@
                 </div>
             </section>
 
-            <!-- SECTION 6: SYSTEM AUDIT LOGS (ADMIN ONLY) -->
             <section id="logs-section" class="main-section admin-only" style="display: none;">
                 <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px; margin-bottom: 20px;">
                     <div>
@@ -602,8 +561,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <!-- Populated dynamically -->
-                            </tbody>
+                                </tbody>
                         </table>
                     </div>
                 </div>
@@ -611,7 +569,6 @@
 
         </main>
 
-        <!-- AI Assistant Drawer Slide Out -->
         <div id="ai-drawer" class="ai-drawer">
             <div class="ai-drawer-header">
                 <h3><i class="fa-solid fa-robot"></i> Confidential AI Assistant</h3>
@@ -640,7 +597,6 @@
 
     </div>
 
-    <!-- MODAL 1: ADD/EDIT EMPLOYEE -->
     <div id="modal-employee" class="modal">
         <div class="modal-content glass">
             <div class="modal-header">
@@ -717,7 +673,6 @@
         </div>
     </div>
 
-    <!-- MODAL 2: ADD/EDIT TOPIC -->
     <div id="modal-topic" class="modal">
         <div class="modal-content glass">
             <div class="modal-header">
@@ -787,7 +742,6 @@
         </div>
     </div>
 
-    <!-- MODAL 3: EDIT CELL ALLOCATION -->
     <div id="modal-allocation" class="modal">
         <div class="modal-content glass modal-small">
             <div class="modal-header">
@@ -822,7 +776,6 @@
         </div>
     </div>
 
-    <!-- MODAL 4: CREATE SCENARIO -->
     <div id="modal-scenario" class="modal">
         <div class="modal-content glass modal-small">
             <div class="modal-header">
@@ -850,7 +803,6 @@
         </div>
     </div>
 
-    <!-- MODAL 5: CLONE SCENARIO -->
     <div id="modal-clone" class="modal">
         <div class="modal-content glass modal-small">
             <div class="modal-header">
@@ -878,7 +830,6 @@
         </div>
     </div>
 
-    <!-- Custom Script -->
     <script src="js/app.js"></script>
 </body>
 </html>

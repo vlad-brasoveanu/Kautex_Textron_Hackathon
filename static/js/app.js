@@ -2007,3 +2007,137 @@ document.addEventListener("DOMContentLoaded", () => {
     // Launch Application Init
     init();
 });
+
+// ==========================================================
+// 10. MOTOR DRAG & DROP PENTRU SLIDE-URI (Personalizare)
+// ==========================================================
+document.addEventListener('DOMContentLoaded', () => {
+    const slideContainer = document.querySelector('.presentation-deck');
+    let draggedSlide = null;
+
+    if (slideContainer) {
+        const slides = slideContainer.querySelectorAll('.presentation-slide');
+        slides.forEach(slide => {
+            slide.setAttribute('draggable', 'true');
+            slide.style.cursor = 'grab';
+
+            slide.addEventListener('dragstart', () => {
+                draggedSlide = slide;
+                slide.style.opacity = '0.4';
+                slide.style.cursor = 'grabbing';
+            });
+
+            slide.addEventListener('dragend', () => {
+                draggedSlide = null;
+                slide.style.opacity = '1';
+                slide.style.cursor = 'grab';
+                slides.forEach(s => s.style.borderTop = '');
+            });
+
+            slide.addEventListener('dragover', (e) => {
+                e.preventDefault(); 
+                slides.forEach(s => s.style.borderTop = ''); 
+                slide.style.borderTop = '3px solid #007bff'; 
+                slide.style.transition = 'border-top 0.2s ease';
+            });
+
+            slide.addEventListener('drop', () => {
+                if (draggedSlide !== slide) {
+                    slideContainer.insertBefore(draggedSlide, slide);
+                }
+                slides.forEach(s => s.style.borderTop = ''); 
+            });
+        });
+    }
+});
+
+// ==========================================================
+// 11. WYSIWYG HTML EXPORTER (Camera Foto Client-Side)
+// ==========================================================
+document.addEventListener('DOMContentLoaded', () => {
+    const btnExportLocal = document.getElementById('btn-export-html-local');
+    
+    if (btnExportLocal) {
+        btnExportLocal.addEventListener('click', (e) => {
+            e.preventDefault();
+            
+            const deck = document.querySelector('.presentation-deck');
+            if (!deck) {
+                alert("Eroare: Nu s-a găsit secțiunea de prezentare.");
+                return;
+            }
+            
+            const clone = deck.cloneNode(true);
+            
+            // Extragerea și convertirea graficului Chart.js într-o imagine Base64
+            const originalCanvas = document.getElementById('pres-chart-location-canvas');
+            const clonedCanvasContainer = clone.querySelector('.pres-chart-box');
+            
+            if (originalCanvas && clonedCanvasContainer) {
+                const imgData = originalCanvas.toDataURL('image/png');
+                const img = document.createElement('img');
+                img.src = imgData;
+                img.style.maxWidth = '100%';
+                img.style.height = 'auto';
+                
+                const cloneCanvas = clone.querySelector('canvas');
+                if (cloneCanvas) cloneCanvas.remove();
+                clonedCanvasContainer.appendChild(img);
+            }
+            
+            const rawHTML = clone.innerHTML;
+            
+            const finalDoc = `<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <title>Raport Exportat - Textron</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Outfit', sans-serif; background: #0b0f19; color: #f8fafc; padding: 40px; margin: 0; }
+        .presentation-deck { max-width: 1000px; margin: 0 auto; }
+        .presentation-slide { background: #151b2b; border: 1px solid #1e293b; border-radius: 12px; padding: 40px; margin-bottom: 40px; min-height: 400px; position: relative; page-break-after: always; }
+        .slide-title { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+        .slide-header-brand { color: #3b82f6; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 30px; }
+        .slide-body-center h2 { font-size: 42px; margin: 0 0 10px 0; color: #f8fafc; }
+        .slide-body-center p { font-size: 18px; color: #94a3b8; }
+        .divider-line { height: 4px; width: 60px; background: linear-gradient(90deg, #3b82f6, #8b5cf6); margin: 30px auto; border-radius: 2px; }
+        .slide-title-bar { border-bottom: 1px solid #1e293b; padding-bottom: 15px; margin-bottom: 25px; }
+        .slide-title-bar h3 { margin: 0; font-size: 22px; color: #f8fafc; }
+        .pres-kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px; }
+        .pres-kpi-item { background: #0b0f19; border: 1px solid #1e293b; padding: 15px; border-radius: 8px; text-align: center; }
+        .pres-kpi-label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
+        .pres-kpi-number { font-size: 24px; font-weight: 700; color: #f8fafc; margin-top: 8px; }
+        .pres-kpi-number.text-green { color: #10b981; }
+        .pres-chart-box { background: #0b0f19; border: 1px solid #1e293b; padding: 20px; border-radius: 8px; text-align: center; }
+        .pres-table { width: 100%; border-collapse: collapse; background: #0b0f19; border-radius: 8px; overflow: hidden; }
+        .pres-table th, .pres-table td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #1e293b; font-size: 14px; }
+        .pres-table th { background: #151b2b; color: #94a3b8; font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: 1px; }
+        .risk-list { list-style: none; padding: 0; margin: 0; }
+        .risk-list li { padding: 15px; background: rgba(239, 68, 68, 0.05); border-left: 3px solid #ef4444; border-radius: 0 8px 8px 0; margin-bottom: 10px; font-size: 14px; }
+        .slide-footer { position: absolute; bottom: 30px; left: 40px; right: 40px; display: flex; justify-content: space-between; font-size: 11px; color: #475569; border-top: 1px solid #1e293b; padding-top: 15px; }
+        .confidential-tag { border: 1px solid #ef4444; color: #ef4444; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; letter-spacing: 1px; }
+    </style>
+</head>
+<body>
+    <div class="presentation-deck">
+        ${rawHTML}
+    </div>
+</body>
+</html>`;
+
+            const blob = new Blob([finalDoc], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Raport_Final_Textron_${Math.floor(Date.now() / 1000)}.html`;
+            document.body.appendChild(link);
+            link.click();
+            
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        });
+    }
+});
