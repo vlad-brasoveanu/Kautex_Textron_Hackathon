@@ -89,7 +89,12 @@ document.addEventListener("DOMContentLoaded", () => {
         maxRate: 999999,
         manager: "",
         status: "",
-        topicId: ""
+        topicId: "",
+        employeeSearch: "",
+        minUtil: 0,
+        maxUtil: 999,
+        minCost: 0,
+        maxCost: 999999999
     };
 
     // Allocation Matrix column sort state (null = insertion order)
@@ -432,6 +437,19 @@ document.addEventListener("DOMContentLoaded", () => {
         const container = document.getElementById("allocation-matrix-container");
         container.innerHTML = "";
 
+        // True utilization/cost per employee across ALL their allocations
+        // (not just the currently topic-filtered set), so filtering by
+        // utilization/cost range means the same thing regardless of which
+        // topic columns happen to be visible.
+        const trueEmpStats = {};
+        employees.forEach(emp => {
+            let util = 0.0;
+            allocations.forEach(a => {
+                if (a.employee_id === emp.id) util += a.percentage;
+            });
+            trueEmpStats[emp.id] = { util, cost: emp.available_hours * emp.hourly_rate * (util / 100.0) };
+        });
+
         // 1. Apply Filters to local variables
         const filteredEmployees = employees.filter(emp => {
             if (filters.location && emp.location !== filters.location) return false;
@@ -441,6 +459,12 @@ document.addEventListener("DOMContentLoaded", () => {
             if (filters.status && emp.status !== filters.status) return false;
             if (filters.minRate !== undefined && emp.hourly_rate < filters.minRate) return false;
             if (filters.maxRate !== undefined && emp.hourly_rate > filters.maxRate) return false;
+            if (filters.employeeSearch && !emp.name.toLowerCase().includes(filters.employeeSearch.toLowerCase())) return false;
+            const trueStats = trueEmpStats[emp.id] || { util: 0, cost: 0 };
+            if (filters.minUtil !== undefined && trueStats.util < filters.minUtil) return false;
+            if (filters.maxUtil !== undefined && trueStats.util > filters.maxUtil) return false;
+            if (filters.minCost !== undefined && trueStats.cost < filters.minCost) return false;
+            if (filters.maxCost !== undefined && trueStats.cost > filters.maxCost) return false;
             if (filters.topicId) {
                 const hasAlloc = allocations.some(a => a.employee_id === emp.id && a.topic_id === parseInt(filters.topicId) && a.percentage > 0.0);
                 if (!hasAlloc) return false;
@@ -478,13 +502,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Compute topic totals: staff cost, internal additional, external cost, recovery, and net totals
         const topicStaffCosts = {};
+        const topicAllocPctTotals = {};
         filteredTopics.forEach(t => {
             topicStaffCosts[t.id] = 0.0;
+            topicAllocPctTotals[t.id] = 0.0;
             filteredEmployees.forEach(emp => {
                 const key = `${emp.id}_${t.id}`;
                 const pct = allocMap[key] ? allocMap[key].percentage : 0.0;
                 if (pct > 0.0) {
                     topicStaffCosts[t.id] += emp.available_hours * emp.hourly_rate * (pct / 100.0);
+                    topicAllocPctTotals[t.id] += pct;
                 }
             });
         });
@@ -738,7 +765,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 const span = document.createElement("span");
                 span.className = "matrix-cell-pct";
                 span.innerText = allocVal > 0 ? `${allocVal}%` : "-";
-                
+
+                if (allocVal > 0) {
+                    const cellHours = emp.available_hours * (allocVal / 100.0);
+                    const cellCost = emp.available_hours * emp.hourly_rate * (allocVal / 100.0);
+                    tdCell.title = `${allocVal}% • ${cellHours.toLocaleString(undefined, {maximumFractionDigits: 0})} hrs/yr • $${cellCost.toLocaleString(undefined, {maximumFractionDigits: 0})}`;
+                }
+
                 // Event cell edit handlers
                 if (activeRole === "admin" || activeRole === "master_admin") {
                     tdCell.addEventListener("dblclick", () => {
@@ -779,7 +812,30 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         // --- BOTTOM COSTS ROWS (Aggregated Topic Costs) ---
-        
+
+        // 0. Total Allocation % Row - mirrors the AOP planning sheet's "TOTAL"
+        // row: sum of every visible employee's allocation % per topic column,
+        // expressed both as a % sum and its FTE-equivalent.
+        const trAllocTotal = document.createElement("tr");
+        trAllocTotal.className = "matrix-cost-row";
+
+        const tdATLabel = document.createElement("td");
+        tdATLabel.className = "sticky-col matrix-cost-title";
+        tdATLabel.innerText = "Total Allocation %";
+        trAllocTotal.appendChild(tdATLabel);
+
+        for (let i = 0; i < 4; i++) trAllocTotal.appendChild(document.createElement("td"));
+
+        filteredTopics.forEach(t => {
+            const tdVal = document.createElement("td");
+            const pctTotal = topicAllocPctTotals[t.id];
+            tdVal.innerText = `${pctTotal.toFixed(1)}%`;
+            tdVal.title = `${(pctTotal / 100).toFixed(2)} FTE-equivalent`;
+            trAllocTotal.appendChild(tdVal);
+        });
+        trAllocTotal.appendChild(document.createElement("td"));
+        tbody.appendChild(trAllocTotal);
+
         // 1. Employee Internal Cost Row
         const trEmpCost = document.createElement("tr");
         trEmpCost.className = "matrix-cost-row";
@@ -3466,6 +3522,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 filters.topicId = "";
                 filters.minRate = 0;
                 filters.maxRate = 999999;
+                filters.employeeSearch = "";
+                filters.minUtil = 0;
+                filters.maxUtil = 999;
+                filters.minCost = 0;
+                filters.maxCost = 999999999;
                 renderFiltersPanel();
                 renderAllocationMatrix();
             });
@@ -5078,7 +5139,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function exportMatrixToCSV() {
         const activeScenarioName = activeScenario ? activeScenario.name : "Scenario";
-        
+
+        const trueEmpStats = {};
+        employees.forEach(emp => {
+            let util = 0.0;
+            allocations.forEach(a => {
+                if (a.employee_id === emp.id) util += a.percentage;
+            });
+            trueEmpStats[emp.id] = { util, cost: emp.available_hours * emp.hourly_rate * (util / 100.0) };
+        });
+
         const filteredEmployees = employees.filter(emp => {
             if (filters.location && emp.location !== filters.location) return false;
             if (filters.team && emp.team !== filters.team) return false;
@@ -5087,6 +5157,12 @@ document.addEventListener("DOMContentLoaded", () => {
             if (filters.status && emp.status !== filters.status) return false;
             if (filters.minRate !== undefined && emp.hourly_rate < filters.minRate) return false;
             if (filters.maxRate !== undefined && emp.hourly_rate > filters.maxRate) return false;
+            if (filters.employeeSearch && !emp.name.toLowerCase().includes(filters.employeeSearch.toLowerCase())) return false;
+            const trueStats = trueEmpStats[emp.id] || { util: 0, cost: 0 };
+            if (filters.minUtil !== undefined && trueStats.util < filters.minUtil) return false;
+            if (filters.maxUtil !== undefined && trueStats.util > filters.maxUtil) return false;
+            if (filters.minCost !== undefined && trueStats.cost < filters.minCost) return false;
+            if (filters.maxCost !== undefined && trueStats.cost > filters.maxCost) return false;
             if (filters.topicId) {
                 const hasAlloc = allocations.some(a => a.employee_id === emp.id && a.topic_id === parseInt(filters.topicId) && a.percentage > 0.0);
                 if (!hasAlloc) return false;
@@ -5298,6 +5374,11 @@ document.addEventListener("DOMContentLoaded", () => {
                             filters.topicId = "";
                             filters.minRate = 0;
                             filters.maxRate = 999999;
+                            filters.employeeSearch = "";
+                            filters.minUtil = 0;
+                            filters.maxUtil = 999;
+                            filters.minCost = 0;
+                            filters.maxCost = 999999999;
 
                             // Apply the filters to the global filters object
                             if (resData.filters.location !== undefined) filters.location = resData.filters.location;
@@ -5306,6 +5387,9 @@ document.addEventListener("DOMContentLoaded", () => {
                             if (resData.filters.category !== undefined) filters.category = resData.filters.category;
                             if (resData.filters.minRate !== undefined) filters.minRate = resData.filters.minRate;
                             if (resData.filters.maxRate !== undefined) filters.maxRate = resData.filters.maxRate;
+                            if (resData.filters.employeeSearch !== undefined) filters.employeeSearch = resData.filters.employeeSearch;
+                            if (resData.filters.minUtil !== undefined) filters.minUtil = resData.filters.minUtil;
+                            if (resData.filters.maxUtil !== undefined) filters.maxUtil = resData.filters.maxUtil;
 
                             // Re-render dynamic filters panel
                             renderFiltersPanel();
@@ -5527,31 +5611,47 @@ document.addEventListener("DOMContentLoaded", () => {
                     <input type="number" id="filter-max-rate" placeholder="Max" class="filter-dropdown" style="width: 50%; padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);" value="${filters.maxRate === 999999 ? '' : filters.maxRate}">
                 </div>
             </div>
+            <div class="filter-group" style="margin-bottom: 12px;">
+                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">Employee Search</label>
+                <input type="text" id="filter-employee-search" placeholder="Search by name..." class="filter-dropdown" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);" value="${filters.employeeSearch || ''}">
+            </div>
+            <div class="filter-group" style="margin-bottom: 12px;">
+                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">Total Utilization (%)</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="number" id="filter-min-util" placeholder="Min" class="filter-dropdown" style="width: 50%; padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);" value="${filters.minUtil || ''}">
+                    <input type="number" id="filter-max-util" placeholder="Max" class="filter-dropdown" style="width: 50%; padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);" value="${filters.maxUtil === 999 ? '' : filters.maxUtil}">
+                </div>
+            </div>
+            <div class="filter-group" style="margin-bottom: 12px;">
+                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">Total Annual Cost ($)</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="number" id="filter-min-cost" placeholder="Min" class="filter-dropdown" style="width: 50%; padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);" value="${filters.minCost || ''}">
+                    <input type="number" id="filter-max-cost" placeholder="Max" class="filter-dropdown" style="width: 50%; padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);" value="${filters.maxCost === 999999999 ? '' : filters.maxCost}">
+                </div>
+            </div>
         `;
 
         container.innerHTML = html;
+
+        // Numeric filter keys default to 0 when cleared if they're a "min"
+        // bound, else to that field's effectively-unbounded max.
+        const numericDefaults = { minRate: 0, maxRate: 999999, minUtil: 0, maxUtil: 999, minCost: 0, maxCost: 999999999 };
 
         // Bind event listeners
         const bindListener = (id, prop, isNumeric = false) => {
             const el = document.getElementById(id);
             if (el) {
-                el.addEventListener("change", () => {
+                const apply = () => {
                     if (isNumeric) {
-                        filters[prop] = el.value ? parseFloat(el.value) : (prop === 'minRate' ? 0 : 999999);
+                        filters[prop] = el.value ? parseFloat(el.value) : numericDefaults[prop];
                     } else {
                         filters[prop] = el.value;
                     }
                     renderAllocationMatrix();
-                });
+                };
+                el.addEventListener("change", apply);
                 if (el.tagName === 'INPUT') {
-                    el.addEventListener("input", () => {
-                        if (isNumeric) {
-                            filters[prop] = el.value ? parseFloat(el.value) : (prop === 'minRate' ? 0 : 999999);
-                        } else {
-                            filters[prop] = el.value;
-                        }
-                        renderAllocationMatrix();
-                    });
+                    el.addEventListener("input", apply);
                 }
             }
         };
@@ -5565,6 +5665,11 @@ document.addEventListener("DOMContentLoaded", () => {
         bindListener("filter-active-topic", "topicId");
         bindListener("filter-min-rate", "minRate", true);
         bindListener("filter-max-rate", "maxRate", true);
+        bindListener("filter-employee-search", "employeeSearch");
+        bindListener("filter-min-util", "minUtil", true);
+        bindListener("filter-max-util", "maxUtil", true);
+        bindListener("filter-min-cost", "minCost", true);
+        bindListener("filter-max-cost", "maxCost", true);
     }
 
     function updateSidebarFiltersVisibility() {

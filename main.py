@@ -2837,9 +2837,26 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
             filter_cat = cat
             break
             
+    filter_emp_search = None
+    for e in employees:
+        if e.name.lower() in q_clean:
+            filter_emp_search = e.name
+            break
+
+    filter_min_util = None
+    filter_max_util = None
+    if "overloaded" in q_clean or re.search(r"(?:above|over|more than|higher than)\s*100\s*%?\s*(?:util|allocat)", q_clean):
+        filter_min_util = 100.0
+    util_gt = re.search(r"utili[sz]ation\s*(?:above|over|more than|higher than|>)\s*(\d+)", q_clean)
+    if util_gt:
+        filter_min_util = float(util_gt.group(1))
+    util_lt = re.search(r"utili[sz]ation\s*(?:below|under|less than|<)\s*(\d+)", q_clean)
+    if util_lt:
+        filter_max_util = float(util_lt.group(1))
+
     filter_min_rate = None
     filter_max_rate = None
-    
+
     # check rate > X or rate higher than X
     rate_gt = re.search(r"rate\s*>\s*(\d+)", q_clean)
     if rate_gt:
@@ -2860,20 +2877,35 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
             filter_max_rate = float(rate_lt_text.group(1))
 
     # Trigger filter application if any valid planning property is matched
-    if filter_loc or filter_team or filter_dept or filter_cat or filter_min_rate is not None or filter_max_rate is not None:
+    if (filter_loc or filter_team or filter_dept or filter_cat or filter_emp_search
+            or filter_min_rate is not None or filter_max_rate is not None
+            or filter_min_util is not None or filter_max_util is not None):
         filters_to_apply = {}
         msg_parts = []
-        
+
         # Calculate matching list to output in chat bubble
         matching_emps = []
         for e in employees:
             if filter_loc and e.location.lower() != filter_loc.lower(): continue
             if filter_team and e.team.lower() != filter_team.lower(): continue
             if filter_dept and e.department.lower() != filter_dept.lower(): continue
+            if filter_emp_search and filter_emp_search.lower() not in e.name.lower(): continue
             if filter_min_rate is not None and e.hourly_rate < filter_min_rate: continue
             if filter_max_rate is not None and e.hourly_rate > filter_max_rate: continue
+            emp_util = emp_alloc_sums.get(e.id, 0.0)
+            if filter_min_util is not None and emp_util < filter_min_util: continue
+            if filter_max_util is not None and emp_util > filter_max_util: continue
             matching_emps.append(e)
-            
+
+        if filter_emp_search:
+            filters_to_apply["employeeSearch"] = filter_emp_search
+            msg_parts.append(f"Employee: **{filter_emp_search}**")
+        if filter_min_util is not None:
+            filters_to_apply["minUtil"] = filter_min_util
+            msg_parts.append(f"Utilization: **> {filter_min_util:.0f}%**")
+        if filter_max_util is not None:
+            filters_to_apply["maxUtil"] = filter_max_util
+            msg_parts.append(f"Utilization: **< {filter_max_util:.0f}%**")
         if filter_loc:
             filters_to_apply["location"] = filter_loc
             msg_parts.append(f"Location: **{filter_loc}**")
