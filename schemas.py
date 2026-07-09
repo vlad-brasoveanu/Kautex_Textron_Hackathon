@@ -13,6 +13,7 @@ class ScenarioCreate(ScenarioBase):
 class ScenarioClone(BaseModel):
     new_name: str
     new_description: Optional[str] = None
+    activate: bool = True
 
 class ScenarioResponse(ScenarioBase):
     id: int

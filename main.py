@@ -411,6 +411,7 @@ def get_active_scenario(db: Session = Depends(get_db), current_user: models.User
 
 @app.post("/api/scenarios/active/{scenario_id}")
 def set_active_scenario(scenario_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    previous = db.query(models.Scenario).filter(models.Scenario.is_active == True).first()
     db.query(models.Scenario).update({models.Scenario.is_active: False})
     scenario = db.query(models.Scenario).filter(models.Scenario.id == scenario_id).first()
     if not scenario:
@@ -418,13 +419,17 @@ def set_active_scenario(scenario_id: int, db: Session = Depends(get_db), current
         raise HTTPException(status_code=404, detail="Scenario not found")
     scenario.is_active = True
     db.commit()
+    write_system_log(
+        db, username=current_user.username, action="Switch Active Scenario",
+        details=f"Switched active planning version from '{previous.name if previous else 'none'}' to '{scenario.name}'"
+    )
     return {"message": f"Active scenario switched to: {scenario.name}", "scenario": scenario}
 
 @app.post("/api/scenarios", response_model=schemas.ScenarioResponse)
 def create_scenario(scenario: schemas.ScenarioCreate, db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
     # Deactivate other scenarios
     db.query(models.Scenario).update({models.Scenario.is_active: False})
-    
+
     db_scenario = models.Scenario(
         name=scenario.name,
         description=scenario.description,
@@ -433,6 +438,7 @@ def create_scenario(scenario: schemas.ScenarioCreate, db: Session = Depends(get_
     db.add(db_scenario)
     db.commit()
     db.refresh(db_scenario)
+    write_system_log(db, username=admin.username, action="Create Scenario", details=f"Created new planning version '{db_scenario.name}'")
     return db_scenario
 
 @app.post("/api/scenarios/{scenario_id}/clone", response_model=schemas.ScenarioResponse)
@@ -440,15 +446,18 @@ def clone_scenario(scenario_id: int, clone_data: schemas.ScenarioClone, db: Sess
     source_scenario = db.query(models.Scenario).filter(models.Scenario.id == scenario_id).first()
     if not source_scenario:
         raise HTTPException(status_code=404, detail="Source scenario not found")
-    
-    # Deactivate others
-    db.query(models.Scenario).update({models.Scenario.is_active: False})
-    
+
+    # Deactivate others only if the clone is meant to take over as active
+    # (e.g. Simulation sandboxes clone with activate=False so they stay
+    # invisible to the rest of the app until explicitly applied).
+    if clone_data.activate:
+        db.query(models.Scenario).update({models.Scenario.is_active: False})
+
     # Create new scenario
     new_scenario = models.Scenario(
         name=clone_data.new_name,
         description=clone_data.new_description or f"Clone of {source_scenario.name}",
-        is_active=True
+        is_active=clone_data.activate
     )
     db.add(new_scenario)
     db.commit()
@@ -523,7 +532,11 @@ def clone_scenario(scenario_id: int, clone_data: schemas.ScenarioClone, db: Sess
                 )
                 db.add(new_alloc)
         db.commit()
-        
+
+    write_system_log(
+        db, username=admin.username, action="Clone Scenario",
+        details=f"Cloned '{source_scenario.name}' into new planning version '{new_scenario.name}'" + (" (sandbox, not activated)" if not clone_data.activate else "")
+    )
     return new_scenario
 
 @app.delete("/api/scenarios/{scenario_id}")
@@ -531,18 +544,20 @@ def delete_scenario(scenario_id: int, db: Session = Depends(get_db), admin: mode
     scenario = db.query(models.Scenario).filter(models.Scenario.id == scenario_id).first()
     if not scenario:
         raise HTTPException(status_code=404, detail="Scenario not found")
-    
+
     # If active was deleted, make another one active if exists
     was_active = scenario.is_active
+    deleted_name = scenario.name
     db.delete(scenario)
     db.commit()
-    
+
     if was_active:
         next_scenario = db.query(models.Scenario).first()
         if next_scenario:
             next_scenario.is_active = True
             db.commit()
-            
+
+    write_system_log(db, username=admin.username, action="Delete Scenario", details=f"Deleted planning version '{deleted_name}'")
     return {"message": "Scenario deleted successfully"}
     
 
@@ -756,6 +771,45 @@ def create_employee(employee: schemas.EmployeeCreate, db: Session = Depends(get_
     db.refresh(db_employee)
     return db_employee
 
+@app.get("/api/scenarios/{scenario_id}/employees", response_model=List[schemas.EmployeeResponse])
+def get_scenario_employees(scenario_id: int, db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
+    """Scenario-scoped read, independent of which scenario is active - lets
+    the Simulation tab view a sandbox scenario's roster without making it
+    active app-wide."""
+    scenario = db.query(models.Scenario).filter(models.Scenario.id == scenario_id).first()
+    if not scenario:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+    return db.query(models.Employee).filter(
+        models.Employee.scenario_id == scenario_id,
+        models.Employee.is_deleted == False
+    ).all()
+
+
+@app.post("/api/scenarios/{scenario_id}/employees", response_model=schemas.EmployeeResponse)
+def create_scenario_employee(scenario_id: int, employee: schemas.EmployeeCreate, db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
+    """Scenario-scoped create - lets the Simulation tab add an employee
+    directly to a sandbox without switching the whole app over to it first."""
+    scenario = db.query(models.Scenario).filter(models.Scenario.id == scenario_id).first()
+    if not scenario:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+    db_employee = models.Employee(
+        scenario_id=scenario_id,
+        name=employee.name,
+        team=employee.team,
+        department=employee.department,
+        location=employee.location,
+        available_hours=employee.available_hours,
+        hourly_rate=employee.hourly_rate,
+        status=employee.status,
+        manager=employee.manager,
+        notes=employee.notes
+    )
+    db.add(db_employee)
+    db.commit()
+    db.refresh(db_employee)
+    return db_employee
+
+
 @app.put("/api/employees/{employee_id}", response_model=schemas.EmployeeResponse)
 def update_employee(employee_id: int, employee: schemas.EmployeeCreate, db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
     db_employee = db.query(models.Employee).filter(models.Employee.id == employee_id).first()
@@ -903,6 +957,47 @@ def create_topic(topic: schemas.TopicCreate, db: Session = Depends(get_db), admi
     active_scenario = get_active_scenario_db(db)
     db_topic = models.Topic(
         scenario_id=active_scenario.id,
+        name=topic.name,
+        category=topic.category,
+        area=topic.area,
+        description=topic.description,
+        objective=topic.objective,
+        deliverables=topic.deliverables,
+        justification=topic.justification,
+        status=topic.status,
+        comments=topic.comments,
+        notes=topic.notes,
+        recovery=topic.recovery
+    )
+    db.add(db_topic)
+    db.commit()
+    db.refresh(db_topic)
+    return db_topic
+
+
+@app.get("/api/scenarios/{scenario_id}/topics", response_model=List[schemas.TopicResponse])
+def get_scenario_topics(scenario_id: int, db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
+    """Scenario-scoped read, independent of which scenario is active - lets
+    the Simulation tab view a sandbox scenario's topics without making it
+    active app-wide."""
+    scenario = db.query(models.Scenario).filter(models.Scenario.id == scenario_id).first()
+    if not scenario:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+    return db.query(models.Topic).filter(
+        models.Topic.scenario_id == scenario_id,
+        models.Topic.is_deleted == False
+    ).all()
+
+
+@app.post("/api/scenarios/{scenario_id}/topics", response_model=schemas.TopicResponse)
+def create_scenario_topic(scenario_id: int, topic: schemas.TopicCreate, db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
+    """Scenario-scoped create - lets the Simulation tab add a topic directly
+    to a sandbox without switching the whole app over to it first."""
+    scenario = db.query(models.Scenario).filter(models.Scenario.id == scenario_id).first()
+    if not scenario:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+    db_topic = models.Topic(
+        scenario_id=scenario_id,
         name=topic.name,
         category=topic.category,
         area=topic.area,
@@ -1074,6 +1169,21 @@ def get_allocations(db: Session = Depends(get_db), current_user: models.User = D
         models.Employee.is_deleted == False,
         models.Topic.is_deleted == False
     ).all()
+
+@app.get("/api/scenarios/{scenario_id}/allocations", response_model=List[schemas.AllocationResponse])
+def get_scenario_allocations(scenario_id: int, db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
+    """Scenario-scoped read, independent of which scenario is active - lets
+    the Simulation tab view a sandbox scenario's allocations without making
+    it active app-wide."""
+    scenario = db.query(models.Scenario).filter(models.Scenario.id == scenario_id).first()
+    if not scenario:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+    return db.query(models.Allocation).join(models.Employee).join(models.Topic).filter(
+        models.Employee.scenario_id == scenario_id,
+        models.Employee.is_deleted == False,
+        models.Topic.is_deleted == False
+    ).all()
+
 
 @app.post("/api/allocations", response_model=schemas.AllocationResponse)
 def save_allocation(alloc: schemas.AllocationUpdate, db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):

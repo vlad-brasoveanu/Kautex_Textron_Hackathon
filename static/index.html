@@ -123,6 +123,9 @@
                     <li class="nav-item admin-only" data-target="upload-section" style="display: none;">
                         <i class="fa-solid fa-cloud-arrow-up"></i> Upload CSV / Excel (Admin)
                     </li>
+                    <li class="nav-item admin-only" data-target="planning-version-section" style="display: none;">
+                        <i class="fa-solid fa-code-branch"></i> Planning Version (Admin)
+                    </li>
                     <li class="nav-item admin-only" data-target="logs-section" style="display: none;">
                         <i class="fa-solid fa-list-check"></i> Audit Logs (Admin)
                     </li>
@@ -471,7 +474,13 @@
             <section id="simulation-section" class="main-section admin-only" style="display: none;">
                 <div class="section-header">
                     <h2><i class="fa-solid fa-flask"></i> Simulation</h2>
-                    <p class="section-desc">Test planning scenarios before committing them &mdash; clone the active plan into a sandbox, try what-if edits, and compare the results against the original.</p>
+                    <p class="section-desc">Test planning scenarios before committing them &mdash; clone the active plan into a private sandbox, try what-if edits, and compare the results against the real planning version. Nothing here is visible anywhere else in the app until you explicitly apply it.</p>
+                </div>
+
+                <!-- Live status of the sandbox you're currently working on (if any) -->
+                <div id="sim-status-banner" class="sim-status-banner sim-status-empty">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <span id="sim-status-text">No simulation in progress. Start one below to begin editing a private sandbox.</span>
                 </div>
 
                 <!-- Setup: start a simulation sandbox from an existing scenario -->
@@ -491,19 +500,107 @@
                     </div>
                     <div class="modal-footer" style="justify-content: flex-start; padding-top: 10px;">
                         <button id="btn-start-simulation" class="btn btn-primary"><i class="fa-solid fa-play"></i> Start Simulation</button>
-                        <button id="btn-cleanup-sandboxes" class="btn btn-secondary"><i class="fa-solid fa-broom"></i> Clean Up Sandboxes</button>
+                        <button id="btn-sim-apply-top" class="btn btn-primary" style="display: none; background: var(--success-color);"><i class="fa-solid fa-check-double"></i> Apply as Active Planning Version</button>
+                        <button id="btn-sim-stop" class="btn btn-danger" style="display: none;"><i class="fa-solid fa-stop"></i> Stop Simulation</button>
                     </div>
-                    <p class="section-desc" style="margin-top: 8px;">Clones the base scenario into a new one and makes it active. All Quick Actions below apply to the currently active scenario.</p>
+                    <p class="section-desc" style="margin-top: 8px;">Cloning creates a private sandbox that stays invisible everywhere else in the app. Quick Actions below only ever edit this sandbox. Nothing changes for anyone else until you click Apply.</p>
                 </div>
 
-                <!-- Quick Actions: apply what-if edits to the active (simulation) scenario -->
+                <!-- Quick Actions: apply what-if edits to the sandbox scenario only -->
                 <h3 style="font-size: 15px; margin-bottom: 4px;"><i class="fa-solid fa-bolt"></i> Quick Actions</h3>
+                <p class="section-desc" id="sim-quick-actions-hint" style="margin: 0 0 10px;">Start a simulation above to enable these.</p>
                 <div class="detail-grid">
                     <div class="detail-card">
                         <h4><i class="fa-solid fa-user-plus"></i> Add New Employee</h4>
-                        <p>Add a new headcount to the active scenario using the standard employee form.</p>
+                        <div class="form-row">
+                            <div class="form-col">
+                                <label for="sim-newemp-name">Full Name</label>
+                                <input type="text" id="sim-newemp-name" placeholder="e.g. John Doe">
+                            </div>
+                            <div class="form-col">
+                                <label for="sim-newemp-team">Team</label>
+                                <input type="text" id="sim-newemp-team" placeholder="e.g. CAE Germany">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col">
+                                <label for="sim-newemp-dept">Department</label>
+                                <select id="sim-newemp-dept">
+                                    <option value="CAE">CAE</option>
+                                    <option value="Test">Test</option>
+                                    <option value="Management">Management</option>
+                                    <option value="Lab">Lab</option>
+                                    <option value="Sampling">Sampling</option>
+                                    <option value="Customer Engineering">Customer Engineering</option>
+                                    <option value="Internal Development">Internal Development</option>
+                                </select>
+                            </div>
+                            <div class="form-col">
+                                <label for="sim-newemp-location">Location</label>
+                                <input type="text" id="sim-newemp-location" placeholder="e.g. Romania">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col">
+                                <label for="sim-newemp-hours">Available Hours/Yr</label>
+                                <input type="number" id="sim-newemp-hours" value="1800">
+                            </div>
+                            <div class="form-col">
+                                <label for="sim-newemp-rate">Hourly Rate ($)</label>
+                                <input type="number" id="sim-newemp-rate" step="0.01" value="50">
+                            </div>
+                        </div>
                         <div class="modal-footer" style="justify-content: flex-start; padding-top: 10px;">
-                            <button id="btn-sim-add-employee" class="btn btn-secondary"><i class="fa-solid fa-user-plus"></i> Add Employee</button>
+                            <button id="btn-sim-add-employee" class="btn btn-secondary"><i class="fa-solid fa-check"></i> Add to Sandbox</button>
+                        </div>
+                    </div>
+
+                    <div class="detail-card">
+                        <h4><i class="fa-solid fa-user-slash"></i> Remove Employee</h4>
+                        <p style="margin-bottom: 8px;">Test the impact of attrition or a layoff on cost and utilization.</p>
+                        <div class="form-row">
+                            <div class="form-col-full">
+                                <label for="sim-remove-emp">Employee</label>
+                                <select id="sim-remove-emp"></select>
+                            </div>
+                        </div>
+                        <div class="modal-footer" style="justify-content: flex-start; padding-top: 10px;">
+                            <button id="btn-sim-remove-employee" class="btn btn-danger"><i class="fa-solid fa-trash-can"></i> Remove from Sandbox</button>
+                        </div>
+                    </div>
+
+                    <div class="detail-card">
+                        <h4><i class="fa-solid fa-diagram-project"></i> Add New Topic</h4>
+                        <p style="margin-bottom: 8px;">Test taking on a new project or initiative.</p>
+                        <div class="form-row">
+                            <div class="form-col-full">
+                                <label for="sim-newtopic-name">Topic Name</label>
+                                <input type="text" id="sim-newtopic-name" placeholder="e.g. New Customer Program">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col">
+                                <label for="sim-newtopic-category">Category</label>
+                                <select id="sim-newtopic-category">
+                                    <option value="Internal Efforts">Internal Efforts</option>
+                                    <option value="Internal D-Projects">Internal D-Projects</option>
+                                    <option value="Customer Requests">Customer Requests</option>
+                                    <option value="Allegro Projects">Allegro Projects</option>
+                                    <option value="Pentatonic Projects">Pentatonic Projects</option>
+                                    <option value="AI Initiatives">AI Initiatives</option>
+                                    <option value="Virtual Validation">Virtual Validation</option>
+                                    <option value="Quality Prediction">Quality Prediction</option>
+                                    <option value="Material Development">Material Development</option>
+                                    <option value="Testing Activities">Testing Activities</option>
+                                </select>
+                            </div>
+                            <div class="form-col">
+                                <label for="sim-newtopic-recovery">Recovery ($)</label>
+                                <input type="number" id="sim-newtopic-recovery" step="0.01" value="0">
+                            </div>
+                        </div>
+                        <div class="modal-footer" style="justify-content: flex-start; padding-top: 10px;">
+                            <button id="btn-sim-add-topic" class="btn btn-secondary"><i class="fa-solid fa-check"></i> Add to Sandbox</button>
                         </div>
                     </div>
 
@@ -592,6 +689,26 @@
                     </div>
 
                     <div class="detail-card">
+                        <h4><i class="fa-solid fa-business-time"></i> Adjust Available Hours</h4>
+                        <p style="margin-bottom: 8px;">Test a part-time / full-time capacity change (e.g. reduced hours, parental leave return).</p>
+                        <div class="form-row">
+                            <div class="form-col-full">
+                                <label for="sim-hours-emp">Employee</label>
+                                <select id="sim-hours-emp"></select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col-full">
+                                <label for="sim-hours-value">New Available Hours/Yr</label>
+                                <input type="number" id="sim-hours-value" min="0" step="1">
+                            </div>
+                        </div>
+                        <div class="modal-footer" style="justify-content: flex-start; padding-top: 10px;">
+                            <button id="btn-sim-apply-hours" class="btn btn-secondary"><i class="fa-solid fa-check"></i> Apply</button>
+                        </div>
+                    </div>
+
+                    <div class="detail-card">
                         <h4><i class="fa-solid fa-sack-dollar"></i> Change Hourly Rate</h4>
                         <div class="form-row">
                             <div class="form-col-full">
@@ -611,7 +728,7 @@
                     </div>
                 </div>
 
-                <!-- Compare: original scenario vs. simulated scenario -->
+                <!-- Compare: any scenario vs. any other, including the real active version -->
                 <h3 style="font-size: 15px; margin: 24px 0 4px;"><i class="fa-solid fa-scale-balanced"></i> Compare Scenarios</h3>
                 <div class="crud-card" style="max-height: none;">
                     <div class="form-row">
@@ -800,6 +917,64 @@
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 5B: PLANNING VERSION MANAGEMENT (ADMIN ONLY) -->
+            <section id="planning-version-section" class="main-section admin-only" style="display: none;">
+                <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px; margin-bottom: 20px;">
+                    <div>
+                        <h2><i class="fa-solid fa-code-branch"></i> Planning Version Management</h2>
+                        <p class="section-desc">Full control over every planning version - switch which one is active, clone, backup/restore, and delete - plus a log of every version-level change. Switching is always reversible: pick any version below to go back to it.</p>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="btn-pv-create" class="btn btn-secondary"><i class="fa-solid fa-plus"></i> New Version</button>
+                        <button id="btn-pv-cleanup-sandboxes" class="btn btn-danger"><i class="fa-solid fa-broom"></i> Clean Up Sandboxes</button>
+                    </div>
+                </div>
+
+                <div class="crud-card" style="max-height: none; width: 100%; margin-bottom: 20px;">
+                    <div class="crud-card-header">
+                        <h3><i class="fa-solid fa-database"></i> All Planning Versions</h3>
+                    </div>
+                    <div class="crud-table-wrapper">
+                        <table class="crud-table" id="pv-scenario-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Description</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="crud-card" style="margin-top: 20px; width: 100%;">
+                    <div class="crud-card-header">
+                        <h3><i class="fa-solid fa-clock-rotate-left"></i> Version Change Log</h3>
+                        <p class="section-desc" style="margin: 0;">Every switch, clone, create, and delete of a planning version, most recent first.</p>
+                    </div>
+                    <div class="crud-table-wrapper" style="max-height: 400px; overflow-y: auto;">
+                        <table class="crud-table" id="pv-log-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 180px;">Timestamp (Local)</th>
+                                    <th style="width: 150px;">User</th>
+                                    <th style="width: 170px;">Action</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </section>

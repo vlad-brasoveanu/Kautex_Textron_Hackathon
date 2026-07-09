@@ -3360,6 +3360,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     fetchAndRenderUsers();
                 } else if (activeSection === "simulation-section") {
                     renderSimulationTab();
+                } else if (activeSection === "planning-version-section") {
+                    renderPlanningVersionTab();
                 }
             });
         });
@@ -5499,16 +5501,66 @@ document.addEventListener("DOMContentLoaded", () => {
     // ==========================================
     // SIMULATION MODULE (WHAT-IF PLANNING)
     // ==========================================
-    // Ported from the "andreeabranch" simulation feature: clone the active
-    // scenario into a sandbox, apply what-if edits via the existing
-    // allocation/employee endpoints, then compare against a baseline via the
-    // per-scenario dashboard report endpoint. Extended with a pros/cons
-    // verdict + one-click "make this the real planning version" action when
-    // comparing against whatever scenario is currently active app-wide, and
-    // with a "send to Presentation Deck" export that plugs into the deck's
-    // existing custom-slide system.
+    // A simulation sandbox is a scenario cloned with activate:false, so it
+    // NEVER becomes the app-wide active scenario - every other page keeps
+    // showing the real planning version the whole time. Quick Actions read
+    // and write the sandbox exclusively through scenario-scoped endpoints
+    // (GET/POST /api/scenarios/{id}/employees|topics, GET .../allocations,
+    // plus the existing row-ID-based PUT/DELETE endpoints which were already
+    // scenario-agnostic), using a dedicated set of sim* variables completely
+    // separate from the app-wide employees/topics/allocations/activeScenario.
+    // Nothing here is visible anywhere else in the app until "Apply as
+    // Active Planning Version" explicitly switches the real active pointer.
+
+    let simScenario = null;
+    let simEmployees = [];
+    let simTopics = [];
+    let simAllocations = [];
+
+    async function fetchSimData() {
+        if (!simScenario) {
+            simEmployees = [];
+            simTopics = [];
+            simAllocations = [];
+            renderSimulationTab();
+            return;
+        }
+        try {
+            const [empRes, topRes, allocRes] = await Promise.all([
+                fetch(`/api/scenarios/${simScenario.id}/employees`),
+                fetch(`/api/scenarios/${simScenario.id}/topics`),
+                fetch(`/api/scenarios/${simScenario.id}/allocations`)
+            ]);
+            simEmployees = await empRes.json();
+            simTopics = await topRes.json();
+            simAllocations = await allocRes.json();
+        } catch (err) {
+            console.error("Error fetching simulation sandbox data:", err);
+        }
+        renderSimulationTab();
+    }
 
     function renderSimulationTab() {
+        // Status banner
+        const banner = document.getElementById("sim-status-banner");
+        const bannerText = document.getElementById("sim-status-text");
+        if (simScenario) {
+            banner.className = "sim-status-banner sim-status-active";
+            bannerText.innerText = `Currently simulating "${simScenario.name}" - ${simEmployees.length} employee(s), ${simTopics.length} topic(s). Only visible on this page until applied.`;
+        } else {
+            banner.className = "sim-status-banner sim-status-empty";
+            bannerText.innerText = "No simulation in progress. Start one below to begin editing a private sandbox.";
+        }
+
+        // Start Simulation / Apply controls
+        document.getElementById("btn-start-simulation").innerHTML = simScenario
+            ? '<i class="fa-solid fa-rotate"></i> Start a New Simulation'
+            : '<i class="fa-solid fa-play"></i> Start Simulation';
+        const btnApplyTop = document.getElementById("btn-sim-apply-top");
+        btnApplyTop.style.display = simScenario ? "inline-flex" : "none";
+        const btnStopTop = document.getElementById("btn-sim-stop");
+        btnStopTop.style.display = simScenario ? "inline-flex" : "none";
+
         const fillScenarioSelect = (select, selectValue) => {
             const prevValue = select.value;
             select.innerHTML = "";
@@ -5525,36 +5577,60 @@ document.addEventListener("DOMContentLoaded", () => {
         };
 
         fillScenarioSelect(document.getElementById("sim-base-scenario"), activeScenario ? activeScenario.id : undefined);
-        fillScenarioSelect(document.getElementById("sim-compare-a"));
-        fillScenarioSelect(document.getElementById("sim-compare-b"), activeScenario ? activeScenario.id : undefined);
+        fillScenarioSelect(document.getElementById("sim-compare-a"), activeScenario ? activeScenario.id : undefined);
+        fillScenarioSelect(document.getElementById("sim-compare-b"), simScenario ? simScenario.id : undefined);
 
-        document.getElementById("sim-new-name").value = activeScenario ? `${activeScenario.name} - Simulation` : "";
+        if (!simScenario) {
+            document.getElementById("sim-new-name").value = activeScenario ? `${activeScenario.name} - Simulation` : "";
+        }
+
+        // Quick Action controls only operate on the sandbox - disable them
+        // entirely (rather than silently no-op) until one exists.
+        const quickActionButtonIds = [
+            "btn-sim-add-employee", "btn-sim-remove-employee", "btn-sim-add-topic",
+            "btn-sim-move-work", "btn-sim-move-team", "btn-sim-adjust-effort",
+            "btn-sim-apply-hours", "btn-sim-apply-rate"
+        ];
+        quickActionButtonIds.forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) btn.disabled = !simScenario;
+        });
+        const quickActionsHint = document.getElementById("sim-quick-actions-hint");
+        if (quickActionsHint) {
+            quickActionsHint.textContent = simScenario
+                ? "Editing the sandbox only - nothing here affects the real planning version until you Apply."
+                : "Start a simulation above to enable these.";
+        }
 
         const fillEmployeeSelect = (select) => {
             const prevValue = select.value;
             select.innerHTML = "";
-            employees.forEach(emp => {
+            simEmployees.forEach(emp => {
                 const opt = document.createElement("option");
                 opt.value = emp.id;
                 opt.innerText = `${emp.name} (${emp.team})`;
                 select.appendChild(opt);
             });
-            if (employees.some(e => e.id == prevValue)) {
+            if (simEmployees.some(e => e.id == prevValue)) {
                 select.value = prevValue;
             }
         };
-        [document.getElementById("sim-rate-emp"), document.getElementById("sim-move-from"), document.getElementById("sim-move-to"), document.getElementById("sim-effort-emp")].forEach(fillEmployeeSelect);
+        [
+            document.getElementById("sim-rate-emp"), document.getElementById("sim-move-from"),
+            document.getElementById("sim-move-to"), document.getElementById("sim-effort-emp"),
+            document.getElementById("sim-remove-emp"), document.getElementById("sim-hours-emp")
+        ].forEach(fillEmployeeSelect);
 
         const fillTopicSelect = (select) => {
             const prevValue = select.value;
             select.innerHTML = "";
-            topics.forEach(topic => {
+            simTopics.forEach(topic => {
                 const opt = document.createElement("option");
                 opt.value = topic.id;
                 opt.innerText = topic.name;
                 select.appendChild(opt);
             });
-            if (topics.some(t => t.id == prevValue)) {
+            if (simTopics.some(t => t.id == prevValue)) {
                 select.value = prevValue;
             }
         };
@@ -5562,7 +5638,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const fillTeamSelect = (select) => {
             const prevValue = select.value;
-            const teams = [...new Set(employees.map(e => e.team))];
+            const teams = [...new Set(simEmployees.map(e => e.team))];
             select.innerHTML = "";
             teams.forEach(team => {
                 const opt = document.createElement("option");
@@ -5576,20 +5652,28 @@ document.addEventListener("DOMContentLoaded", () => {
         };
         [document.getElementById("sim-teammove-from-team"), document.getElementById("sim-teammove-to-team")].forEach(fillTeamSelect);
 
-        // Prefill hourly rate field with the selected employee's current rate
+        // Prefill hourly rate / available hours fields with the selected employee's current values
         const rateEmpSelect = document.getElementById("sim-rate-emp");
         const prefillRate = () => {
-            const emp = employees.find(e => e.id == rateEmpSelect.value);
+            const emp = simEmployees.find(e => e.id == rateEmpSelect.value);
             document.getElementById("sim-rate-value").value = emp ? emp.hourly_rate : "";
         };
         rateEmpSelect.onchange = prefillRate;
         prefillRate();
 
+        const hoursEmpSelect = document.getElementById("sim-hours-emp");
+        const prefillHours = () => {
+            const emp = simEmployees.find(e => e.id == hoursEmpSelect.value);
+            document.getElementById("sim-hours-value").value = emp ? emp.available_hours : "";
+        };
+        hoursEmpSelect.onchange = prefillHours;
+        prefillHours();
+
         // Prefill effort field with the current allocation for the selected employee/topic pair
         const effortTopicSelect = document.getElementById("sim-effort-topic");
         const effortEmpSelect = document.getElementById("sim-effort-emp");
         const prefillEffort = () => {
-            const alloc = allocations.find(a => a.employee_id == effortEmpSelect.value && a.topic_id == effortTopicSelect.value);
+            const alloc = simAllocations.find(a => a.employee_id == effortEmpSelect.value && a.topic_id == effortTopicSelect.value);
             document.getElementById("sim-effort-value").value = alloc ? alloc.percentage : 0;
         };
         effortTopicSelect.onchange = prefillEffort;
@@ -5608,6 +5692,33 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // Switches the real active scenario to `scenarioId`, refreshes the whole
+    // app's data, and - if that scenario was the sandbox we were simulating -
+    // clears simulation state back to "no simulation in progress".
+    async function simApplyAsActive(scenarioId, scenarioName) {
+        if (!confirm(`Make "${scenarioName}" the active planning version? Every page in the app will start reflecting its data immediately. Your other scenarios (including the one it's replacing) stay saved and can be switched back to anytime.`)) {
+            return false;
+        }
+        try {
+            const response = await fetch(`/api/scenarios/active/${scenarioId}`, { method: "POST" });
+            if (response.ok) {
+                if (simScenario && simScenario.id === scenarioId) {
+                    simScenario = null;
+                }
+                await fetchScenarios();
+                await fetchActiveScenario();
+                await refreshAllData();
+                await fetchSimData();
+                alert(`"${scenarioName}" is now the active planning version.`);
+                return true;
+            }
+            alert("Error applying simulation to the real planning version.");
+        } catch (err) {
+            console.error("Error applying simulation:", err);
+        }
+        return false;
+    }
+
     const btnStartSimulation = document.getElementById("btn-start-simulation");
     if (btnStartSimulation) {
         btnStartSimulation.addEventListener("click", async () => {
@@ -5622,13 +5733,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 const response = await fetch(`/api/scenarios/${baseId}/clone`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ new_name: newName, new_description: `[Simulation Sandbox] Cloned from ${baseScenario ? baseScenario.name : "scenario"}` })
+                    body: JSON.stringify({
+                        new_name: newName,
+                        new_description: `[Simulation Sandbox] Cloned from ${baseScenario ? baseScenario.name : "scenario"}`,
+                        activate: false
+                    })
                 });
                 if (response.ok) {
+                    simScenario = await response.json();
                     await fetchScenarios();
-                    await fetchActiveScenario();
-                    await refreshAllData();
-                    renderSimulationTab();
+                    await fetchSimData();
                 } else {
                     alert("Error starting simulation.");
                 }
@@ -5638,44 +5752,132 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    const btnCleanupSandboxes = document.getElementById("btn-cleanup-sandboxes");
-    if (btnCleanupSandboxes) {
-        btnCleanupSandboxes.addEventListener("click", async () => {
-            const sandboxes = scenarios.filter(s => s.description && s.description.toLowerCase().includes("simulation sandbox") && (!activeScenario || s.id !== activeScenario.id));
+    const btnSimApplyTop = document.getElementById("btn-sim-apply-top");
+    if (btnSimApplyTop) {
+        btnSimApplyTop.addEventListener("click", () => {
+            if (!simScenario) return;
+            simApplyAsActive(simScenario.id, simScenario.name);
+        });
+    }
 
-            if (sandboxes.length === 0) {
-                alert("No simulation sandboxes to clean up.");
+    const btnSimStop = document.getElementById("btn-sim-stop");
+    if (btnSimStop) {
+        btnSimStop.addEventListener("click", async () => {
+            if (!simScenario) return;
+            if (!confirm(`Discard the "${simScenario.name}" sandbox? All quick-action edits made in it will be permanently lost. The real active planning version is unaffected.`)) {
                 return;
             }
-
-            if (confirm(`Delete ${sandboxes.length} simulation sandbox scenario(s)? This cannot be undone:\n\n${sandboxes.map(s => `- ${s.name}`).join("\n")}`)) {
-                try {
-                    for (const scen of sandboxes) {
-                        await fetch(`/api/scenarios/${scen.id}`, { method: "DELETE" });
-                    }
+            try {
+                const response = await fetch(`/api/scenarios/${simScenario.id}`, { method: "DELETE" });
+                if (response.ok) {
+                    simScenario = null;
                     await fetchScenarios();
-                    await refreshAllData();
-                    renderSimulationTab();
-                } catch (err) {
-                    console.error("Error cleaning up sandboxes:", err);
+                    await fetchSimData();
+                } else {
+                    alert("Error stopping simulation.");
                 }
+            } catch (err) {
+                console.error("Error stopping simulation:", err);
             }
         });
     }
 
     const btnSimAddEmployee = document.getElementById("btn-sim-add-employee");
     if (btnSimAddEmployee) {
-        btnSimAddEmployee.addEventListener("click", () => {
-            document.getElementById("btn-add-employee").click();
+        btnSimAddEmployee.addEventListener("click", async () => {
+            if (!simScenario) return;
+            const name = document.getElementById("sim-newemp-name").value.trim();
+            const team = document.getElementById("sim-newemp-team").value.trim();
+            const location = document.getElementById("sim-newemp-location").value.trim();
+            if (!name || !team || !location) {
+                alert("Name, Team, and Location are required.");
+                return;
+            }
+            try {
+                const response = await fetch(`/api/scenarios/${simScenario.id}/employees`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        name, team, location,
+                        department: document.getElementById("sim-newemp-dept").value,
+                        available_hours: parseFloat(document.getElementById("sim-newemp-hours").value) || 1800,
+                        hourly_rate: parseFloat(document.getElementById("sim-newemp-rate").value) || 50,
+                        status: "New Position"
+                    })
+                });
+                if (response.ok) {
+                    document.getElementById("sim-newemp-name").value = "";
+                    document.getElementById("sim-newemp-team").value = "";
+                    document.getElementById("sim-newemp-location").value = "";
+                    await fetchSimData();
+                } else {
+                    alert("Error adding employee to the sandbox.");
+                }
+            } catch (err) {
+                console.error("Error adding sim employee:", err);
+            }
+        });
+    }
+
+    const btnSimRemoveEmployee = document.getElementById("btn-sim-remove-employee");
+    if (btnSimRemoveEmployee) {
+        btnSimRemoveEmployee.addEventListener("click", async () => {
+            if (!simScenario) return;
+            const empId = document.getElementById("sim-remove-emp").value;
+            const emp = simEmployees.find(e => e.id == empId);
+            if (!emp) return;
+            if (!confirm(`Remove "${emp.name}" from this sandbox? This only affects the simulation, not the real planning version.`)) return;
+            try {
+                const response = await fetch(`/api/employees/${empId}`, { method: "DELETE" });
+                if (response.ok) {
+                    await fetchSimData();
+                } else {
+                    alert("Error removing employee from the sandbox.");
+                }
+            } catch (err) {
+                console.error("Error removing sim employee:", err);
+            }
+        });
+    }
+
+    const btnSimAddTopic = document.getElementById("btn-sim-add-topic");
+    if (btnSimAddTopic) {
+        btnSimAddTopic.addEventListener("click", async () => {
+            if (!simScenario) return;
+            const name = document.getElementById("sim-newtopic-name").value.trim();
+            if (!name) {
+                alert("Topic name is required.");
+                return;
+            }
+            try {
+                const response = await fetch(`/api/scenarios/${simScenario.id}/topics`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        name,
+                        category: document.getElementById("sim-newtopic-category").value,
+                        recovery: parseFloat(document.getElementById("sim-newtopic-recovery").value) || 0
+                    })
+                });
+                if (response.ok) {
+                    document.getElementById("sim-newtopic-name").value = "";
+                    await fetchSimData();
+                } else {
+                    alert("Error adding topic to the sandbox.");
+                }
+            } catch (err) {
+                console.error("Error adding sim topic:", err);
+            }
         });
     }
 
     const btnSimApplyRate = document.getElementById("btn-sim-apply-rate");
     if (btnSimApplyRate) {
         btnSimApplyRate.addEventListener("click", async () => {
+            if (!simScenario) return;
             const empId = document.getElementById("sim-rate-emp").value;
             const newRate = parseFloat(document.getElementById("sim-rate-value").value);
-            const emp = employees.find(e => e.id == empId);
+            const emp = simEmployees.find(e => e.id == empId);
             if (!emp || isNaN(newRate)) return;
 
             try {
@@ -5689,8 +5891,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     })
                 });
                 if (response.ok) {
-                    await refreshAllData();
-                    renderSimulationTab();
+                    await fetchSimData();
                 } else {
                     alert("Error applying rate change.");
                 }
@@ -5700,9 +5901,40 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    const btnSimApplyHours = document.getElementById("btn-sim-apply-hours");
+    if (btnSimApplyHours) {
+        btnSimApplyHours.addEventListener("click", async () => {
+            if (!simScenario) return;
+            const empId = document.getElementById("sim-hours-emp").value;
+            const newHours = parseFloat(document.getElementById("sim-hours-value").value);
+            const emp = simEmployees.find(e => e.id == empId);
+            if (!emp || isNaN(newHours)) return;
+
+            try {
+                const response = await fetch(`/api/employees/${empId}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        name: emp.name, team: emp.team, department: emp.department, location: emp.location,
+                        available_hours: newHours, hourly_rate: emp.hourly_rate, status: emp.status,
+                        manager: emp.manager, notes: emp.notes
+                    })
+                });
+                if (response.ok) {
+                    await fetchSimData();
+                } else {
+                    alert("Error applying hours change.");
+                }
+            } catch (err) {
+                console.error("Error applying hours change:", err);
+            }
+        });
+    }
+
     const btnSimMoveWork = document.getElementById("btn-sim-move-work");
     if (btnSimMoveWork) {
         btnSimMoveWork.addEventListener("click", async () => {
+            if (!simScenario) return;
             const topicId = document.getElementById("sim-move-topic").value;
             const fromEmpId = document.getElementById("sim-move-from").value;
             const toEmpId = document.getElementById("sim-move-to").value;
@@ -5714,8 +5946,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            const fromAlloc = allocations.find(a => a.employee_id == fromEmpId && a.topic_id == topicId);
-            const toAlloc = allocations.find(a => a.employee_id == toEmpId && a.topic_id == topicId);
+            const fromAlloc = simAllocations.find(a => a.employee_id == fromEmpId && a.topic_id == topicId);
+            const toAlloc = simAllocations.find(a => a.employee_id == toEmpId && a.topic_id == topicId);
             const fromPct = fromAlloc ? fromAlloc.percentage : 0;
             const toPct = toAlloc ? toAlloc.percentage : 0;
             const moved = Math.min(amount, fromPct);
@@ -5723,8 +5955,7 @@ document.addEventListener("DOMContentLoaded", () => {
             try {
                 await simUpsertAllocation(fromEmpId, topicId, fromPct - moved);
                 await simUpsertAllocation(toEmpId, topicId, toPct + moved);
-                await refreshAllData();
-                renderSimulationTab();
+                await fetchSimData();
             } catch (err) {
                 console.error("Error moving work between employees:", err);
             }
@@ -5734,6 +5965,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnSimMoveTeam = document.getElementById("btn-sim-move-team");
     if (btnSimMoveTeam) {
         btnSimMoveTeam.addEventListener("click", async () => {
+            if (!simScenario) return;
             const topicId = document.getElementById("sim-teammove-topic").value;
             const sourceTeam = document.getElementById("sim-teammove-from-team").value;
             const targetTeam = document.getElementById("sim-teammove-to-team").value;
@@ -5745,9 +5977,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            const sourceMembers = employees.filter(e => e.team === sourceTeam);
+            const sourceMembers = simEmployees.filter(e => e.team === sourceTeam);
             const sourceAllocs = sourceMembers
-                .map(emp => ({ emp, alloc: allocations.find(a => a.employee_id == emp.id && a.topic_id == topicId) }))
+                .map(emp => ({ emp, alloc: simAllocations.find(a => a.employee_id == emp.id && a.topic_id == topicId) }))
                 .filter(entry => entry.alloc && entry.alloc.percentage > 0);
 
             if (sourceAllocs.length === 0) {
@@ -5755,7 +5987,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            const targetMembers = employees.filter(e => e.team === targetTeam);
+            const targetMembers = simEmployees.filter(e => e.team === targetTeam);
             if (targetMembers.length === 0) {
                 alert("Selected target team has no employees.");
                 return;
@@ -5771,12 +6003,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     await simUpsertAllocation(entry.emp.id, topicId, entry.alloc.percentage - reduction);
                 }
                 for (const emp of targetMembers) {
-                    const existing = allocations.find(a => a.employee_id == emp.id && a.topic_id == topicId);
+                    const existing = simAllocations.find(a => a.employee_id == emp.id && a.topic_id == topicId);
                     const currentPct = existing ? existing.percentage : 0;
                     await simUpsertAllocation(emp.id, topicId, currentPct + perPersonIncrease);
                 }
-                await refreshAllData();
-                renderSimulationTab();
+                await fetchSimData();
             } catch (err) {
                 console.error("Error moving team workload:", err);
             }
@@ -5786,6 +6017,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnSimAdjustEffort = document.getElementById("btn-sim-adjust-effort");
     if (btnSimAdjustEffort) {
         btnSimAdjustEffort.addEventListener("click", async () => {
+            if (!simScenario) return;
             const topicId = document.getElementById("sim-effort-topic").value;
             const empId = document.getElementById("sim-effort-emp").value;
             const newPct = parseFloat(document.getElementById("sim-effort-value").value);
@@ -5793,8 +6025,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             try {
                 await simUpsertAllocation(empId, topicId, newPct);
-                await refreshAllData();
-                renderSimulationTab();
+                await fetchSimData();
             } catch (err) {
                 console.error("Error adjusting topic effort:", err);
             }
@@ -5816,17 +6047,54 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!scenarioAId || !scenarioBId) return;
 
             try {
-                const [resA, resB] = await Promise.all([
+                const [resA, resB, empResA, empResB, allocResA, allocResB] = await Promise.all([
                     fetch(`/api/reports/dashboard/${scenarioAId}`),
-                    fetch(`/api/reports/dashboard/${scenarioBId}`)
+                    fetch(`/api/reports/dashboard/${scenarioBId}`),
+                    fetch(`/api/scenarios/${scenarioAId}/employees`),
+                    fetch(`/api/scenarios/${scenarioBId}/employees`),
+                    fetch(`/api/scenarios/${scenarioAId}/allocations`),
+                    fetch(`/api/scenarios/${scenarioBId}/allocations`)
                 ]);
                 const reportA = await resA.json();
                 const reportB = await resB.json();
-                renderScenarioComparison(reportA, reportB, parseInt(scenarioAId), parseInt(scenarioBId));
+                const employeeDeltas = computeEmployeeDeltas(
+                    await empResA.json(), await allocResA.json(),
+                    await empResB.json(), await allocResB.json()
+                );
+                renderScenarioComparison(reportA, reportB, parseInt(scenarioAId), parseInt(scenarioBId), employeeDeltas);
             } catch (err) {
                 console.error("Error comparing scenarios:", err);
             }
         });
+    }
+
+    // Matches employees across two scenarios by name (IDs differ once a
+    // scenario has been cloned) and computes each one's total utilization
+    // and annual cost on each side, so Compare can show exactly who is more
+    // or less loaded - not just team/company aggregates.
+    function computeEmployeeDeltas(empsA, allocsA, empsB, allocsB) {
+        const summarize = (emps, allocs) => {
+            const map = {};
+            emps.forEach(emp => {
+                const util = allocs.filter(a => a.employee_id === emp.id).reduce((sum, a) => sum + a.percentage, 0);
+                map[emp.name] = { team: emp.team, util, cost: emp.available_hours * emp.hourly_rate * (util / 100.0) };
+            });
+            return map;
+        };
+        const sideA = summarize(empsA, allocsA);
+        const sideB = summarize(empsB, allocsB);
+        const names = [...new Set([...Object.keys(sideA), ...Object.keys(sideB)])];
+
+        return names.map(name => {
+            const a = sideA[name] || { team: (sideB[name] || {}).team || "-", util: 0, cost: 0 };
+            const b = sideB[name] || { team: (sideA[name] || {}).team || "-", util: 0, cost: 0 };
+            return {
+                name, team: b.team || a.team,
+                utilA: a.util, utilB: b.util,
+                costA: a.cost, costB: b.cost,
+                inA: !!sideA[name], inB: !!sideB[name]
+            };
+        }).sort((x, y) => Math.abs(y.costB - y.costA) - Math.abs(x.costB - x.costA));
     }
 
     // Builds the pros/cons verdict shown when one side of the comparison is
@@ -5900,7 +6168,7 @@ document.addEventListener("DOMContentLoaded", () => {
         `;
     }
 
-    function renderScenarioComparison(reportA, reportB, scenarioAId, scenarioBId) {
+    function renderScenarioComparison(reportA, reportB, scenarioAId, scenarioBId, employeeDeltas) {
         const container = document.getElementById("sim-compare-results");
 
         const money = (val) => `$${val.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
@@ -5995,6 +6263,41 @@ document.addEventListener("DOMContentLoaded", () => {
                     </table>
                 </div>
             </div>
+        `;
+
+        if (employeeDeltas && employeeDeltas.length) {
+            const empRows = employeeDeltas.map(e => {
+                const costDeltaEmp = e.costB - e.costA;
+                const utilDeltaEmp = e.utilB - e.utilA;
+                const presence = !e.inA ? `<span class="badge badge-success" style="font-size:10px;">only in B</span>` : (!e.inB ? `<span class="badge badge-danger" style="font-size:10px;">only in A</span>` : "");
+                return `
+                    <tr>
+                        <td><strong>${e.name}</strong> ${presence}</td>
+                        <td>${e.team}</td>
+                        <td>${utilCell(e.utilA)} &rarr; ${utilCell(e.utilB)}</td>
+                        <td class="${deltaClass(utilDeltaEmp)}">${deltaLabel(utilDeltaEmp, true)}</td>
+                        <td>${money(e.costA)} &rarr; ${money(e.costB)}</td>
+                        <td class="${deltaClass(costDeltaEmp)}">${deltaLabel(costDeltaEmp, false)}</td>
+                    </tr>
+                `;
+            }).join("");
+
+            html += `
+                <div class="crud-card" style="max-height: 340px; margin-top: 16px;">
+                    <div class="crud-card-header"><h3><i class="fa-solid fa-user-clock"></i> Per-Employee Impact</h3></div>
+                    <div class="crud-table-wrapper">
+                        <table class="crud-table">
+                            <thead>
+                                <tr><th>Employee</th><th>Team</th><th>Utilization</th><th>&Delta; Util</th><th>Annual Cost</th><th>&Delta; Cost</th></tr>
+                            </thead>
+                            <tbody>${empRows}</tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        html += `
             <div class="modal-footer" style="justify-content: flex-start; padding-top: 16px; flex-wrap: wrap;">
                 ${applyTargetId !== null ? `<button id="btn-sim-apply-to-real" class="btn btn-primary"><i class="fa-solid fa-check-double"></i> Apply "${applyTargetName}" as the New Active Planning Version</button>` : ""}
                 <button id="btn-add-to-deck" class="btn btn-secondary"><i class="fa-solid fa-file-circle-plus"></i> Add to Presentation Deck</button>
@@ -6005,24 +6308,8 @@ document.addEventListener("DOMContentLoaded", () => {
         container.innerHTML = html;
 
         if (applyTargetId !== null) {
-            document.getElementById("btn-sim-apply-to-real").addEventListener("click", async () => {
-                if (!confirm(`Make "${applyTargetName}" the active planning version? Every page in the app will start reflecting its data immediately. Your other scenarios (including the one it's replacing) stay saved and can be switched back to anytime.`)) {
-                    return;
-                }
-                try {
-                    const response = await fetch(`/api/scenarios/active/${applyTargetId}`, { method: "POST" });
-                    if (response.ok) {
-                        await fetchScenarios();
-                        await fetchActiveScenario();
-                        await refreshAllData();
-                        renderSimulationTab();
-                        alert(`"${applyTargetName}" is now the active planning version.`);
-                    } else {
-                        alert("Error applying simulation to the real planning version.");
-                    }
-                } catch (err) {
-                    console.error("Error applying simulation:", err);
-                }
+            document.getElementById("btn-sim-apply-to-real").addEventListener("click", () => {
+                simApplyAsActive(applyTargetId, applyTargetName);
             });
         }
 
@@ -6163,6 +6450,249 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (err) {
             console.error("Failed to log comparison export:", err);
         }
+    }
+
+    // ==========================================
+    // PLANNING VERSION MANAGEMENT TAB
+    // ==========================================
+    // Full control center for scenarios: switch which one is active (always
+    // reversible - just switch back), clone, backup/restore, delete, and a
+    // filtered log of version-level lifecycle events. Complements the header
+    // dropdown (kept as-is for quick day-to-day switching) with a deeper,
+    // auditable view.
+
+    const PV_LOG_ACTIONS = ["Switch Active Scenario", "Clone Scenario", "Create Scenario", "Delete Scenario"];
+
+    function isSandboxScenario(scenario) {
+        return !!(scenario.description && scenario.description.toLowerCase().includes("simulation sandbox"));
+    }
+
+    async function renderPlanningVersionTab() {
+        renderPvScenarioTable();
+        await fetchAndRenderPvLog();
+    }
+
+    function renderPvScenarioTable() {
+        const tbody = document.querySelector("#pv-scenario-table tbody");
+        if (!tbody) return;
+
+        tbody.innerHTML = [...scenarios]
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+            .map(scen => {
+                const sandboxBadge = isSandboxScenario(scen) ? `<span class="badge badge-secondary" style="font-size:10px; margin-left:6px;">Sandbox</span>` : "";
+                const statusBadge = scen.is_active
+                    ? `<span class="badge badge-success">Active</span>`
+                    : `<span class="badge badge-secondary">Inactive</span>`;
+                const created = new Date(scen.created_at).toLocaleString();
+                return `
+                    <tr>
+                        <td><strong>${scen.name}</strong>${sandboxBadge}</td>
+                        <td style="font-size: 12px; color: var(--text-secondary); max-width: 320px; white-space: normal;">${scen.description || "-"}</td>
+                        <td>${statusBadge}</td>
+                        <td style="font-size: 12px; color: var(--text-secondary);">${created}</td>
+                        <td style="white-space: nowrap;">
+                            ${!scen.is_active ? `<button class="btn btn-primary btn-sm pv-switch" data-id="${scen.id}" data-name="${scen.name}" title="Make Active"><i class="fa-solid fa-check"></i></button>` : ""}
+                            <button class="btn btn-secondary btn-sm pv-clone" data-id="${scen.id}" data-name="${scen.name}" title="Clone"><i class="fa-solid fa-copy"></i></button>
+                            <button class="btn btn-secondary btn-sm pv-backup" data-id="${scen.id}" data-name="${scen.name}" title="Backup (JSON)"><i class="fa-solid fa-file-export"></i></button>
+                            <button class="btn btn-secondary btn-sm pv-restore" data-id="${scen.id}" data-name="${scen.name}" title="Restore from Backup"><i class="fa-solid fa-file-import"></i></button>
+                            ${!scen.is_active ? `<button class="btn btn-danger btn-sm pv-delete" data-id="${scen.id}" data-name="${scen.name}" title="Delete"><i class="fa-solid fa-trash-can"></i></button>` : ""}
+                        </td>
+                    </tr>
+                `;
+            }).join("") || `<tr><td colspan="5" style="text-align:center; color: var(--text-secondary);">No planning versions found.</td></tr>`;
+
+        tbody.querySelectorAll(".pv-switch").forEach(btn => {
+            btn.addEventListener("click", async () => {
+                await simApplyAsActive(parseInt(btn.getAttribute("data-id")), btn.getAttribute("data-name"));
+                renderPlanningVersionTab();
+            });
+        });
+
+        tbody.querySelectorAll(".pv-clone").forEach(btn => {
+            btn.addEventListener("click", async () => {
+                const sourceId = btn.getAttribute("data-id");
+                const sourceName = btn.getAttribute("data-name");
+                const newName = prompt(`New name for the clone of "${sourceName}":`, `Clone of ${sourceName}`);
+                if (!newName || !newName.trim()) return;
+                try {
+                    const response = await fetch(`/api/scenarios/${sourceId}/clone`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ new_name: newName.trim(), new_description: `Clone of ${sourceName}`, activate: false })
+                    });
+                    if (response.ok) {
+                        await fetchScenarios();
+                        renderPlanningVersionTab();
+                        alert(`Cloned "${sourceName}" into "${newName.trim()}". It was NOT made active - switch to it from this table when you're ready.`);
+                    } else {
+                        alert("Error cloning planning version.");
+                    }
+                } catch (err) {
+                    console.error("Error cloning planning version:", err);
+                }
+            });
+        });
+
+        tbody.querySelectorAll(".pv-backup").forEach(btn => {
+            btn.addEventListener("click", async () => {
+                const id = btn.getAttribute("data-id");
+                const name = btn.getAttribute("data-name");
+                try {
+                    const token = localStorage.getItem("token");
+                    const response = await fetch(`/api/scenarios/${id}/backup`, { headers: { "Authorization": `Bearer ${token}` } });
+                    if (response.ok) {
+                        const backupData = await response.json();
+                        const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: "application/json" });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = `${name.toLowerCase().replace(/\s+/g, "_")}_backup.json`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    } else {
+                        alert("Failed to download backup.");
+                    }
+                } catch (err) {
+                    console.error("Backup failed:", err);
+                }
+            });
+        });
+
+        tbody.querySelectorAll(".pv-restore").forEach(btn => {
+            btn.addEventListener("click", () => {
+                const id = btn.getAttribute("data-id");
+                const name = btn.getAttribute("data-name");
+                const fileInput = document.createElement("input");
+                fileInput.type = "file";
+                fileInput.accept = ".json";
+                fileInput.addEventListener("change", async () => {
+                    if (fileInput.files.length === 0) return;
+                    const file = fileInput.files[0];
+                    if (!confirm(`Restore "${name}" from backup file '${file.name}'? This completely overwrites all employees, topics, allocations, and costs for this version.`)) return;
+
+                    const reader = new FileReader();
+                    reader.onload = async (evt) => {
+                        try {
+                            const payload = JSON.parse(evt.target.result);
+                            if (!payload.name || !Array.isArray(payload.employees) || !Array.isArray(payload.topics)) {
+                                alert("Invalid backup file structure.");
+                                return;
+                            }
+                            const token = localStorage.getItem("token");
+                            const response = await fetch(`/api/scenarios/${id}/restore`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                                body: JSON.stringify(payload)
+                            });
+                            if (response.ok) {
+                                await fetchScenarios();
+                                if (activeScenario && activeScenario.id == id) {
+                                    await refreshAllData();
+                                }
+                                renderPlanningVersionTab();
+                                alert(`"${name}" restored from backup.`);
+                            } else {
+                                const err = await response.json();
+                                alert(err.detail || "Failed to restore backup.");
+                            }
+                        } catch (err) {
+                            console.error("Restore failed:", err);
+                            alert("Invalid or corrupted backup file.");
+                        }
+                    };
+                    reader.readAsText(file);
+                });
+                fileInput.click();
+            });
+        });
+
+        tbody.querySelectorAll(".pv-delete").forEach(btn => {
+            btn.addEventListener("click", async () => {
+                const id = btn.getAttribute("data-id");
+                const name = btn.getAttribute("data-name");
+                if (scenarios.length <= 1) {
+                    alert("Cannot delete the only planning version.");
+                    return;
+                }
+                if (!confirm(`Permanently delete planning version "${name}"? This deletes all of its employees, topics, and allocations and cannot be undone.`)) return;
+                try {
+                    const response = await fetch(`/api/scenarios/${id}`, { method: "DELETE" });
+                    if (response.ok) {
+                        if (simScenario && simScenario.id == id) simScenario = null;
+                        await fetchScenarios();
+                        renderPlanningVersionTab();
+                    } else {
+                        alert("Error deleting planning version.");
+                    }
+                } catch (err) {
+                    console.error("Error deleting planning version:", err);
+                }
+            });
+        });
+    }
+
+    async function fetchAndRenderPvLog() {
+        const tbody = document.querySelector("#pv-log-table tbody");
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</td></tr>';
+        try {
+            const token = localStorage.getItem("token");
+            const response = await fetch("/api/admin/logs", { headers: { "Authorization": `Bearer ${token}` } });
+            if (!response.ok) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--danger-color);">Error loading change log.</td></tr>';
+                return;
+            }
+            const logs = (await response.json()).filter(l => PV_LOG_ACTIONS.includes(l.action));
+            if (logs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-secondary);">No planning version changes logged yet.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = logs.map(l => `
+                <tr>
+                    <td style="font-size: 12px; color: var(--text-secondary);">${new Date(l.timestamp + "Z").toLocaleString()}</td>
+                    <td>${l.username}</td>
+                    <td><span class="badge badge-primary" style="font-size:10px;">${l.action}</span></td>
+                    <td style="font-size: 13px;">${l.details || "-"}</td>
+                </tr>
+            `).join("");
+        } catch (err) {
+            console.error("Error fetching planning version log:", err);
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--danger-color);">Connection error.</td></tr>';
+        }
+    }
+
+    const btnPvCreate = document.getElementById("btn-pv-create");
+    if (btnPvCreate) {
+        btnPvCreate.addEventListener("click", () => {
+            document.getElementById("btn-create-scenario").click();
+        });
+    }
+
+    const btnPvCleanupSandboxes = document.getElementById("btn-pv-cleanup-sandboxes");
+    if (btnPvCleanupSandboxes) {
+        btnPvCleanupSandboxes.addEventListener("click", async () => {
+            const sandboxes = scenarios.filter(s => isSandboxScenario(s) && (!activeScenario || s.id !== activeScenario.id));
+
+            if (sandboxes.length === 0) {
+                alert("No simulation sandboxes to clean up.");
+                return;
+            }
+
+            if (confirm(`Delete ${sandboxes.length} simulation sandbox scenario(s)? This cannot be undone:\n\n${sandboxes.map(s => `- ${s.name}`).join("\n")}`)) {
+                try {
+                    for (const scen of sandboxes) {
+                        if (simScenario && simScenario.id === scen.id) simScenario = null;
+                        await fetch(`/api/scenarios/${scen.id}`, { method: "DELETE" });
+                    }
+                    await fetchScenarios();
+                    renderPlanningVersionTab();
+                } catch (err) {
+                    console.error("Error cleaning up sandboxes:", err);
+                }
+            }
+        });
     }
 
     // Launch Application Init

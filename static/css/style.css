@@ -946,6 +946,35 @@ body.role-user-active .matrix-cell-pct:hover {
 /* ==========================================================
    SIMULATION (WHAT-IF PLANNING) TAB
    ========================================================== */
+.sim-status-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    margin-bottom: 18px;
+    font-size: 13px;
+    border: 1px solid var(--glass-border);
+}
+
+.sim-status-banner.sim-status-empty {
+    background: var(--glass-bg);
+    color: var(--text-secondary);
+}
+
+.sim-status-banner.sim-status-active {
+    background: color-mix(in srgb, var(--primary-color) 10%, var(--glass-bg));
+    border-color: color-mix(in srgb, var(--primary-color) 30%, var(--glass-border));
+    color: var(--text-primary);
+}
+
+.sim-status-banner i {
+    font-size: 15px;
+}
+
+.sim-status-banner.sim-status-empty i { color: var(--text-secondary); }
+.sim-status-banner.sim-status-active i { color: var(--primary-color); }
+
 #simulation-section select,
 #simulation-section input[type="text"],
 #simulation-section input[type="number"] {

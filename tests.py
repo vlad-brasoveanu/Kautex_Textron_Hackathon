@@ -258,6 +258,130 @@ def test_simulation_dashboard_report_for_arbitrary_scenario(setup_database):
     assert active_resp.json()["id"] == base_scenario.id
 
 
+def test_simulation_sandbox_stays_isolated_until_applied(setup_database):
+    """The current Simulation tab design: cloning with activate=False must
+    NEVER touch the app-wide active scenario, and all Quick Actions target
+    the sandbox exclusively through scenario-scoped endpoints - so the real
+    active scenario's data (and everything every other page reads) is
+    completely unaffected until an explicit "Apply" switches the pointer."""
+    db = setup_database
+    base_scenario = db.query(models.Scenario).filter(models.Scenario.is_active == True).first()
+
+    emp = models.Employee(
+        scenario_id=base_scenario.id, name="Real Employee", team="Real Team",
+        department="CAE", location="Germany", available_hours=1000.0, hourly_rate=100.0
+    )
+    db.add(emp)
+    db.commit()
+
+    # Clone WITHOUT activating - this is what "Start Simulation" does now.
+    response = client.post(
+        f"/api/scenarios/{base_scenario.id}/clone",
+        json={"new_name": "Isolated Sandbox", "new_description": "[Simulation Sandbox] Cloned from Test Scenario", "activate": False},
+        headers=admin_headers
+    )
+    assert response.status_code == 200
+    sandbox = response.json()
+    assert sandbox["is_active"] is False
+
+    # The real active scenario is completely untouched.
+    active_resp = client.get("/api/scenarios/active", headers=admin_headers)
+    assert active_resp.json()["id"] == base_scenario.id
+    assert active_resp.json()["name"] == "Test Scenario"
+
+    # The global (active-scenario-bound) employee list is unaffected by the
+    # sandbox's existence.
+    global_emps = client.get("/api/employees", headers=admin_headers).json()
+    assert {e["name"] for e in global_emps} == {"Real Employee"}
+
+    # A regular user cannot see the sandbox's scoped data (Simulation is admin-only).
+    response = client.get(f"/api/scenarios/{sandbox['id']}/employees", headers=user_headers)
+    assert response.status_code == 403
+
+    # Scenario-scoped read shows the sandbox's own (cloned) roster.
+    sandbox_emps = client.get(f"/api/scenarios/{sandbox['id']}/employees", headers=admin_headers).json()
+    assert {e["name"] for e in sandbox_emps} == {"Real Employee"}
+
+    # Scenario-scoped create (the "Add New Employee" Quick Action) adds to
+    # the sandbox only - never touches the real scenario's roster.
+    response = client.post(
+        f"/api/scenarios/{sandbox['id']}/employees",
+        json={"name": "Sandbox-Only Hire", "team": "Real Team", "department": "CAE", "location": "Germany"},
+        headers=admin_headers
+    )
+    assert response.status_code == 200
+    sandbox_emps = client.get(f"/api/scenarios/{sandbox['id']}/employees", headers=admin_headers).json()
+    assert {e["name"] for e in sandbox_emps} == {"Real Employee", "Sandbox-Only Hire"}
+
+    global_emps = client.get("/api/employees", headers=admin_headers).json()
+    assert {e["name"] for e in global_emps} == {"Real Employee"}  # still unaffected
+
+    # Scenario-scoped topic create likewise only affects the sandbox.
+    response = client.post(
+        f"/api/scenarios/{sandbox['id']}/topics",
+        json={"name": "Sandbox-Only Topic", "category": "Internal Efforts"},
+        headers=admin_headers
+    )
+    assert response.status_code == 200
+    sandbox_topics = client.get(f"/api/scenarios/{sandbox['id']}/topics", headers=admin_headers).json()
+    assert {t["name"] for t in sandbox_topics} == {"Sandbox-Only Topic"}
+    assert client.get("/api/topics", headers=admin_headers).json() == []
+
+    # Existing PUT/allocation endpoints are scenario-agnostic by row ID, so
+    # they can edit the sandbox's employee directly without any special
+    # scenario-scoped variant.
+    hire = next(e for e in sandbox_emps if e["name"] == "Sandbox-Only Hire")
+    response = client.put(
+        f"/api/employees/{hire['id']}",
+        json={**hire, "hourly_rate": 999.0},
+        headers=admin_headers
+    )
+    assert response.status_code == 200
+    sandbox_emps_after = client.get(f"/api/scenarios/{sandbox['id']}/employees", headers=admin_headers).json()
+    assert next(e for e in sandbox_emps_after if e["name"] == "Sandbox-Only Hire")["hourly_rate"] == 999.0
+
+    # Applying the simulation switches the active pointer - and only now
+    # does the sandbox's data become visible through the global endpoints.
+    response = client.post(f"/api/scenarios/active/{sandbox['id']}", headers=admin_headers)
+    assert response.status_code == 200
+    global_emps = client.get("/api/employees", headers=admin_headers).json()
+    assert {e["name"] for e in global_emps} == {"Real Employee", "Sandbox-Only Hire"}
+
+
+def test_scenario_lifecycle_audit_logging(setup_database):
+    db = setup_database
+    base_scenario = db.query(models.Scenario).filter(models.Scenario.is_active == True).first()
+
+    response = client.post("/api/scenarios", json={"name": "Brand New Version", "description": "test"}, headers=admin_headers)
+    assert response.status_code == 200
+    new_id = response.json()["id"]
+
+    response = client.post(f"/api/scenarios/active/{base_scenario.id}", headers=admin_headers)
+    assert response.status_code == 200
+
+    response = client.post(
+        f"/api/scenarios/{base_scenario.id}/clone",
+        json={"new_name": "Cloned Version", "activate": False},
+        headers=admin_headers
+    )
+    assert response.status_code == 200
+    cloned_id = response.json()["id"]
+
+    response = client.delete(f"/api/scenarios/{new_id}", headers=admin_headers)
+    assert response.status_code == 200
+
+    logs = client.get("/api/admin/logs", headers=admin_headers).json()
+    actions = [l["action"] for l in logs]
+    assert "Create Scenario" in actions
+    assert "Switch Active Scenario" in actions
+    assert "Clone Scenario" in actions
+    assert "Delete Scenario" in actions
+
+    clone_log = next(l for l in logs if l["action"] == "Clone Scenario")
+    assert "Cloned Version" in clone_log["details"]
+    assert "sandbox, not activated" in clone_log["details"]
+
+
 def test_local_ai_query_assistant(setup_database):
     db = setup_database
     scenario = db.query(models.Scenario).filter(models.Scenario.is_active == True).first()
