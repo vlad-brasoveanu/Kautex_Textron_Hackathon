@@ -3,6 +3,35 @@
    FastAPI integration, Matrix Grid Renderer, and Local AI Chat
    ========================================================== */
 
+// Cold-start overlay: free-tier hosts (Render) spin the backend down after
+// idle and take 30-60s to wake on the next request. If an /api/ request is
+// still pending after a few seconds, show a "waking up" overlay instead of
+// leaving the page looking stalled/broken.
+let pendingApiRequests = 0;
+let coldStartTimer = null;
+function markApiRequestStart(url) {
+    if (typeof url !== "string" || !url.startsWith("/api/")) return;
+    pendingApiRequests++;
+    if (!coldStartTimer) {
+        coldStartTimer = setTimeout(() => {
+            if (pendingApiRequests > 0) {
+                const overlay = document.getElementById("cold-start-overlay");
+                if (overlay) overlay.style.display = "flex";
+            }
+        }, 4000);
+    }
+}
+function markApiRequestEnd(url) {
+    if (typeof url !== "string" || !url.startsWith("/api/")) return;
+    pendingApiRequests = Math.max(0, pendingApiRequests - 1);
+    if (pendingApiRequests === 0) {
+        clearTimeout(coldStartTimer);
+        coldStartTimer = null;
+        const overlay = document.getElementById("cold-start-overlay");
+        if (overlay) overlay.style.display = "none";
+    }
+}
+
 // Global Fetch Interceptor - the session is an HttpOnly cookie, which the
 // browser attaches to same-origin requests automatically, so this no longer
 // needs to manage an Authorization header itself. It still auto-detects
@@ -16,17 +45,22 @@ window.fetch = async function (url, options = {}) {
         options.headers["Content-Type"] = "application/json";
     }
 
-    const response = await originalFetch(url, options);
-    if (response.status === 401 && !url.includes("/api/auth/login") && !url.includes("/api/auth/me")) {
-        // Unauthorized or expired session, force logout
-        localStorage.removeItem("role");
-        localStorage.removeItem("username");
-        localStorage.removeItem("name");
-        document.body.classList.remove("authenticated");
-        window.location.reload();
-        throw new Error("Session expired or invalid. Redirecting to sign in.");
+    markApiRequestStart(url);
+    try {
+        const response = await originalFetch(url, options);
+        if (response.status === 401 && !url.includes("/api/auth/login") && !url.includes("/api/auth/me")) {
+            // Unauthorized or expired session, force logout
+            localStorage.removeItem("role");
+            localStorage.removeItem("username");
+            localStorage.removeItem("name");
+            document.body.classList.remove("authenticated");
+            window.location.reload();
+            throw new Error("Session expired or invalid. Redirecting to sign in.");
+        }
+        return response;
+    } finally {
+        markApiRequestEnd(url);
     }
-    return response;
 };
 
 document.addEventListener("DOMContentLoaded", () => {

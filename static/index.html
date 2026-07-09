@@ -19,6 +19,17 @@
 </head>
 <body>
 
+    <!-- Cold-start overlay: shown when a request has been pending for a
+         while, which on a free-tier host usually means the backend is
+         waking up from an idle spin-down rather than actually broken. -->
+    <div id="cold-start-overlay" class="cold-start-overlay" style="display: none;">
+        <div class="cold-start-card glass">
+            <div class="cold-start-spinner"><i class="fa-solid fa-server"></i></div>
+            <h3>Starting up the server&hellip;</h3>
+            <p>This app is hosted on a free tier that goes to sleep when idle. It's waking back up now &mdash; this can take up to a minute on the first request.</p>
+        </div>
+    </div>
+
     <!-- Login Screen Overlay -->
     <div id="login-overlay" class="login-overlay">
         <div class="login-card glass animate-login-pop">
