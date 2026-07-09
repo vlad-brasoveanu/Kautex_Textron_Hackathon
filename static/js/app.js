@@ -38,6 +38,8 @@ document.addEventListener("DOMContentLoaded", () => {
     let topics = [];
     let allocations = [];
     let dashboardData = null;
+    let trashData = { employees: [], topics: [] };
+    let selectedEmployeeIds = new Set();
     
     let activeRole = "admin"; // admin or user
     let activeSection = "matrix-section";
@@ -222,6 +224,9 @@ document.addEventListener("DOMContentLoaded", () => {
             renderPresentationDeck();
             renderCRUDTables();
             await fetchAIPredictions();
+            if (activeRole !== "user") {
+                await fetchTrash();
+            }
         } catch (error) {
             console.error("Error refreshing planning data:", error);
         } finally {
@@ -1834,9 +1839,14 @@ document.addEventListener("DOMContentLoaded", () => {
             return (valA - valB) * empSortOrder;
         });
 
+        // Selections for employees no longer visible/present are dropped
+        const visibleEmpIds = new Set(filteredEmps.map(e => e.id));
+        selectedEmployeeIds.forEach(id => { if (!visibleEmpIds.has(id)) selectedEmployeeIds.delete(id); });
+
         filteredEmps.forEach(emp => {
             const tr = document.createElement("tr");
             tr.innerHTML = `
+                <td><input type="checkbox" class="bulk-select-emp admin-only" data-id="${emp.id}" ${selectedEmployeeIds.has(emp.id) ? "checked" : ""}></td>
                 <td><strong>${emp.name}</strong></td>
                 <td>${emp.team}</td>
                 <td>${emp.location}</td>
@@ -1905,8 +1915,97 @@ document.addEventListener("DOMContentLoaded", () => {
             btn.addEventListener("click", () => deleteTopicPrompt(btn.getAttribute("data-id")));
         });
 
+        // Bulk-select checkboxes
+        document.querySelectorAll(".bulk-select-emp").forEach(cb => {
+            cb.addEventListener("change", () => {
+                const id = parseInt(cb.getAttribute("data-id"), 10);
+                if (cb.checked) selectedEmployeeIds.add(id);
+                else selectedEmployeeIds.delete(id);
+                updateBulkEditToolbar();
+            });
+        });
+        const selectAllEmp = document.getElementById("bulk-select-all-emp");
+        if (selectAllEmp) {
+            selectAllEmp.checked = filteredEmps.length > 0 && filteredEmps.every(e => selectedEmployeeIds.has(e.id));
+            selectAllEmp.onchange = () => {
+                if (selectAllEmp.checked) {
+                    filteredEmps.forEach(e => selectedEmployeeIds.add(e.id));
+                } else {
+                    filteredEmps.forEach(e => selectedEmployeeIds.delete(e.id));
+                }
+                renderCRUDTables();
+            };
+        }
+        updateBulkEditToolbar();
+
         // Hide/Show action buttons based on Active Role
         toggleRoleUIVisibility();
+    }
+
+    function updateBulkEditToolbar() {
+        const toolbar = document.getElementById("bulk-edit-toolbar");
+        const countEl = document.getElementById("bulk-edit-count");
+        if (!toolbar || !countEl) return;
+        const count = selectedEmployeeIds.size;
+        countEl.textContent = `${count} selected`;
+        toolbar.style.display = (count > 0 && activeRole !== "user") ? "flex" : "none";
+    }
+
+    async function fetchTrash() {
+        try {
+            const response = await fetch("/api/trash");
+            if (response.ok) {
+                trashData = await response.json();
+                renderTrash();
+            }
+        } catch (err) {
+            console.error("Error fetching trash:", err);
+        }
+    }
+
+    function renderTrash() {
+        const body = document.querySelector("#trash-table tbody");
+        if (!body) return;
+        body.innerHTML = "";
+
+        const rows = [
+            ...trashData.employees.map(e => ({ type: "Employee", id: e.id, name: e.name, details: `${e.team} / ${e.location}`, deleted_at: e.deleted_at })),
+            ...trashData.topics.map(t => ({ type: "Topic", id: t.id, name: t.name, details: t.category, deleted_at: t.deleted_at }))
+        ].sort((a, b) => new Date(b.deleted_at) - new Date(a.deleted_at));
+
+        if (rows.length === 0) {
+            body.innerHTML = `<tr><td colspan="5" style="text-align:center; opacity:0.6; padding: 16px;">Trash is empty.</td></tr>`;
+            return;
+        }
+
+        rows.forEach(r => {
+            const tr = document.createElement("tr");
+            const when = r.deleted_at ? new Date(r.deleted_at).toLocaleString() : "-";
+            tr.innerHTML = `
+                <td><span class="badge">${r.type}</span></td>
+                <td><strong>${r.name}</strong></td>
+                <td>${r.details}</td>
+                <td>${when}</td>
+                <td><button class="btn btn-secondary btn-restore-trash" data-type="${r.type}" data-id="${r.id}" style="padding: 4px 10px; font-size: 12px;"><i class="fa-solid fa-trash-arrow-up"></i> Restore</button></td>
+            `;
+            body.appendChild(tr);
+        });
+
+        document.querySelectorAll(".btn-restore-trash").forEach(btn => {
+            btn.addEventListener("click", async () => {
+                const type = btn.getAttribute("data-type");
+                const id = btn.getAttribute("data-id");
+                const endpoint = type === "Employee" ? `/api/employees/${id}/restore` : `/api/topics/${id}/restore`;
+                try {
+                    const response = await fetch(endpoint, { method: "POST" });
+                    if (response.ok) {
+                        await refreshAllData();
+                    }
+                } catch (err) {
+                    console.error("Error restoring from trash:", err);
+                }
+            });
+        });
     }
 
     function toggleRoleUIVisibility() {
@@ -2092,6 +2191,87 @@ document.addEventListener("DOMContentLoaded", () => {
 
         document.getElementById("btn-add-employee").addEventListener("click", openAddEmployeeModal);
         document.getElementById("btn-add-topic").addEventListener("click", openAddTopicModal);
+
+        // Bulk Edit Employees
+        document.getElementById("btn-bulk-clear").addEventListener("click", () => {
+            selectedEmployeeIds.clear();
+            renderCRUDTables();
+        });
+
+        document.getElementById("btn-bulk-edit").addEventListener("click", () => {
+            if (selectedEmployeeIds.size === 0) return;
+            document.getElementById("form-bulk-edit").reset();
+            document.querySelectorAll("#form-bulk-edit input, #form-bulk-edit select").forEach(el => {
+                if (el.type !== "checkbox") el.disabled = true;
+            });
+            document.getElementById("bulk-edit-target-desc").textContent =
+                `Applying to ${selectedEmployeeIds.size} employee${selectedEmployeeIds.size === 1 ? "" : "s"}. Leave a field blank/unchecked to leave it unchanged.`;
+            document.getElementById("modal-bulk-edit").classList.add("active");
+        });
+
+        // Each bulk-set-* checkbox enables/disables its paired input(s)
+        [
+            ["bulk-set-team", ["bulk-team"]],
+            ["bulk-set-dept", ["bulk-dept"]],
+            ["bulk-set-location", ["bulk-location"]],
+            ["bulk-set-manager", ["bulk-manager"]],
+            ["bulk-set-status", ["bulk-status"]],
+            ["bulk-set-rate", ["bulk-rate-mode", "bulk-rate"]]
+        ].forEach(([checkboxId, fieldIds]) => {
+            const cb = document.getElementById(checkboxId);
+            cb.addEventListener("change", () => {
+                fieldIds.forEach(fid => { document.getElementById(fid).disabled = !cb.checked; });
+            });
+        });
+
+        document.getElementById("form-bulk-edit").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const payload = { employee_ids: [...selectedEmployeeIds] };
+
+            if (document.getElementById("bulk-set-team").checked) {
+                payload.team = document.getElementById("bulk-team").value;
+            }
+            if (document.getElementById("bulk-set-dept").checked) {
+                payload.department = document.getElementById("bulk-dept").value;
+            }
+            if (document.getElementById("bulk-set-location").checked) {
+                payload.location = document.getElementById("bulk-location").value;
+            }
+            if (document.getElementById("bulk-set-manager").checked) {
+                payload.manager = document.getElementById("bulk-manager").value;
+            }
+            if (document.getElementById("bulk-set-status").checked) {
+                payload.status = document.getElementById("bulk-status").value;
+            }
+            if (document.getElementById("bulk-set-rate").checked) {
+                const rateVal = parseFloat(document.getElementById("bulk-rate").value);
+                if (!isNaN(rateVal)) {
+                    if (document.getElementById("bulk-rate-mode").value === "set") {
+                        payload.hourly_rate_set = rateVal;
+                    } else {
+                        payload.hourly_rate_adjust_pct = rateVal;
+                    }
+                }
+            }
+
+            try {
+                const response = await fetch("/api/employees/bulk", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                if (response.ok) {
+                    document.getElementById("modal-bulk-edit").classList.remove("active");
+                    selectedEmployeeIds.clear();
+                    await refreshAllData();
+                } else {
+                    const err = await response.json();
+                    alert(`Bulk edit failed: ${err.detail || "Unknown error"}`);
+                }
+            } catch (err) {
+                console.error("Error applying bulk edit:", err);
+            }
+        });
         document.getElementById("btn-matrix-add-employee").addEventListener("click", openAddEmployeeModal);
         document.getElementById("btn-matrix-add-topic").addEventListener("click", openAddTopicModal);
 
@@ -2783,10 +2963,71 @@ document.addEventListener("DOMContentLoaded", () => {
     async function uploadCSV(file) {
         const statusBox = document.getElementById("upload-status");
         statusBox.style.display = "block";
+        statusBox.innerHTML = `<h4><i class="fa-solid fa-spinner fa-spin"></i> Analyzing file: ${file.name}...</h4>`;
+
+        // AI-assisted column mapping: preview the headers first. If any column
+        // looks like a mistyped/abbreviated known field (e.g. "Hrly Rate"),
+        // give the admin a chance to confirm the remap before committing the
+        // import - otherwise it would silently become a bogus new topic column.
+        try {
+            const previewForm = new FormData();
+            previewForm.append("file", file);
+            const previewRes = await fetch("/api/import/preview", { method: "POST", body: previewForm });
+            if (previewRes.ok) {
+                const previewData = await previewRes.json();
+                if (previewData.suggested_mappings && previewData.suggested_mappings.length > 0) {
+                    renderColumnMappingConfirmation(file, previewData.suggested_mappings);
+                    return;
+                }
+            }
+        } catch (err) {
+            console.error("Error previewing column mapping:", err);
+            // Preview is a best-effort assist - fall through to a direct import.
+        }
+
+        await performCSVImport(file, {});
+    }
+
+    function renderColumnMappingConfirmation(file, suggestions) {
+        const statusBox = document.getElementById("upload-status");
+        statusBox.innerHTML = `
+            <h4><i class="fa-solid fa-wand-magic-sparkles"></i> AI-Suggested Column Mapping</h4>
+            <p>Some columns look like mistyped or abbreviated versions of known fields. Confirm the ones you want remapped - unchecked columns will import as brand-new topic/project columns instead.</p>
+            <div id="mapping-suggestions-list" style="display:flex; flex-direction:column; gap:6px; margin: 10px 0;">
+                ${suggestions.map(s => `
+                    <label style="display:flex; align-items:center; gap:8px; font-size: 13px;">
+                        <input type="checkbox" class="mapping-suggestion-cb" data-header="${s.header}" data-field="${s.suggested_field}" checked>
+                        Map column "<strong>${s.header}</strong>" &rarr; <strong>${s.suggested_label}</strong> <span style="opacity:0.6;">(${Math.round(s.confidence * 100)}% match)</span>
+                    </label>
+                `).join("")}
+            </div>
+            <div style="display:flex; gap:8px; margin-top: 8px;">
+                <button id="btn-confirm-mapping" class="btn btn-primary">Continue Import</button>
+                <button id="btn-skip-mapping" class="btn btn-secondary">Import As-Is (Ignore Suggestions)</button>
+            </div>
+        `;
+
+        document.getElementById("btn-confirm-mapping").addEventListener("click", async () => {
+            const mapping = {};
+            document.querySelectorAll(".mapping-suggestion-cb").forEach(cb => {
+                if (cb.checked) mapping[cb.getAttribute("data-header")] = cb.getAttribute("data-field");
+            });
+            await performCSVImport(file, mapping);
+        });
+        document.getElementById("btn-skip-mapping").addEventListener("click", async () => {
+            await performCSVImport(file, {});
+        });
+    }
+
+    async function performCSVImport(file, columnMapping) {
+        const statusBox = document.getElementById("upload-status");
         statusBox.innerHTML = `<h4><i class="fa-solid fa-spinner fa-spin"></i> Processing file: ${file.name}...</h4>`;
-        
+
         const formData = new FormData();
         formData.append("file", file);
+        if (columnMapping && Object.keys(columnMapping).length > 0) {
+            formData.append("column_mapping", JSON.stringify(columnMapping));
+        }
 
         try {
             const response = await fetch("/api/import/csv", {
@@ -2931,7 +3172,7 @@ document.addEventListener("DOMContentLoaded", () => {
     async function deleteEmployeePrompt(id) {
         const emp = employees.find(e => e.id == id);
         if (!emp) return;
-        if (confirm(`Are you sure you want to delete employee '${emp.name}'? This removes all allocation history in active scenario.`)) {
+        if (confirm(`Move employee '${emp.name}' to Trash? Their allocations will be hidden until restored from the Trash panel.`)) {
             try {
                 const response = await fetch(`/api/employees/${id}`, { method: "DELETE" });
                 if (response.ok) {
@@ -2964,7 +3205,7 @@ document.addEventListener("DOMContentLoaded", () => {
     async function deleteTopicPrompt(id) {
         const topic = topics.find(t => t.id == id);
         if (!topic) return;
-        if (confirm(`Are you sure you want to delete topic '${topic.name}'? This deletes all allocation percentages and additional costs associated.`)) {
+        if (confirm(`Move topic '${topic.name}' to Trash? Its allocations and additional costs will be hidden until restored from the Trash panel.`)) {
             try {
                 const response = await fetch(`/api/topics/${id}`, { method: "DELETE" });
                 if (response.ok) {
@@ -3476,6 +3717,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 
                 // Rerender matrix with the new filters
                 renderAllocationMatrix();
+            }
+
+            if (resData.action_executed) {
+                // The AI directly changed allocation data - refresh everything
+                // (matrix, dashboards, presentation deck) to reflect the new state.
+                await refreshAllData();
             }
         } catch (err) {
             console.error("Error asking local AI query:", err);

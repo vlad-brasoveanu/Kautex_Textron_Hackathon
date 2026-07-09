@@ -1,6 +1,7 @@
 import pytest
 import io
 import csv
+import json
 import openpyxl
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -247,6 +248,64 @@ def test_local_ai_query_assistant(setup_database):
     assert response.status_code == 200
     assert "guardrails" in response.json()["answer"] or "outside my planning scope" in response.json()["answer"]
 
+def test_ai_chat_executes_allocation_changes(setup_database):
+    db = setup_database
+    scenario = db.query(models.Scenario).filter(models.Scenario.is_active == True).first()
+
+    emp = models.Employee(
+        scenario_id=scenario.id, name="Marcus Reyes", team="CAE Germany",
+        department="CAE", location="Germany", hourly_rate=90.0
+    )
+    topic_fuel = models.Topic(scenario_id=scenario.id, name="Fuel Project", category="Customer Requests")
+    topic_agentic = models.Topic(scenario_id=scenario.id, name="Agentic AI", category="Internal Efforts")
+    db.add_all([emp, topic_fuel, topic_agentic])
+    db.commit()
+    db.refresh(emp)
+    db.refresh(topic_fuel)
+    db.refresh(topic_agentic)
+
+    alloc = models.Allocation(employee_id=emp.id, topic_id=topic_fuel.id, percentage=40.0)
+    db.add(alloc)
+    db.commit()
+
+    # A regular user cannot execute an allocation change, only get told to ask an admin
+    response = client.post("/api/ai/query", json={"query": "set Marcus Reyes's allocation on Fuel Project to 60%"}, headers=user_headers)
+    assert response.status_code == 200
+    assert "only Admins can execute" in response.json()["answer"]
+    assert not response.json().get("action_executed")
+
+    # An admin can set an allocation directly via chat
+    response = client.post("/api/ai/query", json={"query": "set Marcus Reyes's allocation on Fuel Project to 60%"}, headers=admin_headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert data.get("action_executed") is True
+    assert "60.0%" in data["answer"]
+
+    alloc_resp = client.get("/api/allocations", headers=admin_headers)
+    match = next(a for a in alloc_resp.json() if a["employee_id"] == emp.id and a["topic_id"] == topic_fuel.id)
+    assert match["percentage"] == 60.0
+
+    # An admin can move allocation between two topics via chat
+    response = client.post(
+        "/api/ai/query",
+        json={"query": "move 20% of Marcus Reyes's Fuel Project time to Agentic AI"},
+        headers=admin_headers
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data.get("action_executed") is True
+
+    alloc_resp = client.get("/api/allocations", headers=admin_headers).json()
+    fuel_alloc = next(a for a in alloc_resp if a["employee_id"] == emp.id and a["topic_id"] == topic_fuel.id)
+    agentic_alloc = next(a for a in alloc_resp if a["employee_id"] == emp.id and a["topic_id"] == topic_agentic.id)
+    assert fuel_alloc["percentage"] == 40.0
+    assert agentic_alloc["percentage"] == 20.0
+
+    # Audit log records the AI-triggered change
+    log_resp = client.get("/api/admin/logs", headers=admin_headers)
+    assert any(l["action"] == "AI Chat Allocation Change" for l in log_resp.json())
+
+
 def test_ai_predictions_endpoint(setup_database):
     response = client.get("/api/reports/ai-predictions", headers=user_headers)
     assert response.status_code == 200
@@ -254,6 +313,34 @@ def test_ai_predictions_endpoint(setup_database):
     assert "bottlenecks" in data
     assert "cost_optimizations" in data
     assert "reallocations" in data
+
+
+def test_ai_predictions_enriched_by_llm(setup_database, monkeypatch):
+    # No LLM reachable -> heuristic-only predictions, unaffected by the enrichment layer.
+    import main
+    monkeypatch.setattr(main, "query_local_ollama", lambda prompt: None)
+    response = client.get("/api/reports/ai-predictions", headers=user_headers)
+    assert response.status_code == 200
+    baseline_bottleneck_count = len(response.json()["bottlenecks"])
+
+    # A real portfolio-data-fed LLM response should be parsed and appended.
+    llm_json = (
+        '{"bottlenecks": [{"type": "Skill Concentration Risk", "severity": "Medium", '
+        '"description": "Only one CAE engineer covers thermal simulation work."}], '
+        '"cost_optimizations": [], "reallocations": []}'
+    )
+    monkeypatch.setattr(main, "query_local_ollama", lambda prompt: f"Here is my analysis:\n{llm_json}\nHope this helps!")
+    response = client.get("/api/reports/ai-predictions", headers=user_headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["bottlenecks"]) == baseline_bottleneck_count + 1
+    assert any(b["type"] == "Skill Concentration Risk" for b in data["bottlenecks"])
+
+    # Malformed LLM output must not break the endpoint - it should just fall back.
+    monkeypatch.setattr(main, "query_local_ollama", lambda prompt: "not valid json at all")
+    response = client.get("/api/reports/ai-predictions", headers=user_headers)
+    assert response.status_code == 200
+    assert len(response.json()["bottlenecks"]) == baseline_bottleneck_count
 
 def test_local_ai_conversation_memory(setup_database):
     history = [
@@ -371,6 +458,72 @@ def test_csv_importer(setup_database):
     assert res_data["imported_topics"] == 1
     assert res_data["imported_allocations"] == 1
     assert res_data["imported_additional_costs"] == 1
+
+def test_ai_assisted_column_mapping(setup_database):
+    # "Hrly Rate" and "Loc" are mistyped/abbreviated versions of known meta
+    # columns - the preview endpoint should suggest remapping them instead of
+    # letting them silently become bogus new topic columns.
+    csv_data = [
+        ["Employee", "Team", "Loc", "Hours/Year", "Hrly Rate", "Fuel Project"],
+        ["Mapping User", "Test Team", "Romania", "1800", "70.0", "40%"],
+    ]
+    output = io.StringIO()
+    csv.writer(output).writerows(csv_data)
+    csv_content = output.getvalue()
+
+    response = client.post(
+        "/api/import/preview",
+        files={"file": ("mapping_test.csv", csv_content, "text/csv")},
+        headers=admin_headers
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["headers"] == ["Employee", "Team", "Loc", "Hours/Year", "Hrly Rate", "Fuel Project"]
+
+    suggestion_headers = {s["header"]: s for s in data["suggested_mappings"]}
+    assert "Loc" in suggestion_headers
+    assert suggestion_headers["Loc"]["suggested_field"] == "location"
+    assert "Hrly Rate" in suggestion_headers
+    assert suggestion_headers["Hrly Rate"]["suggested_field"] == "rate"
+    # A real topic column should never be suggested as a meta-field remap
+    assert "Fuel Project" not in suggestion_headers
+
+    # A regular user cannot preview an import
+    response = client.post(
+        "/api/import/preview",
+        files={"file": ("mapping_test.csv", csv_content, "text/csv")},
+        headers=user_headers
+    )
+    assert response.status_code == 403
+
+    # Without confirming the mapping, "Loc" and "Hrly Rate" are treated as
+    # unrecognized columns (i.e. phantom topic columns), not Location/Rate.
+    response = client.post(
+        "/api/import/csv",
+        files={"file": ("mapping_test.csv", csv_content, "text/csv")},
+        headers=admin_headers
+    )
+    assert response.status_code == 200
+    emp_resp = client.get("/api/employees", headers=admin_headers)
+    mapped_emp = next(e for e in emp_resp.json() if e["name"] == "Mapping User")
+    assert mapped_emp["location"] == "Unassigned"
+    assert mapped_emp["hourly_rate"] == 50.0  # default, since "Hrly Rate" wasn't recognized
+
+    # Now confirm the suggested mapping and re-import - the columns should
+    # resolve correctly this time.
+    column_mapping = json.dumps({"Loc": "location", "Hrly Rate": "rate"})
+    response = client.post(
+        "/api/import/csv",
+        files={"file": ("mapping_test.csv", csv_content, "text/csv")},
+        data={"column_mapping": column_mapping},
+        headers=admin_headers
+    )
+    assert response.status_code == 200
+    emp_resp = client.get("/api/employees", headers=admin_headers)
+    mapped_emp = next(e for e in emp_resp.json() if e["name"] == "Mapping User")
+    assert mapped_emp["location"] == "Romania"
+    assert mapped_emp["hourly_rate"] == 70.0
+
 
 def test_upload_history_recorded_and_reapplied(setup_database):
     # 1. Upload a file - it should show up in Upload History
@@ -584,4 +737,117 @@ def test_export_excel_endpoint(setup_database):
     if ws.max_row > 4:
         loc_idx = headers.index("Location") + 1
         assert ws.cell(row=5, column=loc_idx).value == "Romania"
+
+
+def test_soft_delete_trash_and_restore(setup_database):
+    db = setup_database
+    scenario = db.query(models.Scenario).filter(models.Scenario.is_active == True).first()
+
+    emp = models.Employee(
+        scenario_id=scenario.id, name="Trash Employee", team="CAE Germany",
+        department="CAE", location="Germany", hourly_rate=80.0
+    )
+    topic = models.Topic(
+        scenario_id=scenario.id, name="Trash Topic", category="Internal Efforts"
+    )
+    db.add(emp)
+    db.add(topic)
+    db.commit()
+    db.refresh(emp)
+    db.refresh(topic)
+
+    # Soft-delete both
+    response = client.delete(f"/api/employees/{emp.id}", headers=admin_headers)
+    assert response.status_code == 200
+    assert response.json()["message"] == "Employee moved to Trash"
+
+    response = client.delete(f"/api/topics/{topic.id}", headers=admin_headers)
+    assert response.status_code == 200
+
+    # They disappear from the live lists
+    emp_resp = client.get("/api/employees", headers=admin_headers)
+    assert not any(e["name"] == "Trash Employee" for e in emp_resp.json())
+    top_resp = client.get("/api/topics", headers=admin_headers)
+    assert not any(t["name"] == "Trash Topic" for t in top_resp.json())
+
+    # A regular user cannot see the trash
+    response = client.get("/api/trash", headers=user_headers)
+    assert response.status_code == 403
+
+    # An admin can see both deleted records in the trash
+    response = client.get("/api/trash", headers=admin_headers)
+    assert response.status_code == 200
+    trash = response.json()
+    assert any(e["name"] == "Trash Employee" for e in trash["employees"])
+    assert any(t["name"] == "Trash Topic" for t in trash["topics"])
+
+    # Restoring brings them back into the live lists
+    response = client.post(f"/api/employees/{emp.id}/restore", headers=admin_headers)
+    assert response.status_code == 200
+    response = client.post(f"/api/topics/{topic.id}/restore", headers=admin_headers)
+    assert response.status_code == 200
+
+    emp_resp = client.get("/api/employees", headers=admin_headers)
+    assert any(e["name"] == "Trash Employee" for e in emp_resp.json())
+    top_resp = client.get("/api/topics", headers=admin_headers)
+    assert any(t["name"] == "Trash Topic" for t in top_resp.json())
+
+    # Trash is empty again
+    response = client.get("/api/trash", headers=admin_headers)
+    trash = response.json()
+    assert not any(e["name"] == "Trash Employee" for e in trash["employees"])
+    assert not any(t["name"] == "Trash Topic" for t in trash["topics"])
+
+
+def test_bulk_edit_employees(setup_database):
+    db = setup_database
+    scenario = db.query(models.Scenario).filter(models.Scenario.is_active == True).first()
+
+    emp1 = models.Employee(
+        scenario_id=scenario.id, name="Bulk One", team="Old Team",
+        department="CAE", location="Romania", hourly_rate=50.0
+    )
+    emp2 = models.Employee(
+        scenario_id=scenario.id, name="Bulk Two", team="Old Team",
+        department="CAE", location="Romania", hourly_rate=100.0
+    )
+    db.add_all([emp1, emp2])
+    db.commit()
+    db.refresh(emp1)
+    db.refresh(emp2)
+
+    # A regular user cannot bulk edit
+    response = client.patch("/api/employees/bulk", json={"employee_ids": [emp1.id], "team": "New Team"}, headers=user_headers)
+    assert response.status_code == 403
+
+    # Set team + adjust rate by +10% for both employees
+    response = client.patch("/api/employees/bulk", json={
+        "employee_ids": [emp1.id, emp2.id],
+        "team": "New Team",
+        "hourly_rate_adjust_pct": 10.0
+    }, headers=admin_headers)
+    assert response.status_code == 200
+    updated = response.json()
+    assert len(updated) == 2
+    for u in updated:
+        assert u["team"] == "New Team"
+    rates = {u["id"]: u["hourly_rate"] for u in updated}
+    assert rates[emp1.id] == 55.0
+    assert rates[emp2.id] == 110.0
+
+    # Set (not adjust) hourly rate for one employee
+    response = client.patch("/api/employees/bulk", json={
+        "employee_ids": [emp1.id],
+        "hourly_rate_set": 75.0
+    }, headers=admin_headers)
+    assert response.status_code == 200
+    assert response.json()[0]["hourly_rate"] == 75.0
+
+    # A soft-deleted employee is not touched by a bulk edit
+    client.delete(f"/api/employees/{emp2.id}", headers=admin_headers)
+    response = client.patch("/api/employees/bulk", json={
+        "employee_ids": [emp2.id],
+        "team": "Should Not Apply"
+    }, headers=admin_headers)
+    assert response.status_code == 404
 

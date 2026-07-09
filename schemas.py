@@ -40,6 +40,7 @@ class EmployeeCreate(EmployeeBase):
 class EmployeeResponse(EmployeeBase):
     id: int
     scenario_id: int
+    deleted_at: Optional[datetime.datetime] = None
 
     class Config:
         from_attributes = True
@@ -64,9 +65,26 @@ class TopicCreate(TopicBase):
 class TopicResponse(TopicBase):
     id: int
     scenario_id: int
+    deleted_at: Optional[datetime.datetime] = None
 
     class Config:
         from_attributes = True
+
+
+class TrashResponse(BaseModel):
+    employees: List[EmployeeResponse]
+    topics: List[TopicResponse]
+
+
+class BulkEmployeeEdit(BaseModel):
+    employee_ids: List[int]
+    team: Optional[str] = None
+    department: Optional[str] = None
+    location: Optional[str] = None
+    manager: Optional[str] = None
+    status: Optional[str] = None
+    hourly_rate_set: Optional[float] = None
+    hourly_rate_adjust_pct: Optional[float] = None
 
 # Allocation Schemas
 class AllocationUpdate(BaseModel):

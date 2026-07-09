@@ -30,6 +30,8 @@ class Employee(Base):
     status = Column(String, default="Active")  # Active, New Position, Replacement, Temporary, Inactive
     manager = Column(String, nullable=True)
     notes = Column(String, nullable=True)
+    is_deleted = Column(Boolean, default=False, index=True)
+    deleted_at = Column(DateTime, nullable=True)
 
     scenario = relationship("Scenario", back_populates="employees")
     allocations = relationship("Allocation", back_populates="employee", cascade="all, delete-orphan")
@@ -51,6 +53,8 @@ class Topic(Base):
     comments = Column(String, nullable=True)
     notes = Column(String, nullable=True)
     recovery = Column(Float, default=0.0)
+    is_deleted = Column(Boolean, default=False, index=True)
+    deleted_at = Column(DateTime, nullable=True)
 
     scenario = relationship("Scenario", back_populates="topics")
     allocations = relationship("Allocation", back_populates="topic", cascade="all, delete-orphan")

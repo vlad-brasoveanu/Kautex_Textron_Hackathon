@@ -459,11 +459,17 @@
                                     <option value="">All Locations</option>
                                 </select>
                             </div>
+                            <div id="bulk-edit-toolbar" style="display: none; align-items: center; gap: 8px; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); border: 1px solid var(--glass-border); border-radius: 6px;">
+                                <span id="bulk-edit-count" style="font-size: 12px; font-weight: 600;">0 selected</span>
+                                <button id="btn-bulk-edit" class="btn btn-secondary" style="margin-left: auto; padding: 4px 10px; font-size: 12px;"><i class="fa-solid fa-pen"></i> Bulk Edit</button>
+                                <button id="btn-bulk-clear" class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px;">Clear</button>
+                            </div>
                         </div>
                         <div class="crud-table-wrapper">
                             <table class="crud-table" id="crud-employee-table">
                                 <thead>
                                     <tr>
+                                        <th style="width: 28px;"><input type="checkbox" id="bulk-select-all-emp" class="admin-only"></th>
                                         <th class="sortable-emp" data-sort="name" style="cursor: pointer; user-select: none;">Name <i class="fa-solid fa-sort" style="font-size: 10px; opacity: 0.6;"></i></th>
                                         <th class="sortable-emp" data-sort="team" style="cursor: pointer; user-select: none;">Team <i class="fa-solid fa-sort" style="font-size: 10px; opacity: 0.6;"></i></th>
                                         <th class="sortable-emp" data-sort="location" style="cursor: pointer; user-select: none;">Location <i class="fa-solid fa-sort" style="font-size: 10px; opacity: 0.6;"></i></th>
@@ -507,6 +513,29 @@
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
+
+                <div class="crud-card admin-only" id="trash-card" style="margin-top: 20px;">
+                    <div class="crud-card-header">
+                        <h3><i class="fa-solid fa-trash-can"></i> Trash</h3>
+                        <p class="section-desc" style="margin: 0;">Soft-deleted employees and topics land here. Restore them to bring them back into the active scenario, allocations and all.</p>
+                    </div>
+                    <div class="crud-table-wrapper">
+                        <table class="crud-table" id="trash-table">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Name</th>
+                                    <th>Details</th>
+                                    <th>Deleted At</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Dynamically populated -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </section>
@@ -811,6 +840,74 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary modal-close" data-modal="modal-employee">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save Employee</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: BULK EDIT EMPLOYEES -->
+    <div id="modal-bulk-edit" class="modal">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h3>Bulk Edit Employees</h3>
+                <button class="modal-close btn-close" data-modal="modal-bulk-edit"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="form-bulk-edit" class="modal-form">
+                <p class="section-desc" id="bulk-edit-target-desc" style="margin: 0 0 8px;">Applying to 0 employees. Leave a field blank/unchecked to leave it unchanged.</p>
+
+                <div class="form-row">
+                    <div class="form-col">
+                        <label><input type="checkbox" id="bulk-set-team"> Team</label>
+                        <input type="text" id="bulk-team" placeholder="e.g. CAE Germany" disabled>
+                    </div>
+                    <div class="form-col">
+                        <label><input type="checkbox" id="bulk-set-dept"> Department</label>
+                        <select id="bulk-dept" disabled>
+                            <option value="CAE">CAE</option>
+                            <option value="Test">Test</option>
+                            <option value="Management">Management</option>
+                            <option value="Lab">Lab</option>
+                            <option value="Sampling">Sampling</option>
+                            <option value="Customer Engineering">Customer Engineering</option>
+                            <option value="Internal Development">Internal Development</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-col">
+                        <label><input type="checkbox" id="bulk-set-location"> Location</label>
+                        <input type="text" id="bulk-location" placeholder="e.g. Romania" disabled>
+                    </div>
+                    <div class="form-col">
+                        <label><input type="checkbox" id="bulk-set-manager"> Manager</label>
+                        <input type="text" id="bulk-manager" placeholder="e.g. Dr. Müller" disabled>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-col">
+                        <label><input type="checkbox" id="bulk-set-status"> Status</label>
+                        <select id="bulk-status" disabled>
+                            <option value="Active">Active</option>
+                            <option value="New Position">New Position</option>
+                            <option value="Replacement">Replacement</option>
+                            <option value="Temporary">Temporary</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+                    </div>
+                    <div class="form-col">
+                        <label><input type="checkbox" id="bulk-set-rate"> Hourly Rate</label>
+                        <div style="display: flex; gap: 6px;">
+                            <select id="bulk-rate-mode" disabled style="max-width: 120px;">
+                                <option value="set">Set to ($)</option>
+                                <option value="adjust">Adjust by (%)</option>
+                            </select>
+                            <input type="number" id="bulk-rate" step="0.01" placeholder="e.g. 55.00" disabled>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary modal-close" data-modal="modal-bulk-edit">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Apply to Selected</button>
                 </div>
             </form>
         </div>

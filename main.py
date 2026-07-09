@@ -5,13 +5,14 @@ import re
 import uuid
 import datetime
 import hashlib
+import difflib
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 import json
 import urllib.request
 import urllib.error
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Header, status
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Header, status
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -32,13 +33,21 @@ UPLOAD_STORAGE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "u
 os.makedirs(UPLOAD_STORAGE_DIR, exist_ok=True)
 
 # Lightweight migration: create_all only creates missing tables, it does not add
-# columns to a "users" table that already existed before this fields were introduced.
+# columns to tables that already existed before these fields were introduced.
 def migrate_add_missing_columns():
     with engine.connect() as conn:
         existing_cols = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(users)").fetchall()}
         for col in ("email", "department", "position", "supervisor"):
             if col not in existing_cols:
                 conn.exec_driver_sql(f"ALTER TABLE users ADD COLUMN {col} VARCHAR")
+
+        for table in ("employees", "topics"):
+            existing_cols = {row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table})").fetchall()}
+            if "is_deleted" not in existing_cols:
+                conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN is_deleted BOOLEAN DEFAULT 0")
+            if "deleted_at" not in existing_cols:
+                conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN deleted_at DATETIME")
+
         conn.commit()
 
 migrate_add_missing_columns()
@@ -237,11 +246,11 @@ def get_planning_rag_context(db: Session, scenario_id: int) -> str:
     if not scenario:
         return "No active planning scenario data."
         
-    employees = db.query(models.Employee).filter(models.Employee.scenario_id == scenario_id).all()
-    topics = db.query(models.Topic).filter(models.Topic.scenario_id == scenario_id).all()
-    allocations = db.query(models.Allocation).join(models.Employee).filter(models.Employee.scenario_id == scenario_id).all()
-    additional_costs = db.query(models.AdditionalCost).join(models.Topic).filter(models.Topic.scenario_id == scenario_id).all()
-    
+    employees = db.query(models.Employee).filter(models.Employee.scenario_id == scenario_id, models.Employee.is_deleted == False).all()
+    topics = db.query(models.Topic).filter(models.Topic.scenario_id == scenario_id, models.Topic.is_deleted == False).all()
+    allocations = db.query(models.Allocation).join(models.Employee).filter(models.Employee.scenario_id == scenario_id, models.Employee.is_deleted == False).all()
+    additional_costs = db.query(models.AdditionalCost).join(models.Topic).filter(models.Topic.scenario_id == scenario_id, models.Topic.is_deleted == False).all()
+
     lines = []
     lines.append(f"Scenario Name: {scenario.name}")
     lines.append(f"Scenario Description: {scenario.description or ''}")
@@ -372,8 +381,8 @@ def clone_scenario(scenario_id: int, clone_data: schemas.ScenarioClone, db: Sess
     db.commit()
     db.refresh(new_scenario)
     
-    # 1. Clone Employees
-    db_employees = db.query(models.Employee).filter(models.Employee.scenario_id == scenario_id).all()
+    # 1. Clone Employees (Trash excluded - a deleted employee shouldn't reappear in the clone)
+    db_employees = db.query(models.Employee).filter(models.Employee.scenario_id == scenario_id, models.Employee.is_deleted == False).all()
     emp_id_mapping = {} # Old ID -> New ID
     for emp in db_employees:
         new_emp = models.Employee(
@@ -393,8 +402,8 @@ def clone_scenario(scenario_id: int, clone_data: schemas.ScenarioClone, db: Sess
         db.refresh(new_emp)
         emp_id_mapping[emp.id] = new_emp.id
         
-    # 2. Clone Topics & Additional Costs
-    db_topics = db.query(models.Topic).filter(models.Topic.scenario_id == scenario_id).all()
+    # 2. Clone Topics & Additional Costs (Trash excluded)
+    db_topics = db.query(models.Topic).filter(models.Topic.scenario_id == scenario_id, models.Topic.is_deleted == False).all()
     topic_id_mapping = {} # Old ID -> New ID
     for topic in db_topics:
         new_topic = models.Topic(
@@ -470,12 +479,12 @@ def backup_scenario(scenario_id: int, db: Session = Depends(get_db), current_use
     if not scenario:
         raise HTTPException(status_code=404, detail="Scenario not found")
         
-    employees = db.query(models.Employee).filter(models.Employee.scenario_id == scenario_id).all()
-    topics = db.query(models.Topic).filter(models.Topic.scenario_id == scenario_id).all()
-    
+    employees = db.query(models.Employee).filter(models.Employee.scenario_id == scenario_id, models.Employee.is_deleted == False).all()
+    topics = db.query(models.Topic).filter(models.Topic.scenario_id == scenario_id, models.Topic.is_deleted == False).all()
+
     emp_ids = [e.id for e in employees]
     topic_ids = [t.id for t in topics]
-    
+
     allocations = db.query(models.Allocation).filter(
         models.Allocation.employee_id.in_(emp_ids) if emp_ids else False
     ).all()
@@ -649,7 +658,10 @@ def restore_scenario(scenario_id: int, payload: schemas.RestorePayload, db: Sess
 @app.get("/api/employees", response_model=List[schemas.EmployeeResponse])
 def get_employees(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     active_scenario = get_active_scenario_db(db)
-    return db.query(models.Employee).filter(models.Employee.scenario_id == active_scenario.id).all()
+    return db.query(models.Employee).filter(
+        models.Employee.scenario_id == active_scenario.id,
+        models.Employee.is_deleted == False
+    ).all()
 
 @app.post("/api/employees", response_model=schemas.EmployeeResponse)
 def create_employee(employee: schemas.EmployeeCreate, db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
@@ -691,14 +703,85 @@ def update_employee(employee_id: int, employee: schemas.EmployeeCreate, db: Sess
     db.refresh(db_employee)
     return db_employee
 
+@app.patch("/api/employees/bulk", response_model=List[schemas.EmployeeResponse])
+def bulk_edit_employees(payload: schemas.BulkEmployeeEdit, db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
+    active_scenario = get_active_scenario_db(db)
+    db_employees = db.query(models.Employee).filter(
+        models.Employee.id.in_(payload.employee_ids),
+        models.Employee.scenario_id == active_scenario.id,
+        models.Employee.is_deleted == False
+    ).all()
+    if not db_employees:
+        raise HTTPException(status_code=404, detail="No matching employees found")
+
+    fields_changed = []
+    if payload.team is not None:
+        fields_changed.append("team")
+    if payload.department is not None:
+        fields_changed.append("department")
+    if payload.location is not None:
+        fields_changed.append("location")
+    if payload.manager is not None:
+        fields_changed.append("manager")
+    if payload.status is not None:
+        fields_changed.append("status")
+    if payload.hourly_rate_set is not None:
+        fields_changed.append("hourly_rate (set)")
+    if payload.hourly_rate_adjust_pct is not None:
+        fields_changed.append("hourly_rate (adjust %)")
+
+    for emp in db_employees:
+        if payload.team is not None:
+            emp.team = payload.team
+        if payload.department is not None:
+            emp.department = payload.department
+        if payload.location is not None:
+            emp.location = payload.location
+        if payload.manager is not None:
+            emp.manager = payload.manager
+        if payload.status is not None:
+            emp.status = payload.status
+        if payload.hourly_rate_set is not None:
+            emp.hourly_rate = payload.hourly_rate_set
+        elif payload.hourly_rate_adjust_pct is not None:
+            emp.hourly_rate = round(emp.hourly_rate * (1 + payload.hourly_rate_adjust_pct / 100.0), 2)
+
+    db.commit()
+    for emp in db_employees:
+        db.refresh(emp)
+
+    write_system_log(
+        db, username=admin.username, action="Bulk Edit Employees",
+        details=f"Applied {', '.join(fields_changed) or 'no changes'} to {len(db_employees)} employees: {', '.join(e.name for e in db_employees)}"
+    )
+    return db_employees
+
+
 @app.delete("/api/employees/{employee_id}")
 def delete_employee(employee_id: int, db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
     db_employee = db.query(models.Employee).filter(models.Employee.id == employee_id).first()
     if not db_employee:
         raise HTTPException(status_code=404, detail="Employee not found")
-    db.delete(db_employee)
+    # Soft delete: the record (and its allocation history) moves to Trash
+    # instead of being destroyed, so an accidental delete is recoverable.
+    db_employee.is_deleted = True
+    db_employee.deleted_at = datetime.datetime.utcnow()
     db.commit()
-    return {"message": "Employee deleted successfully"}
+    write_system_log(db, username=admin.username, action="Delete Employee", details=f"Moved employee '{db_employee.name}' to Trash")
+    return {"message": "Employee moved to Trash"}
+
+
+@app.post("/api/employees/{employee_id}/restore", response_model=schemas.EmployeeResponse)
+def restore_employee(employee_id: int, db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
+    db_employee = db.query(models.Employee).filter(models.Employee.id == employee_id).first()
+    if not db_employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    db_employee.is_deleted = False
+    db_employee.deleted_at = None
+    db.commit()
+    db.refresh(db_employee)
+    write_system_log(db, username=admin.username, action="Restore Employee", details=f"Restored employee '{db_employee.name}' from Trash")
+    return db_employee
 
 # ==========================================
 # 3. TOPICS API (CRUD + Scenario-Scoped)
@@ -707,7 +790,10 @@ def delete_employee(employee_id: int, db: Session = Depends(get_db), admin: mode
 @app.get("/api/topics")
 def get_topics(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     active_scenario = get_active_scenario_db(db)
-    topics = db.query(models.Topic).filter(models.Topic.scenario_id == active_scenario.id).all()
+    topics = db.query(models.Topic).filter(
+        models.Topic.scenario_id == active_scenario.id,
+        models.Topic.is_deleted == False
+    ).all()
     
     # Include additional costs in topic structure for easy frontend consumption
     result = []
@@ -788,9 +874,40 @@ def delete_topic(topic_id: int, db: Session = Depends(get_db), admin: models.Use
     db_topic = db.query(models.Topic).filter(models.Topic.id == topic_id).first()
     if not db_topic:
         raise HTTPException(status_code=404, detail="Topic not found")
-    db.delete(db_topic)
+    # Soft delete: moves to Trash (allocations/costs stay attached) instead of
+    # being destroyed, so an accidental delete is recoverable.
+    db_topic.is_deleted = True
+    db_topic.deleted_at = datetime.datetime.utcnow()
     db.commit()
-    return {"message": "Topic deleted successfully"}
+    write_system_log(db, username=admin.username, action="Delete Topic", details=f"Moved topic '{db_topic.name}' to Trash")
+    return {"message": "Topic moved to Trash"}
+
+
+@app.post("/api/topics/{topic_id}/restore", response_model=schemas.TopicResponse)
+def restore_topic(topic_id: int, db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
+    db_topic = db.query(models.Topic).filter(models.Topic.id == topic_id).first()
+    if not db_topic:
+        raise HTTPException(status_code=404, detail="Topic not found")
+    db_topic.is_deleted = False
+    db_topic.deleted_at = None
+    db.commit()
+    db.refresh(db_topic)
+    write_system_log(db, username=admin.username, action="Restore Topic", details=f"Restored topic '{db_topic.name}' from Trash")
+    return db_topic
+
+
+@app.get("/api/trash", response_model=schemas.TrashResponse)
+def get_trash(db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
+    active_scenario = get_active_scenario_db(db)
+    deleted_employees = db.query(models.Employee).filter(
+        models.Employee.scenario_id == active_scenario.id,
+        models.Employee.is_deleted == True
+    ).order_by(models.Employee.deleted_at.desc()).all()
+    deleted_topics = db.query(models.Topic).filter(
+        models.Topic.scenario_id == active_scenario.id,
+        models.Topic.is_deleted == True
+    ).order_by(models.Topic.deleted_at.desc()).all()
+    return {"employees": deleted_employees, "topics": deleted_topics}
 
 # ==========================================
 # 3.1 TOPICS ADDITIONAL COSTS API
@@ -830,8 +947,12 @@ def delete_topic_cost(cost_id: int, db: Session = Depends(get_db), admin: models
 @app.get("/api/allocations", response_model=List[schemas.AllocationResponse])
 def get_allocations(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     active_scenario = get_active_scenario_db(db)
-    # Join with employees to filter by scenario
-    return db.query(models.Allocation).join(models.Employee).filter(models.Employee.scenario_id == active_scenario.id).all()
+    # Join with employees/topics to filter by scenario and hide Trash on both sides
+    return db.query(models.Allocation).join(models.Employee).join(models.Topic).filter(
+        models.Employee.scenario_id == active_scenario.id,
+        models.Employee.is_deleted == False,
+        models.Topic.is_deleted == False
+    ).all()
 
 @app.post("/api/allocations", response_model=schemas.AllocationResponse)
 def save_allocation(alloc: schemas.AllocationUpdate, db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
@@ -864,12 +985,16 @@ def save_allocation(alloc: schemas.AllocationUpdate, db: Session = Depends(get_d
 @app.get("/api/reports/dashboard")
 def get_dashboard_reports(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     active_scenario = get_active_scenario_db(db)
-    
-    employees = db.query(models.Employee).filter(models.Employee.scenario_id == active_scenario.id).all()
-    topics = db.query(models.Topic).filter(models.Topic.scenario_id == active_scenario.id).all()
-    
+
+    employees = db.query(models.Employee).filter(models.Employee.scenario_id == active_scenario.id, models.Employee.is_deleted == False).all()
+    topics = db.query(models.Topic).filter(models.Topic.scenario_id == active_scenario.id, models.Topic.is_deleted == False).all()
+
     # Pre-map allocations for performance
-    allocations = db.query(models.Allocation).join(models.Employee).filter(models.Employee.scenario_id == active_scenario.id).all()
+    allocations = db.query(models.Allocation).join(models.Employee).join(models.Topic).filter(
+        models.Employee.scenario_id == active_scenario.id,
+        models.Employee.is_deleted == False,
+        models.Topic.is_deleted == False
+    ).all()
     alloc_map = {} # (emp_id, topic_id) -> percentage
     emp_alloc_sums = {} # emp_id -> total percentage sum
     
@@ -1084,7 +1209,86 @@ def parse_uploaded_file_to_rows(contents: bytes, filename: str, content_type: Op
     return rows, file_type
 
 
-def apply_rows_to_scenario(rows, active_scenario, db: Session):
+CANONICAL_FIELD_ALIASES = {
+    "employee": ["Employee", "Employee Name", "Name"],
+    "team": ["Team"],
+    "location": ["Location"],
+    "hours": ["Hours / Year", "Available hours/year (Region 100%)", "Hours/Year"],
+    "rate": ["Hourly Rate", "Hourly rate"],
+    "department": ["Department", "Dept", "Area"],
+    "manager": ["Manager"],
+    "notes": ["Notes"],
+    "status": ["Status"],
+}
+CANONICAL_FIELD_LABELS = {
+    "employee": "Employee", "team": "Team", "location": "Location",
+    "hours": "Hours / Year", "rate": "Hourly Rate", "department": "Department",
+    "manager": "Manager", "notes": "Notes", "status": "Status",
+}
+
+
+def resolve_header_indices(headers: list, column_mapping: Optional[dict] = None) -> dict:
+    """Maps canonical meta fields (employee, team, rate, ...) to their column
+    index in `headers`, using known exact-name aliases first, then any
+    admin-confirmed AI-suggested overrides in `column_mapping` (header text ->
+    canonical field key)."""
+    def find_idx(*names):
+        for n in names:
+            if n in headers:
+                return headers.index(n)
+        return -1
+
+    idxs = {field: find_idx(*aliases) for field, aliases in CANONICAL_FIELD_ALIASES.items()}
+
+    for header, field in (column_mapping or {}).items():
+        if header in headers and field in idxs:
+            idxs[field] = headers.index(header)
+
+    return idxs
+
+
+def suggest_header_mappings(headers: list, idxs: dict, existing_topic_names: list) -> list:
+    """For headers that didn't exactly match a known meta field and don't match
+    an existing topic name either, fuzzy-suggest the closest meta field. This
+    surfaces likely-mistyped columns (e.g. 'Hrly Rate') for admin confirmation
+    instead of silently importing them as a brand-new topic full of numbers."""
+    matched_idxs = {i for i in idxs.values() if i != -1}
+    existing_topic_names_lower = {n.lower() for n in existing_topic_names}
+    unmatched_fields = [field for field, i in idxs.items() if i == -1]
+
+    suggestions = []
+    for i, h in enumerate(headers):
+        if i in matched_idxs or not h:
+            continue
+        h_lower = h.lower()
+        if h_lower in existing_topic_names_lower:
+            continue
+        if "total" in h_lower or "utilization" in h_lower:
+            continue
+
+        best_field, best_score = None, 0.0
+        for field in unmatched_fields:
+            label_lower = CANONICAL_FIELD_LABELS[field].lower()
+            score = difflib.SequenceMatcher(None, h_lower, label_lower).ratio()
+            # Abbreviations like "Loc" for "Location" are a strong signal even
+            # when the character-level ratio alone falls short of the threshold.
+            if len(h_lower) >= 2 and (h_lower in label_lower or label_lower in h_lower):
+                score += 0.15
+            if score > best_score:
+                best_field, best_score = field, score
+
+        if best_field and best_score >= 0.55:
+            suggestions.append({
+                "header": h,
+                "suggested_field": best_field,
+                "suggested_label": CANONICAL_FIELD_LABELS[best_field],
+                "confidence": round(best_score, 2)
+            })
+
+    return suggestions
+
+
+def apply_rows_to_scenario(rows, active_scenario, db: Session, column_mapping: Optional[dict] = None):
     """Core matrix-sheet importer: parses header-driven rows into Employees/
     Topics/Allocations/AdditionalCosts for the given scenario. Shared by the
     direct file upload endpoint and the "apply from upload history" endpoint,
@@ -1093,30 +1297,24 @@ def apply_rows_to_scenario(rows, active_scenario, db: Session):
     # Standard header checking
     headers = [h.strip() for h in rows[0]]
 
-    def find_idx(*names):
-        for n in names:
-            if n in headers:
-                return headers.index(n)
-        return -1
-
     # Only "Employee" is a hard requirement. Every other known column is optional:
     # if a sheet is missing one, existing records simply keep their current value
     # for that field instead of the whole import being rejected.
-    emp_idx = find_idx("Employee", "Employee Name", "Name")
+    idxs = resolve_header_indices(headers, column_mapping)
+    emp_idx = idxs["employee"]
     if emp_idx == -1:
         raise HTTPException(status_code=400, detail="Required column 'Employee' not found in CSV headers.")
 
-    team_idx = find_idx("Team")
-    loc_idx = find_idx("Location")
-    hours_idx = find_idx("Hours / Year", "Available hours/year (Region 100%)", "Hours/Year")
-    rate_idx = find_idx("Hourly Rate", "Hourly rate")
-    dept_idx = find_idx("Department", "Dept", "Area")
-    manager_idx = find_idx("Manager")
-    notes_idx = find_idx("Notes")
-    status_idx = find_idx("Status")
+    team_idx = idxs["team"]
+    loc_idx = idxs["location"]
+    hours_idx = idxs["hours"]
+    rate_idx = idxs["rate"]
+    dept_idx = idxs["department"]
+    manager_idx = idxs["manager"]
+    notes_idx = idxs["notes"]
+    status_idx = idxs["status"]
 
-    known_meta_idxs = {i for i in [emp_idx, team_idx, loc_idx, hours_idx, rate_idx,
-                                    dept_idx, manager_idx, notes_idx, status_idx] if i != -1}
+    known_meta_idxs = {i for i in idxs.values() if i != -1}
 
     # Any remaining column is treated as a topic/project allocation column - this is
     # what lets brand-new columns show up in the platform automatically, and lets
@@ -1145,9 +1343,13 @@ def apply_rows_to_scenario(rows, active_scenario, db: Session):
 
     
     # Note: We keep employees and topics, but we'll update or create them.
-    # To prevent duplicates, we map existing employees/topics
-    existing_emp = {e.name: e for e in db.query(models.Employee).filter(models.Employee.scenario_id == active_scenario.id).all()}
-    existing_top = {t.name: t for t in db.query(models.Topic).filter(models.Topic.scenario_id == active_scenario.id).all()}
+    # To prevent duplicates, we map existing employees/topics. Soft-deleted
+    # (Trash) records are excluded so a name matching a deleted employee
+    # creates a fresh record instead of silently reviving the hidden one.
+    existing_emp = {e.name: e for e in db.query(models.Employee).filter(
+        models.Employee.scenario_id == active_scenario.id, models.Employee.is_deleted == False).all()}
+    existing_top = {t.name: t for t in db.query(models.Topic).filter(
+        models.Topic.scenario_id == active_scenario.id, models.Topic.is_deleted == False).all()}
     
     added_emps = 0
     added_tops = 0
@@ -1330,13 +1532,43 @@ def apply_rows_to_scenario(rows, active_scenario, db: Session):
     }
 
 
+@app.post("/api/import/preview")
+async def preview_import_columns(file: UploadFile = File(...), db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
+    """AI-assisted column mapping: parses just the headers of an uploaded sheet
+    and, for any column that doesn't exactly match a known field (Employee,
+    Team, Hourly Rate, ...) or an existing topic name, fuzzy-suggests the
+    closest known field. The frontend shows these as a confirmation step
+    before the real import, so a mistyped column like 'Hrly Rate' doesn't
+    silently become a bogus new topic."""
+    active_scenario = get_active_scenario_db(db)
+    contents = await file.read()
+    rows, file_type = parse_uploaded_file_to_rows(contents, file.filename, file.content_type)
+    headers = [h.strip() for h in rows[0]]
+    idxs = resolve_header_indices(headers)
+
+    existing_topics = db.query(models.Topic).filter(
+        models.Topic.scenario_id == active_scenario.id, models.Topic.is_deleted == False
+    ).all()
+    suggestions = suggest_header_mappings(headers, idxs, [t.name for t in existing_topics])
+
+    return {"headers": headers, "suggested_mappings": suggestions}
+
+
 @app.post("/api/import/csv")
-async def import_csv_data(file: UploadFile = File(...), db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
+async def import_csv_data(file: UploadFile = File(...), column_mapping: Optional[str] = Form(None), db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
     active_scenario = get_active_scenario_db(db)
 
     contents = await file.read()
     rows, file_type = parse_uploaded_file_to_rows(contents, file.filename, file.content_type)
-    counts = apply_rows_to_scenario(rows, active_scenario, db)
+
+    mapping_dict = None
+    if column_mapping:
+        try:
+            mapping_dict = json.loads(column_mapping)
+        except (ValueError, TypeError):
+            mapping_dict = None
+
+    counts = apply_rows_to_scenario(rows, active_scenario, db, column_mapping=mapping_dict)
 
     # Keep a copy of the raw file on disk so it shows up in "Upload History"
     # and can be re-applied later without the user needing the original file.
@@ -1434,11 +1666,15 @@ def export_excel_data(
     current_user: models.User = Depends(get_current_user)
 ):
     active_scenario = get_active_scenario_db(db)
-    
+
     # Load data
-    employees = db.query(models.Employee).filter(models.Employee.scenario_id == active_scenario.id).all()
-    topics = db.query(models.Topic).filter(models.Topic.scenario_id == active_scenario.id).all()
-    allocations = db.query(models.Allocation).join(models.Employee).filter(models.Employee.scenario_id == active_scenario.id).all()
+    employees = db.query(models.Employee).filter(models.Employee.scenario_id == active_scenario.id, models.Employee.is_deleted == False).all()
+    topics = db.query(models.Topic).filter(models.Topic.scenario_id == active_scenario.id, models.Topic.is_deleted == False).all()
+    allocations = db.query(models.Allocation).join(models.Employee).join(models.Topic).filter(
+        models.Employee.scenario_id == active_scenario.id,
+        models.Employee.is_deleted == False,
+        models.Topic.is_deleted == False
+    ).all()
     
     alloc_map = {}
     for a in allocations:
@@ -1628,9 +1864,13 @@ def export_excel_data(
 @app.get("/api/reports/ai-predictions")
 def get_ai_predictions(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     active_scenario = get_active_scenario_db(db)
-    employees = db.query(models.Employee).filter(models.Employee.scenario_id == active_scenario.id).all()
-    topics = db.query(models.Topic).filter(models.Topic.scenario_id == active_scenario.id).all()
-    allocations = db.query(models.Allocation).join(models.Employee).filter(models.Employee.scenario_id == active_scenario.id).all()
+    employees = db.query(models.Employee).filter(models.Employee.scenario_id == active_scenario.id, models.Employee.is_deleted == False).all()
+    topics = db.query(models.Topic).filter(models.Topic.scenario_id == active_scenario.id, models.Topic.is_deleted == False).all()
+    allocations = db.query(models.Allocation).join(models.Employee).join(models.Topic).filter(
+        models.Employee.scenario_id == active_scenario.id,
+        models.Employee.is_deleted == False,
+        models.Topic.is_deleted == False
+    ).all()
     
     # Calculate utilization
     emp_alloc_sums = {}
@@ -1725,6 +1965,68 @@ def get_ai_predictions(db: Session = Depends(get_db), current_user: models.User 
             "description": "No reallocations needed. Bandwidths are balanced across all planned employees."
         })
         
+    predictions = enrich_predictions_with_llm(predictions, employees, topics, allocations, emp_alloc_sums, alloc_topic_sums)
+    return predictions
+
+
+def enrich_predictions_with_llm(predictions: dict, employees: list, topics: list, allocations: list, emp_alloc_sums: dict, alloc_topic_sums: dict) -> dict:
+    """Feeds the same real, already-computed portfolio data (utilization,
+    underallocated topics) into the local LLM for richer, less templated
+    Admin Insights narrative. Pure enrichment: silently falls back to the
+    existing heuristic-only predictions if no LLM is reachable or its output
+    isn't valid JSON, so this is never a hard dependency for the endpoint."""
+    top_util = sorted(
+        [(e.name, e.team, emp_alloc_sums.get(e.id, 0.0)) for e in employees],
+        key=lambda x: x[2], reverse=True
+    )[:8]
+    under_topics = sorted(
+        [(t.name, t.category, alloc_topic_sums.get(t.id, 0.0)) for t in topics],
+        key=lambda x: x[2]
+    )[:8]
+
+    data_summary = (
+        "Employee utilization (name, team, total allocation %):\n" +
+        "\n".join(f"- {n} ({team}): {pct:.1f}%" for n, team, pct in top_util) +
+        "\n\nTopic total allocation (name, category, total allocation %):\n" +
+        "\n".join(f"- {n} ({cat}): {pct:.1f}%" for n, cat, pct in under_topics)
+    )
+
+    prompt = (
+        "You are a resource planning analyst for Textron. Based ONLY on the real portfolio data below, "
+        "suggest up to 2 additional bottleneck risks, up to 2 additional cost optimizations, and up to 2 "
+        "additional staff reallocation actions that are NOT obvious duplicates of simple overload/underload "
+        "statements. Be specific and reference the real names/topics given.\n\n"
+        f"Portfolio Data:\n{data_summary}\n\n"
+        "Respond with STRICT JSON only, no prose, matching exactly this shape:\n"
+        '{"bottlenecks": [{"type": "...", "severity": "High|Medium|Low", "description": "..."}], '
+        '"cost_optimizations": [{"category": "...", "impact": "...", "description": "..."}], '
+        '"reallocations": [{"action": "...", "priority": "High|Medium|Low", "description": "..."}]}'
+    )
+
+    raw = query_local_ollama(prompt)
+    if not raw:
+        return predictions
+
+    try:
+        # Ollama sometimes wraps JSON in prose/code fences despite instructions - extract the outermost braces.
+        start = raw.index("{")
+        end = raw.rindex("}") + 1
+        llm_data = json.loads(raw[start:end])
+    except (ValueError, json.JSONDecodeError):
+        return predictions
+
+    for key, required_keys in (
+        ("bottlenecks", {"type", "severity", "description"}),
+        ("cost_optimizations", {"category", "impact", "description"}),
+        ("reallocations", {"action", "priority", "description"}),
+    ):
+        items = llm_data.get(key)
+        if not isinstance(items, list):
+            continue
+        for item in items[:2]:
+            if isinstance(item, dict) and required_keys.issubset(item.keys()):
+                predictions[key].append(item)
+
     return predictions
 
 
@@ -1791,6 +2093,100 @@ def fuzzy_match_ambiguous(query: str, choices: list, key_extractor, threshold: f
     return None, candidates
 
 
+def _apply_ai_allocation(db: Session, employee_id: int, topic_id: int, percentage: float):
+    db_alloc = db.query(models.Allocation).filter(
+        models.Allocation.employee_id == employee_id,
+        models.Allocation.topic_id == topic_id
+    ).first()
+    if db_alloc:
+        db_alloc.percentage = percentage
+    else:
+        db_alloc = models.Allocation(employee_id=employee_id, topic_id=topic_id, percentage=percentage)
+        db.add(db_alloc)
+    db.commit()
+
+
+AI_ACTION_PREFIX = "[Local Heuristic Engine Fallback] "
+
+
+def try_execute_ai_action(q_lower: str, employees: list, topics: list, alloc_map: dict, db: Session, current_user: models.User) -> Optional[dict]:
+    """Recognizes allocation-change requests in chat (e.g. 'set X's allocation on
+    Y to 30%' or 'move 10% of X's Y time to Z') and executes them directly,
+    instead of only describing what the user should do manually."""
+    emp_part = topic_part = pct_part = None
+
+    set_match = re.search(r"set\s+(.+?)'s\s+allocation\s+(?:on|for)\s+(.+?)\s+to\s+(\d+(?:\.\d+)?)\s*%?", q_lower)
+    if set_match:
+        emp_part, topic_part, pct_part = set_match.groups()
+    else:
+        set_match2 = re.search(r"set\s+(.+?)'s\s+(.+?)\s+allocation\s+to\s+(\d+(?:\.\d+)?)\s*%?", q_lower)
+        if set_match2:
+            emp_part, topic_part, pct_part = set_match2.groups()
+
+    move_match = None
+    if emp_part is None:
+        move_match = re.search(r"move\s+(\d+(?:\.\d+)?)\s*%?\s+of\s+(.+?)'s\s+(.+?)\s+(?:time\s+)?to\s+(.+)", q_lower)
+
+    if emp_part is None and not move_match:
+        return None
+
+    if current_user.role not in ("admin", "master_admin"):
+        return {"answer": AI_ACTION_PREFIX + "I recognized an allocation-change request, but only Admins can execute changes via chat. Please ask an Admin, or apply it manually in the Allocation Matrix."}
+
+    if move_match:
+        pct_str, emp_part, topic_from_part, topic_to_part = move_match.groups()
+        pct_delta = float(pct_str)
+
+        emp_match, _ = fuzzy_match_ambiguous(emp_part.strip(), employees, lambda e: e.name)
+        if not emp_match:
+            return {"answer": AI_ACTION_PREFIX + f"I couldn't uniquely identify the employee '{emp_part.strip()}' to move allocation for."}
+        topic_from_match, _ = fuzzy_match_ambiguous(topic_from_part.strip(), topics, lambda t: t.name)
+        topic_to_match, _ = fuzzy_match_ambiguous(topic_to_part.strip(), topics, lambda t: t.name)
+        if not topic_from_match or not topic_to_match:
+            return {"answer": AI_ACTION_PREFIX + f"I couldn't identify both topics ('{topic_from_part.strip()}' -> '{topic_to_part.strip()}') to move allocation between."}
+
+        current_from = alloc_map.get((emp_match.id, topic_from_match.id), 0.0)
+        if pct_delta > current_from:
+            return {"answer": AI_ACTION_PREFIX + f"{emp_match.name} is only allocated {current_from:.1f}% to {topic_from_match.name}, so I can't move {pct_delta:.1f}%."}
+
+        new_from = round(current_from - pct_delta, 2)
+        current_to = alloc_map.get((emp_match.id, topic_to_match.id), 0.0)
+        new_to = round(current_to + pct_delta, 2)
+
+        _apply_ai_allocation(db, emp_match.id, topic_from_match.id, new_from)
+        _apply_ai_allocation(db, emp_match.id, topic_to_match.id, new_to)
+        write_system_log(
+            db, username=current_user.username, action="AI Chat Allocation Change",
+            details=f"Moved {pct_delta:.1f}% of {emp_match.name}'s allocation from '{topic_from_match.name}' to '{topic_to_match.name}' via AI chat"
+        )
+        return {
+            "answer": AI_ACTION_PREFIX + f"Done. Moved **{pct_delta:.1f}%** of **{emp_match.name}**'s time from **{topic_from_match.name}** ({current_from:.1f}% → {new_from:.1f}%) to **{topic_to_match.name}** ({current_to:.1f}% → {new_to:.1f}%). The Allocation Matrix has been updated.",
+            "action_executed": True
+        }
+
+    pct = float(pct_part)
+    if pct < 0 or pct > 100:
+        return {"answer": AI_ACTION_PREFIX + "Allocation percentage must be between 0 and 100."}
+
+    emp_match, _ = fuzzy_match_ambiguous(emp_part.strip(), employees, lambda e: e.name)
+    if not emp_match:
+        return {"answer": AI_ACTION_PREFIX + f"I couldn't uniquely identify the employee '{emp_part.strip()}'."}
+    topic_match, _ = fuzzy_match_ambiguous(topic_part.strip(), topics, lambda t: t.name)
+    if not topic_match:
+        return {"answer": AI_ACTION_PREFIX + f"I couldn't uniquely identify the topic/project '{topic_part.strip()}'."}
+
+    current_pct = alloc_map.get((emp_match.id, topic_match.id), 0.0)
+    _apply_ai_allocation(db, emp_match.id, topic_match.id, pct)
+    write_system_log(
+        db, username=current_user.username, action="AI Chat Allocation Change",
+        details=f"Set {emp_match.name}'s allocation on '{topic_match.name}' to {pct:.1f}% via AI chat (was {current_pct:.1f}%)"
+    )
+    return {
+        "answer": AI_ACTION_PREFIX + f"Done. Set **{emp_match.name}**'s allocation on **{topic_match.name}** to **{pct:.1f}%** (was {current_pct:.1f}%). The Allocation Matrix has been updated.",
+        "action_executed": True
+    }
+
+
 @app.post("/api/ai/query")
 def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     query = payload.get("query", "").strip()
@@ -1821,10 +2217,14 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
     
     # 2. Fallback to smart pattern matching (Heuristic Local Engine)
     # We load database tables early to resolve both Heuristics and potential Follow-up ambiguities
-    employees = db.query(models.Employee).filter(models.Employee.scenario_id == active_scenario.id).all()
-    topics = db.query(models.Topic).filter(models.Topic.scenario_id == active_scenario.id).all()
-    allocations = db.query(models.Allocation).join(models.Employee).filter(models.Employee.scenario_id == active_scenario.id).all()
-    
+    employees = db.query(models.Employee).filter(models.Employee.scenario_id == active_scenario.id, models.Employee.is_deleted == False).all()
+    topics = db.query(models.Topic).filter(models.Topic.scenario_id == active_scenario.id, models.Topic.is_deleted == False).all()
+    allocations = db.query(models.Allocation).join(models.Employee).join(models.Topic).filter(
+        models.Employee.scenario_id == active_scenario.id,
+        models.Employee.is_deleted == False,
+        models.Topic.is_deleted == False
+    ).all()
+
     alloc_map = {}
     emp_alloc_sums = {}
     for a in allocations:
@@ -1832,6 +2232,13 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
         emp_alloc_sums[a.employee_id] = emp_alloc_sums.get(a.employee_id, 0.0) + a.percentage
         
     prefix = "[Local Heuristic Engine Fallback] "
+
+    # Let the AI directly execute an allocation-change request (e.g. "set X's
+    # allocation on Y to 30%" or "move 10% of X's Y time to Z") instead of
+    # only describing what the user should do manually.
+    action_result = try_execute_ai_action(q_lower, employees, topics, alloc_map, db, current_user)
+    if action_result:
+        return action_result
 
     # Check for reset/clear filters first
     q_clean = q_lower.replace("rate higher than", "rate >").replace("rate lower than", "rate <").replace("hourly rate >", "rate >").replace("hourly rate <", "rate <").replace("rate above", "rate >").replace("rate below", "rate <").replace("rate more than", "rate >").replace("rate less than", "rate <")
