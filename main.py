@@ -494,31 +494,29 @@ def create_scenario(scenario: schemas.ScenarioCreate, db: Session = Depends(get_
     write_system_log(db, username=admin.username, action="Create Scenario", details=f"Created new planning version '{db_scenario.name}'")
     return db_scenario
 
-@app.post("/api/scenarios/{scenario_id}/clone", response_model=schemas.ScenarioResponse)
-def clone_scenario(scenario_id: int, clone_data: schemas.ScenarioClone, db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
-    source_scenario = db.query(models.Scenario).filter(models.Scenario.id == scenario_id).first()
-    if not source_scenario:
-        raise HTTPException(status_code=404, detail="Source scenario not found")
-
+def clone_scenario_data(db: Session, source_scenario: models.Scenario, new_name: str, new_description: Optional[str], activate: bool) -> models.Scenario:
+    """Core DB-cloning logic shared by the clone_scenario endpoint and any
+    server-side caller (e.g. the AI What-If Copilot) that needs to spin up
+    a sandbox without a self-HTTP-call. Deliberately has no auth/logging of
+    its own - callers are responsible for both."""
     # Deactivate others only if the clone is meant to take over as active
     # (e.g. Simulation sandboxes clone with activate=False so they stay
     # invisible to the rest of the app until explicitly applied).
-    if clone_data.activate:
+    if activate:
         db.query(models.Scenario).update({models.Scenario.is_active: False})
 
-    # Create new scenario
     new_scenario = models.Scenario(
-        name=clone_data.new_name,
-        description=clone_data.new_description or f"Clone of {source_scenario.name}",
-        is_active=clone_data.activate
+        name=new_name,
+        description=new_description or f"Clone of {source_scenario.name}",
+        is_active=activate
     )
     db.add(new_scenario)
     db.commit()
     db.refresh(new_scenario)
-    
+
     # 1. Clone Employees (Trash excluded - a deleted employee shouldn't reappear in the clone)
-    db_employees = db.query(models.Employee).filter(models.Employee.scenario_id == scenario_id, models.Employee.is_deleted == False).all()
-    emp_id_mapping = {} # Old ID -> New ID
+    db_employees = db.query(models.Employee).filter(models.Employee.scenario_id == source_scenario.id, models.Employee.is_deleted == False).all()
+    emp_id_mapping = {}  # Old ID -> New ID
     for emp in db_employees:
         new_emp = models.Employee(
             scenario_id=new_scenario.id,
@@ -536,10 +534,10 @@ def clone_scenario(scenario_id: int, clone_data: schemas.ScenarioClone, db: Sess
         db.commit()
         db.refresh(new_emp)
         emp_id_mapping[emp.id] = new_emp.id
-        
+
     # 2. Clone Topics & Additional Costs (Trash excluded)
-    db_topics = db.query(models.Topic).filter(models.Topic.scenario_id == scenario_id, models.Topic.is_deleted == False).all()
-    topic_id_mapping = {} # Old ID -> New ID
+    db_topics = db.query(models.Topic).filter(models.Topic.scenario_id == source_scenario.id, models.Topic.is_deleted == False).all()
+    topic_id_mapping = {}  # Old ID -> New ID
     for topic in db_topics:
         new_topic = models.Topic(
             scenario_id=new_scenario.id,
@@ -559,7 +557,7 @@ def clone_scenario(scenario_id: int, clone_data: schemas.ScenarioClone, db: Sess
         db.commit()
         db.refresh(new_topic)
         topic_id_mapping[topic.id] = new_topic.id
-        
+
         # Clone Additional Costs for this topic
         for cost in topic.additional_costs:
             new_cost = models.AdditionalCost(
@@ -571,7 +569,7 @@ def clone_scenario(scenario_id: int, clone_data: schemas.ScenarioClone, db: Sess
             )
             db.add(new_cost)
         db.commit()
-        
+
     # 3. Clone Allocations
     for old_emp_id, new_emp_id in emp_id_mapping.items():
         old_allocations = db.query(models.Allocation).filter(models.Allocation.employee_id == old_emp_id).all()
@@ -585,6 +583,17 @@ def clone_scenario(scenario_id: int, clone_data: schemas.ScenarioClone, db: Sess
                 )
                 db.add(new_alloc)
         db.commit()
+
+    return new_scenario
+
+
+@app.post("/api/scenarios/{scenario_id}/clone", response_model=schemas.ScenarioResponse)
+def clone_scenario(scenario_id: int, clone_data: schemas.ScenarioClone, db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
+    source_scenario = db.query(models.Scenario).filter(models.Scenario.id == scenario_id).first()
+    if not source_scenario:
+        raise HTTPException(status_code=404, detail="Source scenario not found")
+
+    new_scenario = clone_scenario_data(db, source_scenario, clone_data.new_name, clone_data.new_description, clone_data.activate)
 
     write_system_log(
         db, username=admin.username, action="Clone Scenario",
@@ -2568,6 +2577,161 @@ def try_execute_ai_action(q_lower: str, employees: list, topics: list, alloc_map
     }
 
 
+AI_SIMULATION_PREFIX = "[AI What-If Copilot] "
+
+
+def try_execute_ai_simulation(q_lower: str, original_query: str, employees: list, topics: list, alloc_map: dict, db: Session, current_user: models.User, active_scenario: models.Scenario) -> Optional[dict]:
+    """Recognizes hypothetical/'what if' requests in chat and, instead of
+    touching the active plan, clones it into an invisible sandbox, applies
+    the requested change there, and reports a quick cost/utilization delta
+    plus a link to open the full comparison in Simulation. Never writes to
+    the real active scenario - mirrors try_execute_ai_action's parsing but
+    redirects every write into a fresh clone."""
+    if not re.search(r"\bwhat\s+if\b|\bsimulate\b|\bsimulation\b", q_lower):
+        return None
+
+    if current_user.role not in ("admin", "master_admin"):
+        return {"answer": AI_SIMULATION_PREFIX + "I recognized a what-if / simulation request, but only Admins can run these from chat. Please ask an Admin, or use the Simulation page directly."}
+
+    set_match = re.search(r"set\s+(.+?)'s\s+allocation\s+(?:on|for)\s+(.+?)\s+to\s+(\d+(?:\.\d+)?)\s*%?", q_lower)
+    if not set_match:
+        set_match = re.search(r"set\s+(.+?)'s\s+(.+?)\s+allocation\s+to\s+(\d+(?:\.\d+)?)\s*%?", q_lower)
+    move_match = re.search(r"move\s+(\d+(?:\.\d+)?)\s*%?\s+of\s+(.+?)'s\s+(.+?)\s+(?:time\s+)?to\s+(.+)", q_lower)
+    add_emp_match = re.search(r"add\s+(?:a\s+new\s+)?employee\s+(?:named\s+)?(.+?)\s+to\s+(?:team\s+)?(.+)", q_lower)
+    rate_match = re.search(r"change\s+(.+?)'s\s+hourly\s+rate\s+to\s+\$?(\d+(?:\.\d+)?)", q_lower)
+    effort_match = re.search(r"(increase|decrease)\s+(.+?)'s\s+effort\s+on\s+(.+?)\s+by\s+(\d+(?:\.\d+)?)\s*%?", q_lower)
+
+    if not any([set_match, move_match, add_emp_match, rate_match, effort_match]):
+        return {"answer": AI_SIMULATION_PREFIX + "I can simulate changes like: \"what if we set X's allocation on Y to 30%\", \"what if we move 10% of X's Y time to Z\", \"what if we add employee X to team Y\", \"what if we change X's hourly rate to 90\", or \"what if we increase X's effort on Y by 10%\" - try rephrasing using one of these."}
+
+    # Resolve entities against the ACTIVE scenario first, so a bad request
+    # fails fast with a clear message before a sandbox is ever created.
+    emp_match = topic_match = topic_from_match = topic_to_match = None
+    pct = pct_delta = new_rate = new_from = new_to = current_from = current_to = None
+    direction = new_emp_name = new_emp_team = None
+
+    if set_match:
+        emp_part, topic_part, pct_part = set_match.groups()
+        emp_match, _ = fuzzy_match_ambiguous(emp_part.strip(), employees, lambda e: e.name)
+        if not emp_match:
+            return {"answer": AI_SIMULATION_PREFIX + f"I couldn't uniquely identify the employee '{emp_part.strip()}'."}
+        topic_match, _ = fuzzy_match_ambiguous(topic_part.strip(), topics, lambda t: t.name)
+        if not topic_match:
+            return {"answer": AI_SIMULATION_PREFIX + f"I couldn't uniquely identify the topic/project '{topic_part.strip()}'."}
+        pct = float(pct_part)
+        if pct < 0 or pct > 100:
+            return {"answer": AI_SIMULATION_PREFIX + "Allocation percentage must be between 0 and 100."}
+        current_pct = alloc_map.get((emp_match.id, topic_match.id), 0.0)
+        change_summary = f"set **{emp_match.name}**'s allocation on **{topic_match.name}** to **{pct:.1f}%** (was {current_pct:.1f}%)"
+
+    elif move_match:
+        pct_str, emp_part, topic_from_part, topic_to_part = move_match.groups()
+        pct_delta = float(pct_str)
+        emp_match, _ = fuzzy_match_ambiguous(emp_part.strip(), employees, lambda e: e.name)
+        if not emp_match:
+            return {"answer": AI_SIMULATION_PREFIX + f"I couldn't uniquely identify the employee '{emp_part.strip()}'."}
+        topic_from_match, _ = fuzzy_match_ambiguous(topic_from_part.strip(), topics, lambda t: t.name)
+        topic_to_match, _ = fuzzy_match_ambiguous(topic_to_part.strip(), topics, lambda t: t.name)
+        if not topic_from_match or not topic_to_match:
+            return {"answer": AI_SIMULATION_PREFIX + f"I couldn't identify both topics ('{topic_from_part.strip()}' -> '{topic_to_part.strip()}')."}
+        current_from = alloc_map.get((emp_match.id, topic_from_match.id), 0.0)
+        if pct_delta > current_from:
+            return {"answer": AI_SIMULATION_PREFIX + f"{emp_match.name} is only allocated {current_from:.1f}% to {topic_from_match.name}, so I can't move {pct_delta:.1f}%."}
+        new_from = round(current_from - pct_delta, 2)
+        current_to = alloc_map.get((emp_match.id, topic_to_match.id), 0.0)
+        new_to = round(current_to + pct_delta, 2)
+        change_summary = f"move **{pct_delta:.1f}%** of **{emp_match.name}**'s time from **{topic_from_match.name}** to **{topic_to_match.name}**"
+
+    elif add_emp_match:
+        new_emp_name, new_emp_team = add_emp_match.groups()
+        new_emp_name = new_emp_name.strip().title()
+        new_emp_team = new_emp_team.strip()
+        change_summary = f"add a new employee **{new_emp_name}** to team **{new_emp_team}**"
+
+    elif rate_match:
+        emp_part, rate_part = rate_match.groups()
+        emp_match, _ = fuzzy_match_ambiguous(emp_part.strip(), employees, lambda e: e.name)
+        if not emp_match:
+            return {"answer": AI_SIMULATION_PREFIX + f"I couldn't uniquely identify the employee '{emp_part.strip()}'."}
+        new_rate = float(rate_part)
+        change_summary = f"change **{emp_match.name}**'s hourly rate from ${emp_match.hourly_rate:.2f} to **${new_rate:.2f}**"
+
+    else:  # effort_match
+        direction, emp_part, topic_part, delta_part = effort_match.groups()
+        emp_match, _ = fuzzy_match_ambiguous(emp_part.strip(), employees, lambda e: e.name)
+        if not emp_match:
+            return {"answer": AI_SIMULATION_PREFIX + f"I couldn't uniquely identify the employee '{emp_part.strip()}'."}
+        topic_match, _ = fuzzy_match_ambiguous(topic_part.strip(), topics, lambda t: t.name)
+        if not topic_match:
+            return {"answer": AI_SIMULATION_PREFIX + f"I couldn't uniquely identify the topic/project '{topic_part.strip()}'."}
+        pct_delta = float(delta_part)
+        current_pct = alloc_map.get((emp_match.id, topic_match.id), 0.0)
+        pct = current_pct + pct_delta if direction == "increase" else current_pct - pct_delta
+        pct = max(0.0, min(100.0, pct))
+        change_summary = f"{direction} **{emp_match.name}**'s effort on **{topic_match.name}** by **{pct_delta:.1f}%** ({current_pct:.1f}% → {pct:.1f}%)"
+
+    # --- Clone the active scenario into an invisible sandbox ---
+    sandbox_name = f"{active_scenario.name} - AI What-If {datetime.datetime.utcnow().strftime('%H:%M:%S')}"
+    sandbox = clone_scenario_data(
+        db, active_scenario, sandbox_name,
+        f"[Simulation Sandbox] Created by AI Copilot: {original_query.strip()[:200]}",
+        activate=False
+    )
+
+    # --- Apply the change inside the sandbox (re-resolve by name; IDs differ post-clone) ---
+    def sandbox_employee(name):
+        return db.query(models.Employee).filter(models.Employee.scenario_id == sandbox.id, models.Employee.name == name, models.Employee.is_deleted == False).first()
+
+    def sandbox_topic(name):
+        return db.query(models.Topic).filter(models.Topic.scenario_id == sandbox.id, models.Topic.name == name, models.Topic.is_deleted == False).first()
+
+    if set_match or effort_match:
+        sb_emp, sb_topic = sandbox_employee(emp_match.name), sandbox_topic(topic_match.name)
+        _apply_ai_allocation(db, sb_emp.id, sb_topic.id, pct)
+    elif move_match:
+        sb_emp = sandbox_employee(emp_match.name)
+        sb_topic_from, sb_topic_to = sandbox_topic(topic_from_match.name), sandbox_topic(topic_to_match.name)
+        _apply_ai_allocation(db, sb_emp.id, sb_topic_from.id, new_from)
+        _apply_ai_allocation(db, sb_emp.id, sb_topic_to.id, new_to)
+    elif add_emp_match:
+        template_emp = next((e for e in employees if e.team.strip().lower() == new_emp_team.lower()), None)
+        db.add(models.Employee(
+            scenario_id=sandbox.id, name=new_emp_name, team=new_emp_team,
+            department=template_emp.department if template_emp else "General",
+            location=template_emp.location if template_emp else "Remote",
+            available_hours=template_emp.available_hours if template_emp else 1800.0,
+            hourly_rate=template_emp.hourly_rate if template_emp else 50.0,
+            status="New Position"
+        ))
+        db.commit()
+    elif rate_match:
+        sb_emp = sandbox_employee(emp_match.name)
+        sb_emp.hourly_rate = new_rate
+        db.commit()
+
+    write_system_log(
+        db, username=current_user.username, action="AI What-If Simulation",
+        details=f"Created sandbox '{sandbox.name}' via AI Copilot to {change_summary}"
+    )
+
+    # --- Quick delta for the chat answer; the full comparison stays in Simulation ---
+    active_report = build_dashboard_report(db, active_scenario)
+    sandbox_report = build_dashboard_report(db, sandbox)
+    cost_delta = sandbox_report["total_annual_planning_cost"] - active_report["total_annual_planning_cost"]
+    overload_delta = len(sandbox_report["overloaded_employees"]) - len(active_report["overloaded_employees"])
+
+    cost_line = f"cost {'increases' if cost_delta > 0 else 'decreases' if cost_delta < 0 else 'stays the same'} by ${abs(cost_delta):,.0f}"
+    overload_line = (
+        "no change in overloaded headcount" if overload_delta == 0
+        else f"{abs(overload_delta)} {'more' if overload_delta > 0 else 'fewer'} employee(s) end up over 100% allocated"
+    )
+
+    return {
+        "answer": AI_SIMULATION_PREFIX + f"I set up a private sandbox and simulated: {change_summary}. Result: {cost_line}, {overload_line}. Nothing has changed in the real plan yet.",
+        "simulation": {"scenario_id": sandbox.id, "scenario_name": sandbox.name}
+    }
+
+
 @app.post("/api/ai/query")
 def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     query = payload.get("query", "").strip()
@@ -2613,6 +2777,13 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
         emp_alloc_sums[a.employee_id] = emp_alloc_sums.get(a.employee_id, 0.0) + a.percentage
         
     prefix = "[Local Heuristic Engine Fallback] "
+
+    # "What if" / "simulate" phrasing never touches the active plan - it
+    # spins up an invisible sandbox instead, checked before direct execution
+    # so a hypothetical request can never accidentally write to real data.
+    simulation_result = try_execute_ai_simulation(q_lower, query, employees, topics, alloc_map, db, current_user, active_scenario)
+    if simulation_result:
+        return simulation_result
 
     # Let the AI directly execute an allocation-change request (e.g. "set X's
     # allocation on Y to 30%" or "move 10% of X's Y time to Z") instead of

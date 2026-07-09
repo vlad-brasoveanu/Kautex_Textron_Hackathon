@@ -510,6 +510,78 @@ def test_ai_chat_executes_allocation_changes(setup_database):
     assert any(l["action"] == "AI Chat Allocation Change" for l in log_resp.json())
 
 
+def test_ai_what_if_copilot_stays_sandboxed(setup_database):
+    db = setup_database
+    scenario = db.query(models.Scenario).filter(models.Scenario.is_active == True).first()
+
+    emp = models.Employee(
+        scenario_id=scenario.id, name="Priya Desai", team="CAE Romania",
+        department="CAE", location="Romania", hourly_rate=70.0
+    )
+    topic_fuel = models.Topic(scenario_id=scenario.id, name="Fuel Project", category="Customer Requests")
+    topic_agentic = models.Topic(scenario_id=scenario.id, name="Agentic AI", category="Internal Efforts")
+    db.add_all([emp, topic_fuel, topic_agentic])
+    db.commit()
+    db.refresh(emp)
+    db.refresh(topic_fuel)
+
+    alloc = models.Allocation(employee_id=emp.id, topic_id=topic_fuel.id, percentage=40.0)
+    db.add(alloc)
+    db.commit()
+
+    # A regular user cannot run a what-if simulation, only get told to ask an admin
+    response = client.post(
+        "/api/ai/query",
+        json={"query": "what if we set Priya Desai's allocation on Fuel Project to 80%"},
+        headers=user_headers
+    )
+    assert response.status_code == 200
+    assert "only Admins can run" in response.json()["answer"]
+    assert "simulation" not in response.json()
+
+    # An admin's what-if request creates an invisible sandbox and reports a
+    # delta, but never touches the real active scenario's data.
+    response = client.post(
+        "/api/ai/query",
+        json={"query": "what if we set Priya Desai's allocation on Fuel Project to 80%"},
+        headers=admin_headers
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "simulation" in data
+    sandbox_id = data["simulation"]["scenario_id"]
+    assert sandbox_id != scenario.id
+
+    # The real scenario's allocation is untouched.
+    alloc_resp = client.get("/api/allocations", headers=admin_headers).json()
+    real_alloc = next(a for a in alloc_resp if a["employee_id"] == emp.id and a["topic_id"] == topic_fuel.id)
+    assert real_alloc["percentage"] == 40.0
+
+    # The sandbox itself has the simulated change and is tagged so the
+    # existing "Clean Up Sandboxes" flow can find it.
+    sandbox_emps = client.get(f"/api/scenarios/{sandbox_id}/employees", headers=admin_headers).json()
+    sandbox_emp = next(e for e in sandbox_emps if e["name"] == "Priya Desai")
+    sandbox_allocs = client.get(f"/api/scenarios/{sandbox_id}/allocations", headers=admin_headers).json()
+    sandbox_alloc = next(a for a in sandbox_allocs if a["employee_id"] == sandbox_emp["id"])
+    assert sandbox_alloc["percentage"] == 80.0
+
+    scenarios = client.get("/api/scenarios", headers=admin_headers).json()
+    sandbox_scenario = next(s for s in scenarios if s["id"] == sandbox_id)
+    assert sandbox_scenario["is_active"] is False
+    assert "simulation sandbox" in sandbox_scenario["description"].lower()
+
+    active_resp = client.get("/api/scenarios/active", headers=admin_headers)
+    assert active_resp.json()["id"] == scenario.id
+
+    # An unparseable what-if request gets a helpful message, no sandbox created.
+    scenarios_before = len(client.get("/api/scenarios", headers=admin_headers).json())
+    response = client.post("/api/ai/query", json={"query": "what if everything was different"}, headers=admin_headers)
+    assert response.status_code == 200
+    assert "simulation" not in response.json()
+    scenarios_after = len(client.get("/api/scenarios", headers=admin_headers).json())
+    assert scenarios_after == scenarios_before
+
+
 def test_ai_predictions_endpoint(setup_database):
     response = client.get("/api/reports/ai-predictions", headers=user_headers)
     assert response.status_code == 200

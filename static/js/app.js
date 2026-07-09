@@ -5312,7 +5312,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
                             // Navigate to matrix grid
                             navigateToSection("matrix-section");
-                            history.pushState({ section: "matrix-section" }, "", "#matrix");
+                            // Use window.history explicitly - the local
+                            // `history` chat-message array (above) shadows
+                            // the global History API within this closure.
+                            window.history.pushState({ section: "matrix-section" }, "", "#matrix");
 
                             // Rerender matrix with the new filters
                             renderAllocationMatrix();
@@ -5324,6 +5327,38 @@ document.addEventListener("DOMContentLoaded", () => {
 
                         cancelBtn.addEventListener("click", () => {
                             actionDiv.innerHTML = `<span style="color: #64748b; font-size: 11px; font-weight: 500;"><i class="fa-solid fa-circle-xmark"></i> Action cancelled</span>`;
+                            saveChatHistory();
+                        });
+                    }
+                } else if (resData.simulation) {
+                    const actionId = "ai-actions-" + Date.now();
+                    formatted += `
+                        <div id="${actionId}" class="ai-chat-actions" style="margin-top: 12px;">
+                            <button class="btn btn-primary btn-sm view-sim-btn" style="padding: 4px 10px; font-size: 11px;"><i class="fa-solid fa-flask"></i> View in Simulation</button>
+                        </div>
+                    `;
+                    bubble.innerHTML = formatted;
+
+                    const actionDiv = document.getElementById(actionId);
+                    if (actionDiv) {
+                        actionDiv.querySelector(".view-sim-btn").addEventListener("click", async () => {
+                            simScenario = { id: resData.simulation.scenario_id, name: resData.simulation.scenario_name };
+                            await fetchScenarios();
+                            await fetchSimData();
+                            navigateToSection("simulation-section");
+                            // Use window.history explicitly - the local
+                            // `history` chat-message array (above) shadows
+                            // the global History API within this closure.
+                            window.history.pushState({ section: "simulation-section" }, "", "#simulation");
+
+                            const compareA = document.getElementById("sim-compare-a");
+                            const compareB = document.getElementById("sim-compare-b");
+                            if (compareA && activeScenario) compareA.value = activeScenario.id;
+                            if (compareB) compareB.value = simScenario.id;
+                            const btnCompare = document.getElementById("btn-sim-compare");
+                            if (btnCompare) btnCompare.click();
+
+                            actionDiv.innerHTML = `<span style="color: #64748b; font-size: 11px; font-weight: 500;"><i class="fa-solid fa-circle-check"></i> Opened in Simulation</span>`;
                             saveChatHistory();
                         });
                     }
