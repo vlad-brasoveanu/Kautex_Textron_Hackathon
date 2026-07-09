@@ -1947,12 +1947,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const cList = document.getElementById("ai-insight-costs-list");
         const rList = document.getElementById("ai-insight-reallocations-list");
         
-        const severityBorderColor = (level) => level === "High" ? "var(--danger-color)" : level === "Medium" ? "var(--warning-color)" : "var(--success-color)";
+        const severityAccentColor = (level) => level === "High" ? "var(--danger-color)" : level === "Medium" ? "var(--warning-color)" : "var(--success-color)";
         const mdBold = (text) => String(text ?? "").replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
 
         if (bList) {
             bList.innerHTML = data.bottlenecks.map(b => `
-                <div class="ai-insight-item" style="border-left-color: ${severityBorderColor(b.severity)};">
+                <div class="ai-insight-item" style="--accent: ${severityAccentColor(b.severity)};">
                     <div class="ai-insight-header">
                         <strong class="ai-insight-label">${b.type}</strong>
                         <span class="badge ${b.severity === 'High' ? 'badge-danger' : b.severity === 'Medium' ? 'badge-warning' : 'badge-success'}" style="font-size:10px; padding:2px 7px;">${b.severity}</span>
@@ -1964,7 +1964,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (cList) {
             cList.innerHTML = data.cost_optimizations.map(c => `
-                <div class="ai-insight-item" style="border-left-color: var(--warning-color);">
+                <div class="ai-insight-item" style="--accent: var(--warning-color);">
                     <div class="ai-insight-header">
                         <strong class="ai-insight-label">${c.category}</strong>
                         <span class="ai-insight-impact">${c.impact}</span>
@@ -1976,7 +1976,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (rList) {
             rList.innerHTML = data.reallocations.map(r => `
-                <div class="ai-insight-item" style="border-left-color: ${severityBorderColor(r.priority)};">
+                <div class="ai-insight-item" style="--accent: ${severityAccentColor(r.priority)};">
                     <div class="ai-insight-header">
                         <strong class="ai-insight-label">${r.action}</strong>
                         <span class="badge ${r.priority === 'High' ? 'badge-danger' : r.priority === 'Medium' ? 'badge-warning' : 'badge-success'}" style="font-size:10px; padding:2px 7px;">${r.priority}</span>
