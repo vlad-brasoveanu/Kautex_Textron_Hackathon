@@ -1424,6 +1424,18 @@ def build_dashboard_report(db: Session, scenario: models.Scenario) -> dict:
             "topics": contributing_topics
         })
 
+    # 5. Utilization by department/location - mean employee utilization per
+    # group, mirroring team_summaries' average_utilization but grouped
+    # differently (a department/location isn't necessarily a single team).
+    def avg_utilization_by(group_key_fn):
+        groups = {}
+        for emp in employees:
+            groups.setdefault(group_key_fn(emp), []).append(emp_alloc_sums.get(emp.id, 0.0))
+        return {k: (sum(v) / len(v) if v else 0.0) for k, v in groups.items()}
+
+    utilization_by_department = avg_utilization_by(lambda e: e.department)
+    utilization_by_location = avg_utilization_by(lambda e: e.location)
+
     return {
         "scenario_name": scenario.name,
         "total_headcount": total_headcount,
@@ -1436,6 +1448,8 @@ def build_dashboard_report(db: Session, scenario: models.Scenario) -> dict:
         "cost_by_team": employee_costs_by_team,
         "cost_by_department": employee_costs_by_dept,
         "cost_by_category": cost_by_category,
+        "utilization_by_department": utilization_by_department,
+        "utilization_by_location": utilization_by_location,
         "highest_cost_topics": highest_cost_topics,
         "overloaded_employees": overloaded_employees,
         "topic_summaries": topic_summaries,

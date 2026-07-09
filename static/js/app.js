@@ -967,6 +967,8 @@ document.addEventListener("DOMContentLoaded", () => {
         // Executive risk strip + top cost drivers
         renderExecAlertStrip();
         renderTopCostDriversList();
+        renderUtilizationByGroupList("exec-util-by-department-list", dashboardData.utilization_by_department);
+        renderUtilizationByGroupList("exec-util-by-location-list", dashboardData.utilization_by_location);
 
         // Populate breakdowns selectors
         populateDashboardSelects();
@@ -1263,6 +1265,27 @@ document.addEventListener("DOMContentLoaded", () => {
                     <div class="ranked-list-meta">${t.category} &middot; ${t.staff.length} staff planned</div>
                 </div>
                 <div class="ranked-list-value">$${t.total_cost.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
+            </div>
+        `).join("");
+    }
+
+    function renderUtilizationByGroupList(containerId, utilByGroup) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        const entries = Object.entries(utilByGroup || {}).sort((a, b) => b[1] - a[1]);
+        if (entries.length === 0) {
+            container.innerHTML = "<div class='empty-state-message'>No data yet.</div>";
+            return;
+        }
+
+        container.innerHTML = entries.map(([name, avgUtil], idx) => `
+            <div class="ranked-list-item">
+                <div class="ranked-list-rank">${idx + 1}</div>
+                <div class="ranked-list-info">
+                    <div class="ranked-list-name">${name}</div>
+                </div>
+                <div class="ranked-list-value" style="${avgUtil > 100 ? 'color: var(--danger-color);' : ''}">${avgUtil.toFixed(1)}%</div>
             </div>
         `).join("");
     }

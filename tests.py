@@ -194,6 +194,48 @@ def test_cost_calculation_engine(setup_database):
     assert data["total_recovery_cost"] == 1000.0
     assert data["total_annual_planning_cost"] == 56000.0
 
+
+def test_dashboard_report_utilization_by_department_and_location(setup_database):
+    db = setup_database
+    scenario = db.query(models.Scenario).filter(models.Scenario.is_active == True).first()
+
+    emp_a = models.Employee(
+        scenario_id=scenario.id, name="CAE Full", team="CAE Germany",
+        department="CAE", location="Germany", available_hours=1800.0, hourly_rate=80.0
+    )
+    emp_b = models.Employee(
+        scenario_id=scenario.id, name="CAE Half", team="CAE Germany",
+        department="CAE", location="Germany", available_hours=1800.0, hourly_rate=80.0
+    )
+    emp_c = models.Employee(
+        scenario_id=scenario.id, name="Test Full", team="Test India",
+        department="Test", location="India", available_hours=1800.0, hourly_rate=40.0
+    )
+    topic = models.Topic(scenario_id=scenario.id, name="Utilization Topic", category="Internal Efforts")
+    db.add_all([emp_a, emp_b, emp_c, topic])
+    db.commit()
+    db.refresh(emp_a)
+    db.refresh(emp_b)
+    db.refresh(emp_c)
+    db.refresh(topic)
+
+    db.add_all([
+        models.Allocation(employee_id=emp_a.id, topic_id=topic.id, percentage=100.0),
+        models.Allocation(employee_id=emp_b.id, topic_id=topic.id, percentage=50.0),
+        models.Allocation(employee_id=emp_c.id, topic_id=topic.id, percentage=80.0),
+    ])
+    db.commit()
+
+    response = client.get("/api/reports/dashboard", headers=user_headers)
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["utilization_by_department"]["CAE"] == 75.0  # (100 + 50) / 2
+    assert data["utilization_by_location"]["Germany"] == 75.0
+    assert data["utilization_by_department"]["Test"] == 80.0
+    assert data["utilization_by_location"]["India"] == 80.0
+
+
 def test_simulation_dashboard_report_for_arbitrary_scenario(setup_database):
     db = setup_database
     base_scenario = db.query(models.Scenario).filter(models.Scenario.is_active == True).first()
