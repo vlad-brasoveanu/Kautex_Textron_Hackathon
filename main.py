@@ -140,6 +140,28 @@ def write_system_log(db: Session, username: str, action: str, details: str):
         print("Failed to write system audit log:", e)
 
 
+# Temporary diagnostic endpoint - reports which database this running
+# process is actually connected to and how much data it sees, to debug
+# deployments where the app is unexpectedly pointed at the wrong DB
+# (e.g. DATABASE_URL not set, so it silently falls back to local SQLite).
+@app.get("/api/debug/db-info")
+def debug_db_info(db: Session = Depends(get_db), master: models.User = Depends(require_master)):
+    return {
+        "dialect": engine.dialect.name,
+        "connection": engine.url.render_as_string(hide_password=True),
+        "counts": {
+            "users": db.query(models.User).count(),
+            "scenarios": db.query(models.Scenario).count(),
+            "employees": db.query(models.Employee).count(),
+            "topics": db.query(models.Topic).count(),
+            "allocations": db.query(models.Allocation).count(),
+        },
+        "active_scenario": (lambda s: {"id": s.id, "name": s.name} if s else None)(
+            db.query(models.Scenario).filter(models.Scenario.is_active == True).first()
+        ),
+    }
+
+
 # Auth Login Endpoint
 @app.post("/api/auth/login", response_model=schemas.UserResponse)
 def login(payload: schemas.UserLogin, response: Response, db: Session = Depends(get_db)):
