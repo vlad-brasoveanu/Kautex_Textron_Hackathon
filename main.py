@@ -35,31 +35,41 @@ os.makedirs(UPLOAD_STORAGE_DIR, exist_ok=True)
 # Lightweight migration: create_all only creates missing tables, it does not add
 # columns to tables that already existed before these fields were introduced.
 def migrate_add_missing_columns():
-    with engine.connect() as conn:
-        existing_cols = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(users)").fetchall()}
+    from sqlalchemy import inspect
+    inspector = inspect(engine)
+    
+    # 1. Migrate "users" table
+    user_columns = {col["name"] for col in inspector.get_columns("users")}
+    with engine.begin() as conn:
         for col in ("email", "department", "position", "supervisor"):
-            if col not in existing_cols:
-                conn.exec_driver_sql(f"ALTER TABLE users ADD COLUMN {col} VARCHAR")
+            if col not in user_columns:
+                col_type = "VARCHAR(255)" if engine.dialect.name == "postgresql" else "VARCHAR"
+                conn.exec_driver_sql(f"ALTER TABLE users ADD COLUMN {col} {col_type}")
 
+        # 2. Migrate "employees" & "topics" tables
         for table in ("employees", "topics"):
-            existing_cols = {row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table})").fetchall()}
-            if "is_deleted" not in existing_cols:
-                conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN is_deleted BOOLEAN DEFAULT 0")
-            if "deleted_at" not in existing_cols:
-                conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN deleted_at DATETIME")
+            table_columns = {col["name"] for col in inspector.get_columns(table)}
+            if "is_deleted" not in table_columns:
+                bool_type = "BOOLEAN DEFAULT FALSE" if engine.dialect.name == "postgresql" else "BOOLEAN DEFAULT 0"
+                conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN is_deleted {bool_type}")
+                if engine.dialect.name == "postgresql":
+                    conn.exec_driver_sql(f"UPDATE {table} SET is_deleted = FALSE WHERE is_deleted IS NULL")
+            if "deleted_at" not in table_columns:
+                dt_type = "TIMESTAMP" if engine.dialect.name == "postgresql" else "DATETIME"
+                conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN deleted_at {dt_type}")
 
-        existing_cols = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(upload_history)").fetchall()}
+        # 3. Migrate "upload_history" table
+        history_columns = {col["name"] for col in inspector.get_columns("upload_history")}
         for col in ("archived_employees", "archived_topics"):
-            if col not in existing_cols:
-                conn.exec_driver_sql(f"ALTER TABLE upload_history ADD COLUMN {col} INTEGER DEFAULT 0")
+            if col not in history_columns:
+                int_type = "INTEGER DEFAULT 0"
+                conn.exec_driver_sql(f"ALTER TABLE upload_history ADD COLUMN {col} {int_type}")
+        
+        if "file_content" not in history_columns:
+            bin_type = "BYTEA" if engine.dialect.name == "postgresql" else "BLOB"
+            conn.exec_driver_sql(f"ALTER TABLE upload_history ADD COLUMN file_content {bin_type}")
 
-        conn.commit()
-
-# PRAGMA table_info is SQLite-only syntax; on a fresh Postgres database the
-# columns this backfills already exist via Base.metadata.create_all() above,
-# so this only needs to run against a pre-existing SQLite file.
-if engine.dialect.name == "sqlite":
-    migrate_add_missing_columns()
+migrate_add_missing_columns()
 
 app = FastAPI(title="Digital Engineering Planning Dashboard API")
 
@@ -449,6 +459,16 @@ def get_active_scenario_db(db: Session):
         db.commit()
         db.refresh(scenario)
     return scenario
+
+@app.post("/api/admin/reset-demo")
+def reset_demo_data(db: Session = Depends(get_db), current_user: models.User = Depends(require_master)):
+    try:
+        import seed_data
+        seed_data.seed()
+        write_system_log(db, username=current_user.username, action="Reset Demo", details="Completely reset demo database to pristine seeded state")
+        return {"status": "success", "message": "Demo data reset successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to reset demo: {str(e)}")
 
 # ==========================================
 # 1. SCENARIOS API
@@ -1961,7 +1981,8 @@ async def import_csv_data(file: UploadFile = File(...), column_mapping: Optional
         imported_allocations=counts["imported_allocations"],
         imported_additional_costs=counts["imported_additional_costs"],
         archived_employees=counts["archived_employees"],
-        archived_topics=counts["archived_topics"]
+        archived_topics=counts["archived_topics"],
+        file_content=contents
     )
     db.add(upload_record)
     db.commit()
@@ -2020,14 +2041,16 @@ def apply_upload_from_history(upload_id: int, db: Session = Depends(get_db), adm
     if not record:
         raise HTTPException(status_code=404, detail="Upload history record not found")
 
-    stored_path = os.path.join(UPLOAD_STORAGE_DIR, record.stored_filename)
-    if not os.path.exists(stored_path):
-        raise HTTPException(status_code=404, detail="The stored file for this upload is no longer available")
+    if record.file_content is not None:
+        contents = record.file_content
+    else:
+        stored_path = os.path.join(UPLOAD_STORAGE_DIR, record.stored_filename)
+        if not os.path.exists(stored_path):
+            raise HTTPException(status_code=404, detail="The stored file for this upload is no longer available")
+        with open(stored_path, "rb") as f:
+            contents = f.read()
 
     active_scenario = get_active_scenario_db(db)
-
-    with open(stored_path, "rb") as f:
-        contents = f.read()
 
     content_type = ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                      if record.file_type == "excel" else "text/csv")

@@ -1475,3 +1475,45 @@ def test_bulk_edit_employees(setup_database):
     }, headers=admin_headers)
     assert response.status_code == 404
 
+
+def test_reset_demo_endpoint(setup_database):
+    # Standard admin cannot call reset-demo
+    response = client.post("/api/admin/reset-demo", headers=admin_headers)
+    assert response.status_code == 403
+
+    # Master admin can call reset-demo
+    response = client.post("/api/admin/reset-demo", headers=master_headers)
+    assert response.status_code == 200
+    assert response.json()["status"] == "success"
+
+
+def test_binary_upload_history_apply_without_file(setup_database):
+    db = TestingSessionLocal()
+    # 1. Create a dummy UploadHistory record with file_content binary data
+    csv_bytes = b"Employee,Team,Location,Hours/Year,Hourly Rate\nBinary User,Test Team,USA,1800,85.0\n"
+    active_scenario = db.query(models.Scenario).filter(models.Scenario.is_active == True).first()
+    
+    upload = models.UploadHistory(
+        scenario_id=active_scenario.id,
+        original_filename="binary_test.csv",
+        stored_filename="non_existent_disk_file.csv",
+        file_type="csv",
+        size_bytes=len(csv_bytes),
+        uploaded_by="admin",
+        file_content=csv_bytes
+    )
+    db.add(upload)
+    db.commit()
+    db.refresh(upload)
+
+    # 2. Try to apply it: even though stored_filename does NOT exist on disk,
+    # it should load file_content from DB and apply it successfully!
+    response = client.post(f"/api/uploads/history/{upload.id}/apply", headers=admin_headers)
+    assert response.status_code == 200
+    assert response.json()["status"] == "success"
+
+    # Verify the employee was imported successfully from binary bytes
+    emp_resp = client.get("/api/employees", headers=admin_headers)
+    assert any(e["name"] == "Binary User" for e in emp_resp.json())
+
+

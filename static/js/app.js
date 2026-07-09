@@ -160,6 +160,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const scenarioSelect = document.getElementById("scenario-select");
     const formLogin = document.getElementById("form-login");
     const btnLogout = document.getElementById("btn-logout");
+    const btnResetDemo = document.getElementById("btn-reset-demo");
     const userDisplayName = document.getElementById("user-display-name");
     const loginOverlay = document.getElementById("login-overlay");
     const loginErrorAlert = document.getElementById("login-error-alert");
@@ -3452,8 +3453,10 @@ document.addEventListener("DOMContentLoaded", () => {
         // emptying Trash, clearing Audit Logs, deleting Upload History)
         if (activeRole === "master_admin") {
             document.querySelectorAll(".master-only").forEach(el => el.style.display = "");
+            if (btnResetDemo) btnResetDemo.style.display = "inline-flex";
         } else {
             document.querySelectorAll(".master-only").forEach(el => el.style.display = "none");
+            if (btnResetDemo) btnResetDemo.style.display = "none";
         }
     }
 
@@ -3465,6 +3468,28 @@ document.addEventListener("DOMContentLoaded", () => {
         // Logout handler
         if (btnLogout) {
             btnLogout.addEventListener("click", logout);
+        }
+
+        // Reset Demo handler
+        if (btnResetDemo) {
+            btnResetDemo.addEventListener("click", async () => {
+                if (confirm("Are you sure you want to completely reset all demo data? This will restore all default scenarios, employees, topics, and upload history to their original pristine state.")) {
+                    try {
+                        const response = await fetch("/api/admin/reset-demo", {
+                            method: "POST"
+                        });
+                        if (response.ok) {
+                            alert("Demo data successfully reset to pristine state!");
+                            window.location.reload();
+                        } else {
+                            const err = await response.json();
+                            alert("Failed to reset demo database: " + (err.detail || response.statusText));
+                        }
+                    } catch (e) {
+                        alert("Network error occurred: " + e.message);
+                    }
+                }
+            });
         }
 
         // Login form submission handler

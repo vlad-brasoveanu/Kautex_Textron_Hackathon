@@ -422,6 +422,116 @@ def seed():
         ))
     db.commit()
 
+    # --- Third scenario: Conservative Retrenchment Plan (Draft) ---
+    retrench = models.Scenario(
+        name="Conservative Retrenchment Plan (Draft)",
+        description="Conservative budget scenario with a 10% rate cut across high-cost regions.",
+        is_active=False
+    )
+    db.add(retrench)
+    db.commit()
+    db.refresh(retrench)
+
+    retrench_topic_id_map = {}
+    for name, category, area, description, objective, deliverables, justification, comments, notes, recovery in TOPICS:
+        t = models.Topic(
+            scenario_id=retrench.id, name=name, category=category, area=area, description=description,
+            objective=objective, deliverables=deliverables, justification=justification,
+            status="Active", comments=comments, notes=notes, recovery=recovery
+        )
+        db.add(t)
+        db.flush()
+        retrench_topic_id_map[name] = t.id
+    db.commit()
+
+    retrench_employees = []
+    for row in EMPLOYEES:
+        name, team, department, location, hours, rate, manager, notes, status = row
+        if location in ("Germany", "USA"):
+            rate = round(rate * 0.90, 2)
+        retrench_employees.append((name, team, department, location, hours, rate, manager, notes, status))
+    
+    _populate_scenario(db, retrench, retrench_employees, ALLOCATION_PLAN, retrench_topic_id_map)
+    db.commit()
+
+    # --- Fourth scenario: APAC Expansion Strategy (Approved) ---
+    apac = models.Scenario(
+        name="APAC Expansion Strategy (Approved)",
+        description="Approved expansion strategy focusing on growing local test and CAE capabilities in India and China hubs.",
+        is_active=False
+    )
+    db.add(apac)
+    db.commit()
+    db.refresh(apac)
+
+    apac_topic_id_map = {}
+    for name, category, area, description, objective, deliverables, justification, comments, notes, recovery in TOPICS:
+        t = models.Topic(
+            scenario_id=apac.id, name=name, category=category, area=area, description=description,
+            objective=objective, deliverables=deliverables, justification=justification,
+            status="Active", comments=comments, notes=notes, recovery=recovery
+        )
+        db.add(t)
+        db.flush()
+        apac_topic_id_map[name] = t.id
+    db.commit()
+
+    apac_employees = []
+    for row in EMPLOYEES:
+        name, team, department, location, hours, rate, manager, notes, status = row
+        if location in ("India", "China"):
+            hours = hours + 200.0
+        apac_employees.append((name, team, department, location, hours, rate, manager, notes, status))
+
+    _populate_scenario(db, apac, apac_employees, ALLOCATION_PLAN, apac_topic_id_map)
+    db.commit()
+
+    # --- Seed Upload History with binary file contents ---
+    now = datetime.datetime.utcnow()
+    
+    csv_content_1 = (
+        "Employee,Team,Location,Hours/Year,Hourly Rate,Department,Manager,Status,Notes\n"
+        "Markus Weber,GV CAE Germany,Germany,1600,150.0,CAE,Dr. Müller,Active,\n"
+        "Sofia Rossi,GV CAE Germany,Germany,1600,140.0,CAE,Dr. Müller,Active,\n"
+    ).encode('utf-8')
+
+    csv_content_2 = (
+        "Employee,Team,Location,Hours/Year,Hourly Rate,Department,Manager,Status,Notes\n"
+        "Priya Sharma,GV CAE India,CAE,India,1800.0,49.55,Rajesh Kumar,Active,\n"
+        "Ravi Patel,GV CAE India,CAE,India,1800.0,47.0,Rajesh Kumar,New Position,\n"
+    ).encode('utf-8')
+
+    hist_1 = models.UploadHistory(
+        scenario_id=baseline.id,
+        original_filename="Q4_2027_CAE_Baseline.csv",
+        stored_filename="seeded_q4_2027_cae_baseline.csv",
+        file_type="csv",
+        size_bytes=len(csv_content_1),
+        uploaded_by="admin",
+        uploaded_at=now - datetime.timedelta(days=2),
+        imported_employees=2,
+        imported_topics=0,
+        imported_allocations=0,
+        file_content=csv_content_1
+    )
+
+    hist_2 = models.UploadHistory(
+        scenario_id=baseline.id,
+        original_filename="Q4_2027_India_Roster.csv",
+        stored_filename="seeded_q4_2027_india_roster.csv",
+        file_type="csv",
+        size_bytes=len(csv_content_2),
+        uploaded_by="sarah.chen",
+        uploaded_at=now - datetime.timedelta(days=1),
+        imported_employees=2,
+        imported_topics=0,
+        imported_allocations=0,
+        file_content=csv_content_2
+    )
+    db.add(hist_1)
+    db.add(hist_2)
+    db.commit()
+
     # --- Audit log history, so Audit Logs isn't empty on first look ---
     now = datetime.datetime.utcnow()
     log_entries = [

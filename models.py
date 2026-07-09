@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, UniqueConstraint, LargeBinary
 from sqlalchemy.orm import relationship
 import datetime
 from database import Base
@@ -127,5 +127,6 @@ class UploadHistory(Base):
     imported_additional_costs = Column(Integer, default=0)
     archived_employees = Column(Integer, default=0)
     archived_topics = Column(Integer, default=0)
+    file_content = Column(LargeBinary, nullable=True)
 
     scenario = relationship("Scenario")

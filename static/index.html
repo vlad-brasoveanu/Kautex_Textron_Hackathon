@@ -54,9 +54,7 @@
                     Sign In <i class="fa-solid fa-arrow-right-to-bracket"></i>
                 </button>
             </form>
-            <div class="login-footer" style="margin-top: 15px; text-align: center; font-size: 10px; color: var(--text-muted);">
-                <span>Default credentials: admin / admin123 | user / user123</span>
-            </div>
+            <!-- Credentials printout removed for security -->
         </div>
     </div>
 
@@ -106,6 +104,7 @@
 
                 <!-- User Profile & Logout -->
                 <div class="user-profile-widget" style="display: flex; align-items: center; gap: 14px;">
+                    <button id="btn-reset-demo" class="btn btn-warning" style="padding: 6px 12px; font-size: 11px; display: none; align-items: center; gap: 6px; font-weight: 500; cursor: pointer; border-radius: 6px;"><i class="fa-solid fa-rotate-left"></i> Reset Demo</button>
                     <span id="user-display-name" class="user-display-name" style="font-size: 13px; font-weight: 500; color: var(--text-primary); text-transform: capitalize;"><i class="fa-solid fa-user-circle" style="color: var(--primary-color);"></i> admin</span>
                     <button id="btn-logout" class="btn btn-danger" style="padding: 6px 12px; font-size: 11px;"><i class="fa-solid fa-power-off"></i> Logout</button>
                 </div>
