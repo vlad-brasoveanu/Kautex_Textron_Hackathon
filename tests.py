@@ -766,6 +766,64 @@ def test_csv_importer_syncs_to_new_template(setup_database):
     assert any(t["name"] == "Legacy Topic" for t in trash["topics"])
 
 
+def test_csv_importer_team_first_column_order(setup_database):
+    # Columns are matched by header name, not position - Team can lead
+    # instead of Employee, and each employee still carries its own team
+    # value on every row (a flat, non-grouped layout).
+    csv_data = [
+        ["Team", "Employee", "Location", "Hourly Rate", "Initiative A"],
+        ["Team One", "Alice", "Germany", "50", "20%"],
+        ["Team One", "Bob", "Germany", "55", "40%"],
+        ["Team Two", "Carol", "Romania", "45", "60%"],
+    ]
+    output = io.StringIO()
+    csv.writer(output).writerows(csv_data)
+    response = client.post("/api/import/csv", files={"file": ("team_first.csv", output.getvalue(), "text/csv")}, headers=admin_headers)
+    assert response.status_code == 200
+    assert response.json()["imported_employees"] == 3
+
+    emp_resp = client.get("/api/employees", headers=admin_headers).json()
+    alice = next(e for e in emp_resp if e["name"] == "Alice")
+    bob = next(e for e in emp_resp if e["name"] == "Bob")
+    carol = next(e for e in emp_resp if e["name"] == "Carol")
+    assert alice["team"] == "Team One" and alice["location"] == "Germany"
+    assert bob["team"] == "Team One" and bob["hourly_rate"] == 55.0
+    assert carol["team"] == "Team Two" and carol["location"] == "Romania"
+
+
+def test_csv_importer_grouped_team_forward_fill(setup_database):
+    # Some exports group employees under a team header row (e.g. a merged
+    # cell in Excel) and leave Team/Location blank on the employee rows
+    # underneath it. Those blanks should forward-fill from the most recent
+    # group header instead of falling back to "Unassigned".
+    csv_data = [
+        ["Team", "Employee", "Location", "Hourly Rate", "Initiative A"],
+        ["Team One", "", "Germany", "", ""],
+        ["", "Alice Grouped", "", "50", "20%"],
+        ["", "Bob Grouped", "", "55", "40%"],
+        ["Team Two", "", "Romania", "", ""],
+        ["", "Carol Grouped", "", "45", "60%"],
+    ]
+    output = io.StringIO()
+    csv.writer(output).writerows(csv_data)
+    response = client.post("/api/import/csv", files={"file": ("grouped.csv", output.getvalue(), "text/csv")}, headers=admin_headers)
+    assert response.status_code == 200
+    data = response.json()
+    # Only the 3 named employee rows are imported - the 2 pure group-header
+    # rows (team name only, no employee name) are not created as employees.
+    assert data["imported_employees"] == 3
+
+    emp_resp = client.get("/api/employees", headers=admin_headers).json()
+    assert {e["name"] for e in emp_resp} == {"Alice Grouped", "Bob Grouped", "Carol Grouped"}
+
+    alice = next(e for e in emp_resp if e["name"] == "Alice Grouped")
+    bob = next(e for e in emp_resp if e["name"] == "Bob Grouped")
+    carol = next(e for e in emp_resp if e["name"] == "Carol Grouped")
+    assert alice["team"] == "Team One" and alice["location"] == "Germany"
+    assert bob["team"] == "Team One" and bob["location"] == "Germany"
+    assert carol["team"] == "Team Two" and carol["location"] == "Romania"
+
+
 def test_csv_importer_new_manager_column(setup_database):
     csv_data = [
         ["Employee", "Team", "Location", "Manager", "Initiative A"],

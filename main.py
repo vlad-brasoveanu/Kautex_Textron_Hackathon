@@ -1484,6 +1484,16 @@ def apply_rows_to_scenario(rows, active_scenario, db: Session, column_mapping: O
             return ""
         return row[idx].strip()
 
+    # Column order is irrelevant (headers are matched by name, not position),
+    # so a sheet can just as easily lead with Team instead of Employee. Some
+    # exports also *group* employees under a team: the team name only appears
+    # once (e.g. a merged cell in Excel), with the rows underneath leaving
+    # the Team/Location cell blank. These two variables carry the last
+    # non-blank value forward so those rows still resolve to the right
+    # team/location instead of falling back to "Unassigned".
+    last_seen_team = ""
+    last_seen_location = ""
+
     # We will process each row
     for r_idx in range(1, len(rows)):
         row = rows[r_idx]
@@ -1493,6 +1503,11 @@ def apply_rows_to_scenario(rows, active_scenario, db: Session, column_mapping: O
         first_cell = cell(row, emp_idx)
         row_team = cell(row, team_idx)
         row_location = cell(row, loc_idx)
+
+        if row_team:
+            last_seen_team = row_team
+        if row_location:
+            last_seen_location = row_location
 
         # Bottom rows for additional costs / recovery reuse the Employee column to
         # hold the cost category name (e.g. "CAD", "Tooling", "Recovery") and leave
@@ -1542,8 +1557,10 @@ def apply_rows_to_scenario(rows, active_scenario, db: Session, column_mapping: O
         # when creating a brand-new employee.
         emp_name = first_cell
         touched_emp_names.add(emp_name)
-        team = row_team
-        location = row_location
+        # Forward-fill from the most recent group header if this row itself
+        # left Team/Location blank (grouped/merged-cell style export).
+        team = row_team or last_seen_team
+        location = row_location or last_seen_location
         dept_raw = cell(row, dept_idx)
         manager_raw = cell(row, manager_idx)
         notes_raw = cell(row, notes_idx)
