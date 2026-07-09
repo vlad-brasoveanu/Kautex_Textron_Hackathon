@@ -1,0 +1,6 @@
+Employee,Team,Location,Hours/Year,Hourly Rate,Department,Manager,Status,Notes,Non bookable - Other,Fuel Project,Agentic AI and LLM - Enterprise Solutions
+Michael Johnson,GV Test Troy,USA,1800,130.0,Test,John Smith,Active,Troy validation lab supervisor.,15%,65%,20%
+Tom Anderson,GV Test Troy,USA,1800,125.0,Test,John Smith,Active,Powertrain test lead.,10%,70%,20%
+Sarah Chen,Program Management,USA,1800,145.0,Program Management,John Smith,Active,Global program management director.,20%,40%,40%
+Fatima Al-Rashid,Program Management,USA,1800,132.0,Program Management,Sarah Chen,Active,Customer PM for Fuel Project.,10%,60%,30%
+John Doe,GV Test Troy,USA,1800,95.0,Test,Michael Johnson,New Position,Approved new hire for Troy lab.,100%,0%,0%
