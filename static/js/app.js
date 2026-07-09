@@ -2052,8 +2052,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================================
-// 11. WYSIWYG HTML EXPORTER (Camera Foto Client-Side)
-// ==========================================================
+// 11. INTERACTIVE HTML EXPORTER - Raport Complet Editabil cu localStorage
+// ====================================================================
 document.addEventListener('DOMContentLoaded', () => {
     const btnExportLocal = document.getElementById('btn-export-html-local');
     
@@ -2067,77 +2067,319 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             
+            // Clonează TOATE slide-urile
             const clone = deck.cloneNode(true);
             
-            // Extragerea și convertirea graficului Chart.js într-o imagine Base64
-            const originalCanvas = document.getElementById('pres-chart-location-canvas');
-            const clonedCanvasContainer = clone.querySelector('.pres-chart-box');
-            
-            if (originalCanvas && clonedCanvasContainer) {
-                const imgData = originalCanvas.toDataURL('image/png');
-                const img = document.createElement('img');
-                img.src = imgData;
-                img.style.maxWidth = '100%';
-                img.style.height = 'auto';
+            // Delay pentru a permite Chart.js să finalizeze renderul
+            setTimeout(() => {
+                // Converteste canvas în imagini PNG
+                clone.querySelectorAll('canvas').forEach(canvas => {
+                    try {
+                        const width = canvas.width || canvas.offsetWidth || 300;
+                        const height = canvas.height || canvas.offsetHeight || 300;
+                        const ctx = canvas.getContext('2d');
+                        if (ctx) {
+                            const imgData = canvas.toDataURL('image/png');
+                            const img = document.createElement('img');
+                            img.src = imgData;
+                            img.style.maxWidth = '100%';
+                            img.style.height = 'auto';
+                            img.style.display = 'block';
+                            img.style.margin = '20px auto';
+                            img.alt = 'Chart';
+                            canvas.replaceWith(img);
+                        }
+                    } catch (err) {
+                        console.error('Canvas error:', err);
+                    }
+                });
                 
-                const cloneCanvas = clone.querySelector('canvas');
-                if (cloneCanvas) cloneCanvas.remove();
-                clonedCanvasContainer.appendChild(img);
-            }
+                const slidesHTML = clone.innerHTML;
             
-            const rawHTML = clone.innerHTML;
-            
-            const finalDoc = `<!DOCTYPE html>
-<html lang="ro">
-<head>
-    <meta charset="UTF-8">
-    <title>Raport Exportat - Textron</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        body { font-family: 'Outfit', sans-serif; background: #0b0f19; color: #f8fafc; padding: 40px; margin: 0; }
-        .presentation-deck { max-width: 1000px; margin: 0 auto; }
-        .presentation-slide { background: #151b2b; border: 1px solid #1e293b; border-radius: 12px; padding: 40px; margin-bottom: 40px; min-height: 400px; position: relative; page-break-after: always; }
-        .slide-title { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
-        .slide-header-brand { color: #3b82f6; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 30px; }
-        .slide-body-center h2 { font-size: 42px; margin: 0 0 10px 0; color: #f8fafc; }
-        .slide-body-center p { font-size: 18px; color: #94a3b8; }
-        .divider-line { height: 4px; width: 60px; background: linear-gradient(90deg, #3b82f6, #8b5cf6); margin: 30px auto; border-radius: 2px; }
-        .slide-title-bar { border-bottom: 1px solid #1e293b; padding-bottom: 15px; margin-bottom: 25px; }
-        .slide-title-bar h3 { margin: 0; font-size: 22px; color: #f8fafc; }
-        .pres-kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px; }
-        .pres-kpi-item { background: #0b0f19; border: 1px solid #1e293b; padding: 15px; border-radius: 8px; text-align: center; }
-        .pres-kpi-label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
-        .pres-kpi-number { font-size: 24px; font-weight: 700; color: #f8fafc; margin-top: 8px; }
-        .pres-kpi-number.text-green { color: #10b981; }
-        .pres-chart-box { background: #0b0f19; border: 1px solid #1e293b; padding: 20px; border-radius: 8px; text-align: center; }
-        .pres-table { width: 100%; border-collapse: collapse; background: #0b0f19; border-radius: 8px; overflow: hidden; }
-        .pres-table th, .pres-table td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #1e293b; font-size: 14px; }
-        .pres-table th { background: #151b2b; color: #94a3b8; font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: 1px; }
-        .risk-list { list-style: none; padding: 0; margin: 0; }
-        .risk-list li { padding: 15px; background: rgba(239, 68, 68, 0.05); border-left: 3px solid #ef4444; border-radius: 0 8px 8px 0; margin-bottom: 10px; font-size: 14px; }
-        .slide-footer { position: absolute; bottom: 30px; left: 40px; right: 40px; display: flex; justify-content: space-between; font-size: 11px; color: #475569; border-top: 1px solid #1e293b; padding-top: 15px; }
-        .confidential-tag { border: 1px solid #ef4444; color: #ef4444; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; letter-spacing: 1px; }
-    </style>
-</head>
-<body>
-    <div class="presentation-deck">
-        ${rawHTML}
-    </div>
-</body>
-</html>`;
+            // HTML simplu - CSS minim dar functional
+            let html = '<!DOCTYPE html>\n';
+            html += '<html lang="ro">\n';
+            html += '<head>\n';
+            html += '    <meta charset="UTF-8">\n';
+            html += '    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n';
+            html += '    <title>Raport Editabil - Textron</title>\n';
+            html += '    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">\n';
+            html += '    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">\n';
+            html += '    <style>\n';
+            html += '        * { margin: 0; padding: 0; box-sizing: border-box; }\n';
+            html += '        html, body { height: auto; width: 100%; overflow-x: hidden; }\n';
+            html += '        body { font-family: "Outfit", sans-serif; background: #0b0f19; color: #f8fafc; padding: 0; margin: 0; }\n';
+            html += '        .export-controls { position: fixed; top: 0; left: 0; right: 0; height: auto; background: rgba(15, 23, 42, 0.98); border-bottom: 1px solid #1e293b; display: flex; gap: 8px; align-items: center; padding: 12px 20px; z-index: 1000; flex-wrap: wrap; }\n';
+            html += '        .export-controls button { padding: 8px 14px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.2s; }\n';
+            html += '        .btn-edit { background: #3b82f6; color: white; }\n';
+            html += '        .btn-edit:hover { background: #2563eb; }\n';
+            html += '        .btn-edit.active { background: #10b981; }\n';
+            html += '        .btn-other { background: #1e293b; color: #94a3b8; border: 1px solid #334155; }\n';
+            html += '        .btn-other:hover { background: #334155; }\n';
+            html += '        .content-wrapper { margin-top: 70px; padding: 20px; max-width: 100%; }\n';
+            html += '        .presentation-deck { max-width: 1200px; margin: 0 auto; }\n';
+            html += '        .presentation-slide { background: #151b2b; border: 1px solid #1e293b; border-radius: 12px; padding: 40px; margin-bottom: 40px; position: relative; transition: all 0.3s; cursor: grab; min-height: 300px; }\n';
+            html += '        .presentation-slide.drag-over { opacity: 0.5; border: 2px dashed #3b82f6; }\n';
+            html += '        .presentation-slide.dragging { opacity: 0.3; }\n';
+            html += '        .presentation-slide:hover { border-color: #3b82f6; }\n';
+            html += '        .slide-toolbar { position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; opacity: 0; transition: opacity 0.3s; }\n';
+            html += '        .presentation-slide:hover .slide-toolbar { opacity: 1; }\n';
+            html += '        .btn-slide-delete { width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444; border-radius: 4px; cursor: pointer; }\n';
+            html += '        .btn-slide-delete:hover { background: #ef4444; color: white; }\n';
+            html += '        [contenteditable] { outline: 2px dotted transparent; }\n';
+            html += '        [contenteditable]:focus { outline: 2px dotted #3b82f6; background: rgba(59, 130, 246, 0.05); }\n';
+            html += '        .pres-table { width: 100%; border-collapse: collapse; margin: 20px 0; background: #0b0f19; }\n';
+            html += '        .pres-table th { background: #0b0f19; color: #e2e8f0; padding: 12px; text-align: left; border: 1px solid #1e293b; font-weight: 600; }\n';
+            html += '        .pres-table td { padding: 12px; border: 1px solid #1e293b; }\n';
+            html += '        .pres-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 20px 0; }\n';
+            html += '        .pres-kpi-item { background: #0b0f19; border: 1px solid #1e293b; padding: 15px; border-radius: 8px; text-align: center; }\n';
+            html += '        .pres-kpi-number { font-size: 18px; font-weight: 700; color: #f8fafc; margin-top: 8px; }\n';
+            html += '        .slide-title-bar { margin-bottom: 20px; border-bottom: 2px solid #1e293b; padding-bottom: 12px; }\n';
+            html += '        .slide-title-bar h3 { font-size: 18px; color: #e2e8f0; }\n';
+            html += '        .risk-list { list-style: none; padding: 0; }\n';
+            html += '        .risk-list li { padding: 12px; background: rgba(239, 68, 68, 0.05); border-left: 3px solid #ef4444; margin-bottom: 8px; border-radius: 4px; }\n';
+            html += '        .slide-content-split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }\n';
+            html += '        .slide-col-left, .slide-col-right { flex: 1; }\n';
+            html += '        .slide-col-full { grid-column: 1 / -1; }\n';
+            html += '        .canvas-wrap, .pres-chart-box { background: #0b0f19; padding: 15px; border-radius: 8px; }\n';
+            html += '        .canvas-wrap img, .chart-image { display: block; max-width: 100%; height: auto; margin: 0 auto; }\n';
+            html += '        h1, h2, h3, h4, h5, h6, p { margin: 10px 0; }\n';
+            html += '        img { max-width: 100%; height: auto; }\n';
+            html += '        canvas { max-width: 100%; height: auto; }\n';
+            html += '        @media print { .export-controls { display: none; } body { margin-top: 0; } }\n';
+            html += '    </style>\n';
+            html += '</head>\n';
+            html += '<body>\n';
+            html += '    <div class="export-controls">\n';
+            html += '        <button class="btn-edit" id="btn-toggle-edit"><i class="fa-solid fa-pencil"></i> Edit</button>\n';
+            html += '        <button class="btn-other" id="btn-add-slide" disabled><i class="fa-solid fa-plus"></i> New Slide</button>\n';
+            html += '        <button class="btn-other" id="btn-save" disabled><i class="fa-solid fa-floppy-disk"></i> Save</button>\n';
+            html += '        <button class="btn-other" onclick="window.print()"><i class="fa-solid fa-print"></i> Print</button>\n';
+            html += '    </div>\n';
+            html += '    <div class="content-wrapper">\n';
+            html += '        <div class="presentation-deck" id="presentation-deck">\n';
+            html += slidesHTML;
+            html += '        </div>\n';
+            html += '    </div>\n';
+            html += '    <script>\n';
+            html += '        window.editMode = false;\n';
+            html += '        window.draggedSlide = null;\n';
+            html += '        \n';
+            html += '        function loadFromStorage() {\n';
+            html += '            try {\n';
+            html += '                const saved = localStorage.getItem("pres-html-data");\n';
+            html += '                if (saved) {\n';
+            html += '                    document.getElementById("presentation-deck").innerHTML = saved;\n';
+            html += '                }\n';
+            html += '            } catch (e) {\n';
+            html += '                console.log("Storage load error");\n';
+            html += '            }\n';
+            html += '        }\n';
+            html += '        \n';
+            html += '        function autoSave() {\n';
+            html += '            try {\n';
+            html += '                const html = document.getElementById("presentation-deck").innerHTML;\n';
+            html += '                localStorage.setItem("pres-html-data", html);\n';
+            html += '            } catch (e) {\n';
+            html += '                console.log("Storage save error");\n';
+            html += '            }\n';
+            html += '        }\n';
+            html += '        \n';
+            html += '        function toggleEdit() {\n';
+            html += '            window.editMode = !window.editMode;\n';
+            html += '            const btn = document.getElementById("btn-toggle-edit");\n';
+            html += '            const btnAdd = document.getElementById("btn-add-slide");\n';
+            html += '            const btnSave = document.getElementById("btn-save");\n';
+            html += '            \n';
+            html += '            document.querySelectorAll(".presentation-slide").forEach(slide => {\n';
+            html += '                if (window.editMode) {\n';
+            html += '                    slide.draggable = true;\n';
+            html += '                    addSlideToolbar(slide);\n';
+            html += '                    makeEditable(slide);\n';
+            html += '                } else {\n';
+            html += '                    slide.draggable = false;\n';
+            html += '                    makeNonEditable(slide);\n';
+            html += '                    autoSave();\n';
+            html += '                }\n';
+            html += '            });\n';
+            html += '            \n';
+            html += '            if (window.editMode) {\n';
+            html += '                btn.classList.add("active");\n';
+            html += '                btnAdd.disabled = false;\n';
+            html += '                btnSave.disabled = false;\n';
+            html += '                setupDragDrop();\n';
+            html += '            } else {\n';
+            html += '                btn.classList.remove("active");\n';
+            html += '                btnAdd.disabled = true;\n';
+            html += '                btnSave.disabled = true;\n';
+            html += '            }\n';
+            html += '        }\n';
+            html += '        \n';
+            html += '        function addSlideToolbar(slide) {\n';
+            html += '            if (slide.querySelector(".slide-toolbar")) return;\n';
+            html += '            const tb = document.createElement("div");\n';
+            html += '            tb.className = "slide-toolbar";\n';
+            html += '            tb.innerHTML = \'<button class="btn-slide-delete" title="Sterge slide"><i class="fa-solid fa-trash"></i></button>\';\n';
+            html += '            tb.querySelector("button").onclick = (e) => {\n';
+            html += '                e.stopPropagation();\n';
+            html += '                slide.remove();\n';
+            html += '                autoSave();\n';
+            html += '            };\n';
+            html += '            slide.appendChild(tb);\n';
+            html += '        }\n';
+            html += '        \n';
+            html += '        function recalculateTotals(slide) {\n';
+            html += '            slide.querySelectorAll(".pres-table tr").forEach(row => {\n';
+            html += '                const cells = row.querySelectorAll("td");\n';
+            html += '                if (cells.length >= 5) {\n';
+            html += '                    try {\n';
+            html += '                        const catCost = parseFloat(cells[2].textContent.replace(/[$,]/g, "")) || 0;\n';
+            html += '                        const total = catCost;\n';
+            html += '                        cells[4].textContent = "$" + total.toLocaleString();\n';
+            html += '                    } catch (e) {}\n';
+            html += '                }\n';
+            html += '            });\n';
+            html += '        }\n';
+            html += '        \n';
+            html += '        function makeEditable(slide) {\n';
+            html += '            slide.querySelectorAll("h1,h2,h3,h4,h5,h6,p,span,td,li").forEach(el => {\n';
+            html += '                if (!el.querySelector(".slide-toolbar") && !el.closest(".slide-toolbar")) {\n';
+            html += '                    el.contentEditable = "true";\n';
+            html += '                    el.addEventListener("input", () => { autoSave(); recalculateTotals(slide); }, false);\n';
+            html += '                }\n';
+            html += '            });\n';
+            html += '        }\n';
+            html += '        \n';
+            html += '        function makeNonEditable(slide) {\n';
+            html += '            slide.querySelectorAll("[contenteditable]").forEach(el => {\n';
+            html += '                el.contentEditable = "false";\n';
+            html += '                el.removeAttribute("contenteditable");\n';
+            html += '            });\n';
+            html += '        }\n';
+            html += '        \n';
+            html += '        function setupDragDrop() {\n';
+            html += '            document.querySelectorAll(".presentation-slide").forEach(slide => {\n';
+            html += '                slide.addEventListener("dragstart", (e) => {\n';
+            html += '                    window.draggedSlide = slide;\n';
+            html += '                    slide.classList.add("dragging");\n';
+            html += '                    e.dataTransfer.effectAllowed = "move";\n';
+            html += '                }, false);\n';
+            html += '                \n';
+            html += '                slide.addEventListener("dragend", () => {\n';
+            html += '                    document.querySelectorAll(".presentation-slide").forEach(s => {\n';
+            html += '                        s.classList.remove("dragging", "drag-over");\n';
+            html += '                    });\n';
+            html += '                    window.draggedSlide = null;\n';
+            html += '                }, false);\n';
+            html += '                \n';
+            html += '                slide.addEventListener("dragover", (e) => {\n';
+            html += '                    e.preventDefault();\n';
+            html += '                    if (window.draggedSlide && window.draggedSlide !== slide) {\n';
+            html += '                        slide.classList.add("drag-over");\n';
+            html += '                    }\n';
+            html += '                }, false);\n';
+            html += '                \n';
+            html += '                slide.addEventListener("dragleave", () => {\n';
+            html += '                    slide.classList.remove("drag-over");\n';
+            html += '                }, false);\n';
+            html += '                \n';
+            html += '                slide.addEventListener("drop", (e) => {\n';
+            html += '                    e.preventDefault();\n';
+            html += '                    if (window.draggedSlide && window.draggedSlide !== slide) {\n';
+            html += '                        const allSlides = Array.from(document.querySelectorAll(".presentation-slide"));\n';
+            html += '                        const fromIdx = allSlides.indexOf(window.draggedSlide);\n';
+            html += '                        const toIdx = allSlides.indexOf(slide);\n';
+            html += '                        \n';
+            html += '                        if (fromIdx < toIdx) {\n';
+            html += '                            slide.parentNode.insertBefore(window.draggedSlide, slide.nextSibling);\n';
+            html += '                        } else {\n';
+            html += '                            slide.parentNode.insertBefore(window.draggedSlide, slide);\n';
+            html += '                        }\n';
+            html += '                        autoSave();\n';
+            html += '                    }\n';
+            html += '                    slide.classList.remove("drag-over");\n';
+            html += '                }, false);\n';
+            html += '            });\n';
+            html += '        }\n';
+            html += '        \n';
+            html += '        document.getElementById("btn-toggle-edit").addEventListener("click", toggleEdit);\n';
+            html += '        \n';
+            html += '        document.getElementById("btn-add-slide").addEventListener("click", () => {\n';
+            html += '            if (!window.editMode) return;\n';
+            html += '            const slide = document.createElement("div");\n';
+            html += '            slide.className = "presentation-slide";\n';
+            html += '            slide.innerHTML = "<div class=\\"slide-title-bar\\"><h3>Slide Nou</h3></div><div class=\\"slide-content-split\\"><div class=\\"slide-col-left\\"><h4>Continut</h4><p>Text...</p></div></div>";\n';
+            html += '            document.getElementById("presentation-deck").appendChild(slide);\n';
+            html += '            addSlideToolbar(slide);\n';
+            html += '            makeEditable(slide);\n';
+            html += '            setupDragDrop();\n';
+            html += '            autoSave();\n';
+            html += '        });\n';
+            html += '        \n';
+            html += '        document.getElementById("btn-save").addEventListener("click", () => {\n';
+            html += '            autoSave();\n';
+            html += '            alert("Saved!");\n';
+            html += '            if (window.editMode) toggleEdit();\n';
+            html += '        });\n';
+            html += '        \n';
+            html += '        loadFromStorage();\n';
+            html += '    </script>\n';
+            html += '</body>\n';
+            html += '</html>\n';
 
-            const blob = new Blob([finalDoc], { type: 'text/html;charset=utf-8' });
+            const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
             const url = URL.createObjectURL(blob);
-            
             const link = document.createElement('a');
             link.href = url;
-            link.download = `Raport_Final_Textron_${Math.floor(Date.now() / 1000)}.html`;
+            link.download = 'Raport_' + new Date().toISOString().slice(0, 10) + '.html';
             document.body.appendChild(link);
             link.click();
-            
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
+            
+            alert('✅ Raport exportat! Deschide în browser.');
+            }, 500);
+        });
+    }
+});
+
+// ====== 10. DRAG & DROP FOR SLIDES ======
+document.addEventListener('DOMContentLoaded', () => {
+    const slideContainer = document.querySelector('.presentation-deck');
+    let draggedSlide = null;
+
+    if (slideContainer) {
+        const slides = slideContainer.querySelectorAll('.presentation-slide');
+        slides.forEach(slide => {
+            slide.setAttribute('draggable', 'true');
+            slide.style.cursor = 'grab';
+
+            slide.addEventListener('dragstart', () => {
+                draggedSlide = slide;
+                slide.style.opacity = '0.4';
+                slide.style.cursor = 'grabbing';
+            });
+
+            slide.addEventListener('dragend', () => {
+                draggedSlide = null;
+                slide.style.opacity = '1';
+                slide.style.cursor = 'grab';
+                slides.forEach(s => s.style.borderTop = '');
+            });
+
+            slide.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                slides.forEach(s => s.style.borderTop = '');
+                slide.style.borderTop = '3px solid #007bff';
+                slide.style.transition = 'border-top 0.2s ease';
+            });
+
+            slide.addEventListener('drop', () => {
+                if (draggedSlide !== slide) {
+                    slideContainer.insertBefore(draggedSlide, slide);
+                }
+                slides.forEach(s => s.style.borderTop = '');
+            });
         });
     }
 });
