@@ -150,7 +150,66 @@ document.addEventListener("DOMContentLoaded", () => {
     // ==========================================
     // 1. INITIALIZATION & DATA SYNC
     // ==========================================
-    
+
+    // URL hash routing (#matrix, #simulation, ...) - lets a tab survive a
+    // refresh or the browser back/forward buttons instead of always
+    // resetting to the Allocation Grid.
+    function sectionIdToSlug(sectionId) {
+        return sectionId.replace(/-section$/, "");
+    }
+
+    function slugToSectionId(slug) {
+        return slug ? `${slug}-section` : null;
+    }
+
+    function isSectionAccessible(sectionId) {
+        const navItem = document.querySelector(`[data-target="${sectionId}"]`);
+        return !!(navItem && document.getElementById(sectionId) && navItem.style.display !== "none");
+    }
+
+    function navigateToSection(sectionId) {
+        const navItem = document.querySelector(`[data-target="${sectionId}"]`);
+        const sectionEl = document.getElementById(sectionId);
+        if (!navItem || !sectionEl) return false;
+
+        navItems.forEach(n => n.classList.remove("active"));
+        navItem.classList.add("active");
+
+        activeSection = sectionId;
+        mainSections.forEach(s => s.classList.remove("active"));
+        sectionEl.classList.add("active");
+
+        updateSidebarFiltersVisibility();
+
+        // Workaround chart redraws
+        if (activeSection === "dashboards-section") {
+            renderDashboards();
+        } else if (activeSection === "presentation-section") {
+            renderPresentationDeck();
+        } else if (activeSection === "logs-section") {
+            fetchAndRenderAdminLogs();
+        } else if (activeSection === "users-section") {
+            fetchAndRenderUsers();
+        } else if (activeSection === "simulation-section") {
+            renderSimulationTab();
+        } else if (activeSection === "planning-version-section") {
+            renderPlanningVersionTab();
+        }
+        return true;
+    }
+
+    // Reads the current URL hash and shows that tab (falling back to the
+    // Allocation Grid if the hash is empty, unknown, or not accessible for
+    // this user's role) - call once after login/session data is loaded.
+    function restoreSectionFromHash(fallbackSectionId = "matrix-section") {
+        const requestedSectionId = slugToSectionId(window.location.hash.replace(/^#/, ""));
+        const targetSectionId = (requestedSectionId && isSectionAccessible(requestedSectionId))
+            ? requestedSectionId
+            : fallbackSectionId;
+        navigateToSection(targetSectionId);
+        history.replaceState({ section: targetSectionId }, "", `#${sectionIdToSlug(targetSectionId)}`);
+    }
+
     async function init() {
         setupEventListeners();
 
@@ -167,6 +226,7 @@ document.addEventListener("DOMContentLoaded", () => {
             await fetchScenarios();
             await fetchActiveScenario();
             await refreshAllData();
+            restoreSectionFromHash();
         } else {
             document.body.classList.remove("authenticated");
         }
@@ -3312,18 +3372,12 @@ document.addEventListener("DOMContentLoaded", () => {
                         document.body.classList.add("authenticated");
                         userDisplayName.innerHTML = `<i class="fa-solid fa-user-circle" style="color: var(--primary-color);"></i> ${data.name}`;
                         
-                        activeSection = "matrix-section";
-                        navItems.forEach(n => n.classList.remove("active"));
-                        const defaultNavItem = document.querySelector('[data-target="matrix-section"]');
-                        if (defaultNavItem) defaultNavItem.classList.add("active");
-                        mainSections.forEach(s => s.classList.remove("active"));
-                        const defaultSec = document.getElementById("matrix-section");
-                        if (defaultSec) defaultSec.classList.add("active");
                         updateSidebarFiltersVisibility();
 
                         await fetchScenarios();
                         await fetchActiveScenario();
                         await refreshAllData();
+                        restoreSectionFromHash();
                     } else {
                         loginErrorAlert.style.display = "block";
                         loginErrorAlert.classList.add("shake-animation");
@@ -3337,33 +3391,23 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
 
-        // Sidebar Navigation click swaps
+        // Sidebar Navigation click swaps - updates the URL hash (e.g. #simulation)
+        // so the tab survives a refresh/back-button instead of always resetting
+        // to the Allocation Grid. See navigateToSection/restoreSectionFromHash.
         navItems.forEach(item => {
             item.addEventListener("click", () => {
-                navItems.forEach(n => n.classList.remove("active"));
-                item.classList.add("active");
-                
-                activeSection = item.getAttribute("data-target");
-                mainSections.forEach(s => s.classList.remove("active"));
-                document.getElementById(activeSection).classList.add("active");
-
-                updateSidebarFiltersVisibility();
-
-                // Workaround chart redraws
-                if (activeSection === "dashboards-section") {
-                    renderDashboards();
-                } else if (activeSection === "presentation-section") {
-                    renderPresentationDeck();
-                } else if (activeSection === "logs-section") {
-                    fetchAndRenderAdminLogs();
-                } else if (activeSection === "users-section") {
-                    fetchAndRenderUsers();
-                } else if (activeSection === "simulation-section") {
-                    renderSimulationTab();
-                } else if (activeSection === "planning-version-section") {
-                    renderPlanningVersionTab();
-                }
+                const sectionId = item.getAttribute("data-target");
+                navigateToSection(sectionId);
+                history.pushState({ section: sectionId }, "", `#${sectionIdToSlug(sectionId)}`);
             });
+        });
+
+        window.addEventListener("popstate", (e) => {
+            if (!document.body.classList.contains("authenticated")) return;
+            const sectionId = (e.state && e.state.section) || slugToSectionId(window.location.hash.replace(/^#/, ""));
+            if (sectionId && isSectionAccessible(sectionId)) {
+                navigateToSection(sectionId);
+            }
         });
 
         // Reset Filters binding
@@ -5255,14 +5299,8 @@ document.addEventListener("DOMContentLoaded", () => {
                             renderFiltersPanel();
 
                             // Navigate to matrix grid
-                            activeSection = "matrix-section";
-                            navItems.forEach(n => n.classList.remove("active"));
-                            const defaultNavItem = document.querySelector('[data-target="matrix-section"]');
-                            if (defaultNavItem) defaultNavItem.classList.add("active");
-                            mainSections.forEach(s => s.classList.remove("active"));
-                            const defaultSec = document.getElementById("matrix-section");
-                            if (defaultSec) defaultSec.classList.add("active");
-                            updateSidebarFiltersVisibility();
+                            navigateToSection("matrix-section");
+                            history.pushState({ section: "matrix-section" }, "", "#matrix");
 
                             // Rerender matrix with the new filters
                             renderAllocationMatrix();
