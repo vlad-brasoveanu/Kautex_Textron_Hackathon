@@ -404,8 +404,30 @@ document.addEventListener("DOMContentLoaded", () => {
                 const sectionId = item.getAttribute("data-target");
                 navigateToSection(sectionId);
                 history.pushState({ section: sectionId }, "", `#${sectionIdToSlug(sectionId)}`);
+                closeMobileMenu();
             });
         });
+
+        // Mobile hamburger toggle: shows/hides the Planning Version/Language/
+        // Theme/user controls + nav list, which are collapsed by default on
+        // narrow screens so the header doesn't dominate the viewport.
+        const btnMobileMenuToggle = document.getElementById("btn-mobile-menu-toggle");
+        function closeMobileMenu() {
+            document.body.classList.remove("mobile-nav-open");
+            if (btnMobileMenuToggle) {
+                btnMobileMenuToggle.setAttribute("aria-expanded", "false");
+                btnMobileMenuToggle.innerHTML = '<i class="fa-solid fa-bars"></i>';
+            }
+        }
+        if (btnMobileMenuToggle) {
+            btnMobileMenuToggle.addEventListener("click", () => {
+                const isOpen = document.body.classList.toggle("mobile-nav-open");
+                btnMobileMenuToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+                btnMobileMenuToggle.innerHTML = isOpen
+                    ? '<i class="fa-solid fa-xmark"></i>'
+                    : '<i class="fa-solid fa-bars"></i>';
+            });
+        }
 
         window.addEventListener("popstate", (e) => {
             if (!document.body.classList.contains("authenticated")) return;

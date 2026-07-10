@@ -15,7 +15,7 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=mobile4">
 </head>
 <body>
 
@@ -71,6 +71,11 @@
                     <p>Resource & Cost Management Dashboard</p>
                 </div>
             </div>
+
+            <!-- Mobile-only hamburger toggle for the controls/nav drawer below -->
+            <button id="btn-mobile-menu-toggle" class="mobile-menu-toggle-btn" type="button" aria-label="Toggle menu" aria-expanded="false">
+                <i class="fa-solid fa-bars"></i>
+            </button>
 
             <!-- Active Scenario and Role widgets -->
             <div class="header-controls">
@@ -162,7 +167,7 @@
 
             <!-- AI Trigger Button -->
             <div class="ai-trigger-container">
-                <button id="btn-toggle-ai" class="btn btn-ai btn-full">
+                <button id="btn-toggle-ai" class="btn btn-ai btn-full" aria-label="Confidential AI Chat">
                     <i class="fa-solid fa-robot"></i> <span data-i18n="nav.aiChat">Confidential AI Chat</span>
                 </button>
             </div>
@@ -1600,7 +1605,7 @@
     </div>
 
     <!-- Custom Script -->
-    <script src="js/translations.js"></script>
-    <script type="module" src="js/main.js"></script>
+    <script src="js/translations.js?v=mobile4"></script>
+    <script type="module" src="js/main.js?v=mobile4"></script>
 </body>
 </html>

@@ -320,6 +320,23 @@ body:not(.theme-light) .login-logo-image {
     gap: 20px;
 }
 
+/* Hamburger toggle for the mobile controls/nav drawer - hidden on desktop,
+   shown only under the max-width:768px breakpoint below. */
+.mobile-menu-toggle-btn {
+    display: none;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    font-size: 16px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
 .control-group {
     display: flex;
     align-items: center;
@@ -1869,6 +1886,7 @@ th.sortable-emp:hover, th.sortable-topic:hover {
 
 .crud-table-wrapper {
     overflow-y: auto;
+    overflow-x: auto;
     flex-grow: 1;
 }
 
@@ -3183,69 +3201,307 @@ body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport 
         min-height: 100vh !important;
     }
     
+    /* Compact header: logo + hamburger stay on one short row so the header
+       doesn't eat the whole screen before any content is visible. Planning
+       Version/Language/Theme/user controls collapse into a drawer that only
+       appears once the hamburger is tapped (body.mobile-nav-open). */
     .app-header {
         height: auto !important;
-        flex-direction: column !important;
-        padding: 12px 16px !important;
-        gap: 12px !important;
-        align-items: stretch !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        padding: 10px 16px !important;
+        gap: 10px !important;
+        align-items: center !important;
     }
-    
+
     .header-logo {
-        justify-content: center !important;
+        justify-content: flex-start !important;
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        gap: 10px !important;
     }
-    
+    .header-logo h1 {
+        font-size: 15px !important;
+    }
+    .header-logo p {
+        display: none !important;
+    }
+
+    .mobile-menu-toggle-btn {
+        display: flex !important;
+    }
+
     .header-controls {
+        display: none !important;
         flex-direction: column !important;
         align-items: stretch !important;
         gap: 8px !important;
+        flex-basis: 100% !important;
+        width: 100% !important;
+        padding-top: 10px !important;
+        border-top: 1px solid var(--glass-border) !important;
     }
-    
+    body.mobile-nav-open .header-controls {
+        display: flex !important;
+    }
+
+    /* Nav collapses into the same drawer as the header controls; the AI
+       trigger button is pulled out of normal flow into a fixed FAB (below)
+       so it stays reachable even while the drawer is closed. */
     .app-sidebar {
-        padding: 12px !important;
+        padding: 0 16px !important;
         border-right: none !important;
-        border-bottom: 1px solid var(--glass-border) !important;
+        border-bottom: none !important;
         height: auto !important;
-        overflow-x: auto !important;
-        overflow-y: hidden !important;
-        white-space: nowrap !important;
+        overflow: visible !important;
         display: block !important;
     }
-    
+    body.mobile-nav-open .app-sidebar {
+        padding-bottom: 12px !important;
+        border-bottom: 1px solid var(--glass-border) !important;
+    }
+
+    .sidebar-nav {
+        display: none !important;
+    }
+    body.mobile-nav-open .sidebar-nav {
+        display: block !important;
+    }
+
     .sidebar-nav ul {
         display: flex !important;
-        flex-direction: row !important;
-        gap: 8px !important;
+        flex-direction: column !important;
+        gap: 4px !important;
         padding: 0 !important;
         margin: 0 !important;
     }
-    
+
     .nav-item {
         margin-bottom: 0 !important;
-        padding: 8px 12px !important;
-        font-size: 12px !important;
-        display: inline-flex !important;
+        border-radius: 8px !important;
+        padding: 12px 14px !important;
+        font-size: 13px !important;
+        display: flex !important;
         align-items: center !important;
-        flex-shrink: 0 !important;
+        gap: 10px !important;
     }
-    
+
+    /* .app-sidebar's backdrop-filter creates a new containing block for any
+       position:fixed descendant (a CSS gotcha), which would make the FAB
+       below position itself relative to the sidebar's own shrunken box
+       instead of the viewport. Dropping the blur on mobile only (desktop's
+       pinned-bottom sidebar layout is untouched) fixes that. */
+    .app-sidebar {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+
+    /* AI chat trigger becomes a fixed circular FAB, always reachable
+       regardless of the drawer's open/closed state (it lives inside
+       .app-sidebar, which the rules above no longer hide). */
+    .ai-trigger-container {
+        position: fixed !important;
+        bottom: 18px !important;
+        right: 18px !important;
+        margin-top: 0 !important;
+        width: auto !important;
+        z-index: 95 !important;
+    }
+    .ai-trigger-container .btn-ai {
+        width: 56px !important;
+        height: 56px !important;
+        border-radius: 50% !important;
+        padding: 0 !important;
+        box-shadow: 0 4px 20px rgba(139, 92, 246, 0.45) !important;
+        font-size: 20px !important;
+    }
+    .ai-trigger-container .btn-ai span {
+        display: none !important;
+    }
+    /* Hide the FAB while the chat drawer itself is open (full-screen on
+       mobile) so it doesn't float on top of the message input. */
+    body:has(#ai-drawer.active) .ai-trigger-container {
+        display: none !important;
+    }
+
     .app-main {
         grid-column: 1 !important;
         padding: 16px !important;
         overflow-y: visible !important;
+        /* Without this, .app-main's default min-width:auto lets a wide
+           descendant (e.g. the matrix table) grow past its grid track's
+           width and blow out the whole page horizontally - the classic
+           CSS Grid/Flexbox min-content overflow trap. */
+        min-width: 0 !important;
     }
 
     /* Mobile-only toggle container */
     .mobile-only-flex {
         display: flex !important;
     }
-    
+
+    /* Header control groups (Planning Version + its 5 action buttons, etc.)
+       wrap instead of overflowing the viewport width */
+    .control-group {
+        flex-wrap: wrap !important;
+    }
+    .app-header .scenario-dropdown {
+        min-width: 0 !important;
+        flex: 1 1 140px !important;
+    }
+    .user-profile-widget {
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        gap: 10px !important;
+    }
+
+    /* Matrix: filters panel stacks below the grid instead of beside it
+       (both are laid out with an inline style="display:flex" in index.html,
+       so the fixed 280px filters panel forced the whole layout wider than
+       the viewport on phones). */
+    .matrix-layout-container {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+    .matrix-filters-panel {
+        width: 100% !important;
+        max-height: none !important;
+        box-sizing: border-box !important;
+    }
+    .matrix-wrapper {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    /* Presentation Deck: customize panel stacks below the slides instead of
+       sitting in a fixed 320px sticky column beside them. */
+    .presentation-layout {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+    .presentation-deck {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    .deck-customize-panel {
+        width: 100% !important;
+        flex: none !important;
+        position: static !important;
+        max-height: none !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Management Panel: Employees/Topics cards stack instead of squeezing
+       into two ~150px-wide columns. min-width:0 on both the grid item and
+       the card breaks the min-content chain so the wide table inside can't
+       blow out the grid track (same trap as .app-main above). */
+    .crud-layout {
+        grid-template-columns: 1fr !important;
+        min-width: 0 !important;
+    }
+    .crud-card {
+        min-width: 0 !important;
+    }
+    .crud-card-header {
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+    }
+    /* The title+button and search+filter rows inside .crud-card-header are
+       plain inline-styled divs (no shared class), each a flex row of its
+       own - same min-content trap one level deeper. */
+    .crud-card-header > div {
+        min-width: 0 !important;
+        flex-wrap: wrap !important;
+    }
+    .crud-card-header select {
+        min-width: 0 !important;
+        max-width: none !important;
+        flex: 1 1 auto !important;
+    }
+
+    /* Several sections (Matrix, Planning Version) set
+       style="display:flex; justify-content:space-between" inline directly
+       on .section-header to put action buttons beside the title - stack
+       those instead of clipping the buttons off-screen. */
+    .section-header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 12px !important;
+    }
+    .section-header > div {
+        flex-wrap: wrap !important;
+    }
+
+    /* Simulation scenario-comparison pros/cons cards stack on narrow screens */
+    .sim-pro-con-columns {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Dashboard/Upload tab bars scroll horizontally instead of overflowing
+       the page (same pattern as the sidebar nav pills). */
+    .dash-tabs {
+        overflow-x: auto !important;
+        flex-wrap: nowrap !important;
+        -webkit-overflow-scrolling: touch;
+    }
+    .dash-tab, .upload-tab {
+        flex-shrink: 0 !important;
+        white-space: nowrap !important;
+    }
+
+    /* Two-field form rows (e.g. Full Name / Team in Simulation Quick Actions
+       and the Add/Edit modals) stack instead of squeezing side by side. */
+    .form-row {
+        flex-direction: column !important;
+    }
+
     /* Responsive Grids */
-    .dashboard-metrics-grid, .ai-insights-grid, .pres-kpi-grid, .kpi-cards-grid {
+    .dashboard-metrics-grid, .ai-insights-grid, .pres-kpi-grid, .kpi-cards-grid, .dashboard-grid {
         grid-template-columns: 1fr !important;
         gap: 12px !important;
     }
-    
+
+    /* KPI cards (the real class - .kpi-cards, above was targeting a class
+       that isn't actually used) run 2-across instead of 1-per-row on
+       mobile: same info density, roughly half the scroll length. */
+    .kpi-cards {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px !important;
+        margin-bottom: 16px !important;
+    }
+    .kpi-card {
+        padding: 10px !important;
+        gap: 10px !important;
+    }
+    .kpi-icon {
+        width: 34px !important;
+        height: 34px !important;
+        font-size: 15px !important;
+    }
+    .kpi-val {
+        font-size: 16px !important;
+    }
+    .kpi-title {
+        font-size: 9px !important;
+    }
+
+    /* Charts run shorter on mobile - desktop's 260px is generous for a
+       narrow screen where the chart itself is much smaller anyway. */
+    .chart-canvas-container {
+        height: 190px !important;
+    }
+
+    /* Simulation quick-action / detail cards: tighter padding shaves a
+       meaningful amount off what is otherwise a very long scroll (8 cards
+       each with 2+ form fields). */
+    .detail-card {
+        padding: 14px !important;
+    }
+    .detail-grid {
+        gap: 12px !important;
+        margin-top: 12px !important;
+    }
+
     /* Matrix Mobile Card Styles */
     .matrix-mobile-card-list {
         display: flex;
