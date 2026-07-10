@@ -86,8 +86,10 @@ window.loadChatHistory = function() {
                         const applyBtn = actionDiv.querySelector(".apply-btn");
                         const cancelBtn = actionDiv.querySelector(".cancel-btn");
 
-                        applyBtn.addEventListener("click", () => {
-                            // Reset all filters to default before applying the AI filters
+                        // Shared by both the "Apply Filters" action and the
+                        // post-apply "Remove These Filters" undo button, so
+                        // both agree on exactly what "no filters" means.
+                        const resetFiltersToDefault = () => {
                             filters.location = "";
                             filters.team = "";
                             filters.department = "";
@@ -102,6 +104,20 @@ window.loadChatHistory = function() {
                             filters.maxUtil = 999;
                             filters.minCost = 0;
                             filters.maxCost = 999999999;
+                        };
+
+                        const goToMatrixAndRerender = () => {
+                            renderFiltersPanel();
+                            navigateToSection("matrix-section");
+                            // Use window.history explicitly - the local
+                            // `history` chat-message array (above) shadows
+                            // the global History API within this closure.
+                            window.history.pushState({ section: "matrix-section" }, "", "#matrix");
+                            renderAllocationMatrix();
+                        };
+
+                        applyBtn.addEventListener("click", () => {
+                            resetFiltersToDefault();
 
                             // Apply the filters to the global filters object
                             if (resData.filters.location !== undefined) filters.location = resData.filters.location;
@@ -114,21 +130,24 @@ window.loadChatHistory = function() {
                             if (resData.filters.minUtil !== undefined) filters.minUtil = resData.filters.minUtil;
                             if (resData.filters.maxUtil !== undefined) filters.maxUtil = resData.filters.maxUtil;
 
-                            // Re-render dynamic filters panel
-                            renderFiltersPanel();
+                            goToMatrixAndRerender();
 
-                            // Navigate to matrix grid
-                            navigateToSection("matrix-section");
-                            // Use window.history explicitly - the local
-                            // `history` chat-message array (above) shadows
-                            // the global History API within this closure.
-                            window.history.pushState({ section: "matrix-section" }, "", "#matrix");
-
-                            // Rerender matrix with the new filters
-                            renderAllocationMatrix();
-
-                            // Disable actions and show success text
-                            actionDiv.innerHTML = `<span style="color: #10b981; font-size: 11px; font-weight: 500;"><i class="fa-solid fa-circle-check"></i> Filters applied successfully</span>`;
+                            // Show success text plus an undo option that
+                            // reverts exactly this action - previously the
+                            // buttons just disappeared, leaving "Reset
+                            // Filters" on the Matrix Filters panel as the
+                            // only way back, which clears everything rather
+                            // than specifically undoing what the chat added.
+                            actionDiv.innerHTML = `
+                                <span style="color: #10b981; font-size: 11px; font-weight: 500;"><i class="fa-solid fa-circle-check"></i> Filters applied successfully</span>
+                                <button class="btn btn-secondary btn-sm remove-applied-filters-btn" style="padding: 4px 10px; font-size: 11px; margin-left: 8px;"><i class="fa-solid fa-filter-circle-xmark"></i> Remove These Filters</button>
+                            `;
+                            actionDiv.querySelector(".remove-applied-filters-btn").addEventListener("click", () => {
+                                resetFiltersToDefault();
+                                goToMatrixAndRerender();
+                                actionDiv.innerHTML = `<span style="color: #64748b; font-size: 11px; font-weight: 500;"><i class="fa-solid fa-circle-check"></i> Filters removed</span>`;
+                                saveChatHistory();
+                            });
                             saveChatHistory();
                         });
 
