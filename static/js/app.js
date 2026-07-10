@@ -102,6 +102,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let matrixSortOrder = 1;
     let matrixGrouping = "none";
     let slideTableOverrides = {};
+    let matrixMobileView = "cards";
 
     // Management Panel CRUD states
     let empSearch = "";
@@ -440,6 +441,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const container = document.getElementById("allocation-matrix-container");
         container.innerHTML = "";
 
+        const isMobile = window.innerWidth <= 768;
+        const toggleContainer = document.getElementById("matrix-view-toggle-container");
+        if (toggleContainer) {
+            toggleContainer.style.display = isMobile ? "inline-flex" : "none";
+        }
+
         // True utilization/cost per employee across ALL their allocations
         // (not just the currently topic-filtered set), so filtering by
         // utilization/cost range means the same thing regardless of which
@@ -707,6 +714,106 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             return 0;
         });
+
+        if (isMobile && matrixMobileView === "cards") {
+            const cardListContainer = document.createElement("div");
+            cardListContainer.className = "matrix-mobile-card-list";
+            
+            let lastGroup = null;
+            sortedEmployees.forEach(emp => {
+                const totalAlloc = empAllocSums[emp.id] || 0.0;
+                const stats = trueEmpStats[emp.id] || { util: 0, cost: 0 };
+                
+                if (matrixGrouping !== "none") {
+                    const currentGroup = getGroupValue(emp);
+                    if (currentGroup !== lastGroup) {
+                        lastGroup = currentGroup;
+                        const groupEmps = filteredEmployees.filter(e => getGroupValue(e) === currentGroup);
+                        const headcount = groupEmps.length;
+                        
+                        let totalCost = 0;
+                        let totalUtil = 0;
+                        groupEmps.forEach(e => {
+                            const st = trueEmpStats[e.id] || { util: 0, cost: 0 };
+                            totalCost += st.cost;
+                            totalUtil += st.util;
+                        });
+                        const avgUtil = headcount > 0 ? (totalUtil / headcount) : 0;
+                        
+                        const groupHeader = document.createElement("div");
+                        groupHeader.style.cssText = "padding: 10px 14px; background: rgba(59,130,246,0.15); border-left: 4px solid var(--primary-color); border-radius: 8px; font-weight: bold; font-size: 13px; color: var(--text-primary); margin-top: 10px;";
+                        groupHeader.innerHTML = `
+                            <i class="fa-solid fa-folder-open" style="margin-right: 4px; color: var(--accent-color);"></i> ${currentGroup}
+                            <span style="font-size: 10px; color: var(--text-secondary); font-weight: normal; margin-left: 8px;">
+                                (${headcount} Staff | Avg Util: ${avgUtil.toFixed(0)}%)
+                            </span>
+                        `;
+                        cardListContainer.appendChild(groupHeader);
+                    }
+                }
+                
+                const card = document.createElement("div");
+                card.className = "matrix-mobile-card";
+                
+                let utilColor = "var(--success-color)";
+                if (totalAlloc > 100.0) utilColor = "var(--danger-color)";
+                else if (totalAlloc > 90.0) utilColor = "var(--warning-color)";
+                
+                const employeeAllocs = [];
+                filteredTopics.forEach(t => {
+                    const key = `${emp.id}_${t.id}`;
+                    const val = allocMap[key] ? allocMap[key].percentage : 0;
+                    if (val > 0) {
+                        employeeAllocs.push({ topicId: t.id, name: t.name, pct: val });
+                    }
+                });
+                
+                const allocRowsHTML = employeeAllocs.map(a => `
+                    <div class="matrix-mobile-alloc-row">
+                        <div class="matrix-mobile-alloc-info">
+                            <span style="font-size: 11.5px; font-weight: 500; color: var(--text-primary);">${a.name}</span>
+                            <span style="font-weight: 600; font-size: 11.5px; color: var(--text-primary);">${a.pct}%</span>
+                        </div>
+                        <div class="matrix-mobile-alloc-bar">
+                            <div class="matrix-mobile-alloc-bar-fill" style="width: ${a.pct}%; background: var(--primary-color);"></div>
+                        </div>
+                    </div>
+                `).join("");
+                
+                card.innerHTML = `
+                    <div class="matrix-mobile-card-header">
+                        <div class="matrix-mobile-card-title">
+                            <span class="matrix-mobile-card-name">${emp.name}</span>
+                            <span class="matrix-mobile-card-meta">
+                                <span style="color: var(--text-secondary);"><i class="fa-solid fa-people-group" style="margin-right: 4px; color: var(--text-secondary);"></i> ${emp.team}</span>
+                                <span style="color: var(--text-secondary);"><i class="fa-solid fa-location-dot" style="margin-right: 4px; color: var(--text-secondary);"></i> ${emp.location}</span>
+                            </span>
+                        </div>
+                        <span class="matrix-mobile-card-util" style="background: color-mix(in srgb, ${utilColor} 12%, transparent); color: ${utilColor}; border: 1px solid color-mix(in srgb, ${utilColor} 30%, transparent);">
+                            ${totalAlloc.toFixed(0)}% Util
+                        </span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 11.5px; color: var(--text-secondary); border-bottom: 1px dashed var(--glass-border); padding-bottom: 8px; margin-top: 4px;">
+                        <span>Rate: <strong>$${emp.hourly_rate}/hr</strong></span>
+                        <span>Annual Cost: <strong>$${stats.cost.toLocaleString(undefined, {maximumFractionDigits:0})}</strong></span>
+                    </div>
+                    <div class="matrix-mobile-card-allocations" style="margin-top: 8px;">
+                        <span style="font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Project Allocations</span>
+                        ${allocRowsHTML || '<span style="font-size: 11px; color: var(--text-secondary); font-style: italic;">No current allocations.</span>'}
+                    </div>
+                    ${canEditGrid ? `
+                        <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; border-top: 1px solid var(--glass-border); padding-top: 10px;">
+                            <button class="btn btn-secondary btn-sm" style="padding: 4px 10px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;" onclick="window.editEmployeePrompt(${emp.id})"><i class="fa-solid fa-pen-to-square"></i> Edit</button>
+                            <button class="btn btn-danger btn-sm" style="padding: 4px 10px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;" onclick="window.deleteEmployeePrompt(${emp.id})"><i class="fa-solid fa-trash"></i> Delete</button>
+                        </div>
+                    ` : ""}
+                `;
+                cardListContainer.appendChild(card);
+            });
+            
+            container.appendChild(cardListContainer);
+            return;
+        }
 
         // --- BODY ROWS (EMPLOYEES) ---
         const tbody = document.createElement("tbody");
@@ -3728,7 +3835,45 @@ document.addEventListener("DOMContentLoaded", () => {
                 filters.maxUtil = 999;
                 filters.minCost = 0;
                 filters.maxCost = 999999999;
+                matrixGrouping = "none";
+                const groupingSelect = document.getElementById("matrix-grouping-select");
+                if (groupingSelect) {
+                    groupingSelect.value = "none";
+                }
                 renderFiltersPanel();
+                renderAllocationMatrix();
+            });
+        }
+
+        const groupingSelect = document.getElementById("matrix-grouping-select");
+        if (groupingSelect) {
+            groupingSelect.addEventListener("change", (e) => {
+                matrixGrouping = e.target.value;
+                renderAllocationMatrix();
+            });
+        }
+
+        const btnViewCards = document.getElementById("btn-view-cards");
+        const btnViewTable = document.getElementById("btn-view-table");
+        if (btnViewCards && btnViewTable) {
+            btnViewCards.addEventListener("click", () => {
+                matrixMobileView = "cards";
+                btnViewCards.classList.add("active");
+                btnViewTable.classList.remove("active");
+                btnViewCards.style.background = "var(--primary-color)";
+                btnViewCards.style.color = "#fff";
+                btnViewTable.style.background = "transparent";
+                btnViewTable.style.color = "var(--text-secondary)";
+                renderAllocationMatrix();
+            });
+            btnViewTable.addEventListener("click", () => {
+                matrixMobileView = "table";
+                btnViewTable.classList.add("active");
+                btnViewCards.classList.remove("active");
+                btnViewTable.style.background = "var(--primary-color)";
+                btnViewTable.style.color = "#fff";
+                btnViewCards.style.background = "transparent";
+                btnViewCards.style.color = "var(--text-secondary)";
                 renderAllocationMatrix();
             });
         }
@@ -5051,6 +5196,9 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("modal-allocation").classList.add("active");
         setTimeout(() => document.getElementById("alloc-pct").focus(), 150);
     }
+
+    window.editEmployeePrompt = editEmployeePrompt;
+    window.deleteEmployeePrompt = deleteEmployeePrompt;
 
     // CRUD edit launchers
     function editEmployeePrompt(id) {

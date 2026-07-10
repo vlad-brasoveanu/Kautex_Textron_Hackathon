@@ -3199,6 +3199,150 @@ body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport 
         padding: 16px !important;
         overflow-y: visible !important;
     }
+
+    /* Mobile-only toggle container */
+    .mobile-only-flex {
+        display: flex !important;
+    }
+    
+    /* Responsive Grids */
+    .dashboard-metrics-grid, .ai-insights-grid, .pres-kpi-grid, .kpi-cards-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+    
+    /* Matrix Mobile Card Styles */
+    .matrix-mobile-card-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin-top: 15px;
+        width: 100%;
+    }
+    .matrix-mobile-card {
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: var(--shadow-sm);
+        backdrop-filter: blur(10px);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    .matrix-mobile-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        border-bottom: 1px solid var(--glass-border);
+        padding-bottom: 10px;
+    }
+    .matrix-mobile-card-title {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    .matrix-mobile-card-name {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+    .matrix-mobile-card-meta {
+        font-size: 11px;
+        color: var(--text-secondary);
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .matrix-mobile-card-util {
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+    .matrix-mobile-card-allocations {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .matrix-mobile-alloc-row {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    .matrix-mobile-alloc-info {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        color: var(--text-primary);
+    }
+    .matrix-mobile-alloc-bar {
+        height: 6px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 3px;
+        overflow: hidden;
+        width: 100%;
+        position: relative;
+    }
+    .matrix-mobile-alloc-bar-fill {
+        height: 100%;
+        background: var(--primary-color);
+        border-radius: 3px;
+    }
+    
+    /* Full-screen AI chat drawer on small mobile */
+    @media (max-width: 480px) {
+        .ai-drawer {
+            width: 100% !important;
+            max-width: 100% !important;
+            right: 0 !important;
+            border-left: none !important;
+            border-radius: 0 !important;
+        }
+    }
+    
+    /* Mobile Presentation Overlay Overrides */
+    .presentation-slide {
+        padding: 24px !important;
+        overflow-y: auto !important;
+        max-height: 100% !important;
+    }
+    .presentation-slide .slide-content-split {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 16px !important;
+    }
+    .presentation-slide .slide-col-left,
+    .presentation-slide .slide-col-right,
+    .presentation-slide .slide-col-full {
+        width: 100% !important;
+        flex: none !important;
+    }
+}
+
+/* Bottom sheet modals style for small mobile devices */
+@media (max-width: 576px) {
+    .modal-content {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        border-radius: 20px 20px 0 0 !important;
+        transform: translateY(0) !important;
+        max-height: 85vh !important;
+        overflow-y: auto !important;
+        padding: 24px !important;
+        box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.3) !important;
+        animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+    }
+    
+    @keyframes slideUp {
+        from { transform: translateY(100%); }
+        to { transform: translateY(0); }
+    }
 }
 
 /* Matrix row grouping styles */
