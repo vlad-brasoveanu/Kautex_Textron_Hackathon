@@ -1521,7 +1521,7 @@ tr.overview-row:hover td {
     margin-top: 15px;
 }
 
-.ai-insight-item {
+.ai-insight-list .ai-insight-item {
     position: relative;
     border-radius: 8px;
     background: color-mix(in srgb, var(--accent, var(--glass-border)) 6%, var(--glass-bg));
@@ -1529,7 +1529,7 @@ tr.overview-row:hover td {
     padding: 10px 12px 10px 18px;
 }
 
-.ai-insight-item::before {
+.ai-insight-list .ai-insight-item::before {
     content: "";
     position: absolute;
     left: 7px;
@@ -1541,7 +1541,7 @@ tr.overview-row:hover td {
     opacity: 0.85;
 }
 
-.ai-insight-item + .ai-insight-item {
+.ai-insight-list .ai-insight-item + .ai-insight-item {
     margin-top: 10px;
 }
 
@@ -2538,7 +2538,7 @@ th.sortable-emp:hover, th.sortable-topic:hover {
     gap: 10px;
     overflow: visible;
 }
-.ai-insight-item {
+.ai-insight-list-pres .ai-insight-item {
     display: flex;
     align-items: flex-start;
     gap: 10px;
@@ -2547,30 +2547,30 @@ th.sortable-emp:hover, th.sortable-topic:hover {
     background: rgba(255, 255, 255, 0.03);
     border-left: 3px solid var(--danger-color);
 }
-.ai-insight-item.ai-insight-item-suggestion {
+.ai-insight-list-pres .ai-insight-item.ai-insight-item-suggestion {
     border-left-color: var(--primary-color);
 }
-.ai-insight-icon {
+.ai-insight-list-pres .ai-insight-icon {
     flex-shrink: 0;
     margin-top: 2px;
     font-size: 12px;
     color: var(--danger-color);
 }
-.ai-insight-item-suggestion .ai-insight-icon {
+.ai-insight-list-pres .ai-insight-item-suggestion .ai-insight-icon {
     color: var(--primary-color);
 }
-.ai-insight-item-body {
+.ai-insight-list-pres .ai-insight-item-body {
     flex: 1;
     min-width: 0;
 }
-.ai-insight-item-head {
+.ai-insight-list-pres .ai-insight-item-head {
     display: flex;
     align-items: center;
     gap: 8px;
     margin-bottom: 3px;
     font-size: 12.5px;
 }
-.ai-insight-item-body p {
+.ai-insight-list-pres .ai-insight-item-body p {
     margin: 0;
     font-size: 12.5px;
     line-height: 1.5;

@@ -943,7 +943,12 @@ export function initPresentation() {
                     return p && typeof p === "object" && p.id && (p.isCustom || knownIds.includes(p.id));
                 });
                 if (isValid) {
-                    deckConfig = parsed;
+                    // Automatically filter out old separate simulation overview/table slides to clean up user session
+                    const migrated = parsed.filter(item => !item.id.startsWith("custom_sim_overview_") && !item.id.startsWith("custom_sim_table_"));
+                    deckConfig = migrated;
+                    if (migrated.length !== parsed.length) {
+                        saveDeckConfig();
+                    }
                     return;
                 }
             }
@@ -1287,40 +1292,7 @@ export function initPresentation() {
                     </div>
                 `
             };
-        } else if (slideId.startsWith("custom_sim_overview_")) {
-            // First of the two comparison slides: headline verdict + big-number
-            // KPI cards, no table - designed to read at a glance, not scroll.
-            return {
-                wrapperClass: "slide-comparison slide-comparison-overview",
-                bodyHTML: `
-                    <div class="slide-title-bar">
-                        <h3 contenteditable="true" data-slide-id="${slideId}" data-edit-key="title-text">${getSlideText(slideId, "title-text", "Simulation Comparison Analysis")}</h3>
-                        <span class="confidential-small">CONFIDENTIAL</span>
-                    </div>
-                    <div class="sim-compare-body" contenteditable="true" data-slide-id="${slideId}" data-edit-key="body-text">
-                        ${getSlideText(slideId, "body-text", "Comparison content...")}
-                    </div>
-                `
-            };
-        } else if (slideId.startsWith("custom_sim_table_")) {
-            // Second slide: the full team-by-team delta table, given its own
-            // slide instead of being crammed under the overview with a scrollbar.
-            return {
-                wrapperClass: "slide-comparison slide-comparison-table",
-                bodyHTML: `
-                    <div class="slide-title-bar">
-                        <h3 contenteditable="true" data-slide-id="${slideId}" data-edit-key="title-text">${getSlideText(slideId, "title-text", "Simulation Comparison — Team Detail")}</h3>
-                        <span class="confidential-small">CONFIDENTIAL</span>
-                    </div>
-                    <div class="sim-compare-body" contenteditable="true" data-slide-id="${slideId}" data-edit-key="body-text">
-                        ${getSlideText(slideId, "body-text", "Comparison table...")}
-                    </div>
-                `
-            };
-        } else if (slideId.startsWith("custom_sim_")) {
-            // Legacy single-slide comparisons created before the overview/table
-            // split (already saved in someone's localStorage deck config) still
-            // render via the old plain layout so they don't break/disappear.
+        } else if (slideId.startsWith("custom_sim_overview_") || slideId.startsWith("custom_sim_table_") || slideId.startsWith("custom_sim_")) {
             return {
                 wrapperClass: "slide-comparison",
                 bodyHTML: `
@@ -1328,8 +1300,8 @@ export function initPresentation() {
                         <h3 contenteditable="true" data-slide-id="${slideId}" data-edit-key="title-text">${getSlideText(slideId, "title-text", "Simulation Comparison Analysis")}</h3>
                         <span class="confidential-small">CONFIDENTIAL</span>
                     </div>
-                    <div class="slide-content-split" style="flex-direction: column; align-items: stretch; margin-top: 15px; max-height: calc(100% - 40px); overflow-y: auto;">
-                        <div style="line-height: 1.4; font-size: 11.5px; outline: none; padding-right: 5px;">
+                    <div class="slide-content-split" style="flex-direction: column; align-items: stretch; margin-top: 10px;">
+                        <div contenteditable="true" data-slide-id="${slideId}" data-edit-key="body-text" style="outline: none;">
                             ${getSlideText(slideId, "body-text", "Comparison content...")}
                         </div>
                     </div>
