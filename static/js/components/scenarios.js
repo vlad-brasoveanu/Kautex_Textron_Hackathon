@@ -843,6 +843,16 @@ window.renderPlanningVersionTab = async function() {
         const utilOther = simAvgUtilization(other);
         const headcountDelta = other.total_headcount - reference.total_headcount;
 
+        const fteRef = reference.topic_summaries.reduce((sum, t) => sum + t.staff.reduce((sSum, s) => sSum + s.percentage, 0), 0) / 100.0;
+        const fteOther = other.topic_summaries.reduce((sum, t) => sum + t.staff.reduce((sSum, s) => sSum + s.percentage, 0), 0) / 100.0;
+        const fteDelta = fteOther - fteRef;
+        
+        if (fteDelta < -0.1) {
+            cons.push(`Reduces total allocated capacity by ${Math.abs(fteDelta).toFixed(1)} FTEs (workload lost), putting topic delivery at risk.`);
+        } else if (fteDelta > 0.1) {
+            pros.push(`Increases total allocated capacity by ${fteDelta.toFixed(1)} FTEs, accelerating topic delivery.`);
+        }
+
         let verdict, verdictClass, verdictIcon;
         if (pros.length === 0 && cons.length === 0) {
             verdict = "No material difference in cost or overload risk versus the current planning version.";
