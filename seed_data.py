@@ -78,30 +78,6 @@ TOPICS = [
      "CAE simulation script libraries and validated simulation models.",
      "Required before physical prototypes are built, saving $2M in tooling.",
      "High workload expected for CAE specialists.", "Requires high performance compute access.", 0.0),
-    ("Electric Powertrain Integration", "Customer Request", "Customer Engineering",
-     "Integration engineering for the next-generation electric powertrain platform.",
-     "Validate thermal and structural performance of the e-powertrain housing.",
-     "Integration test reports and structural sign-off packages.",
-     "Direct customer commitment tied to 2028 platform launch.",
-     "Cross-functional effort spanning CAE, Test and Program Management.", "Tight coupling with supplier milestones.", 9000.0),
-    ("Predictive Maintenance Analytics", "AI Initiatives", "Internal Development",
-     "ML-based predictive maintenance models for manufacturing line equipment.",
-     "Reduce unplanned downtime using sensor-driven failure prediction.",
-     "Trained model artifacts and a monitoring dashboard.",
-     "Projected to cut unplanned downtime by 15%.",
-     "Pilot running on two production lines.", "Requires historical sensor data access.", 4000.0),
-    ("Manufacturing Line Digitalization", "Allegro D-Project", "Manufacturing Engineering",
-     "Digitalization of production line telemetry and process control systems.",
-     "Bring real-time visibility to line throughput and quality metrics.",
-     "Digitized line dashboards and process control documentation.",
-     "Foundational for predictive maintenance and quality initiatives.",
-     "Phase 1 covers Mexico and Romania plants.", "Coordinated with IT infrastructure team.", 0.0),
-    ("Supplier Quality Audit Program", "Quality Initiatives", "Quality",
-     "Structured audit program for tier-1 supplier quality systems.",
-     "Ensure supplier compliance with Textron quality standards.",
-     "Audit reports and supplier corrective action plans.",
-     "Reduces field defects traced to supplier-sourced components.",
-     "Annual audit cycle, India and USA suppliers prioritized this quarter.", "Findings reviewed with Program Management.", 0.0),
     ("Program Governance & Reporting", "Program Management", "Program Management",
      "Portfolio-level governance, milestone tracking, and executive reporting.",
      "Keep all active initiatives aligned to budget and schedule commitments.",
@@ -114,12 +90,6 @@ TOPICS = [
      "Materials feasibility reports and lab test data.",
      "Early-stage investment supporting future platform efficiency targets.",
      "Collaboration with Romania and Germany CAE teams.", "Long-horizon research, no fixed deadline.", 0.0),
-    ("Customer Field Support - APAC", "Customer Request", "Customer Engineering",
-     "On-site and remote engineering support for APAC customer accounts.",
-     "Resolve field issues and support customer engineering reviews.",
-     "Field support tickets log and root-cause analysis reports.",
-     "Maintains customer satisfaction and contract SLAs in the APAC region.",
-     "Coordinated out of the Pinghu and China program management hub.", "24h SLA on critical field issues.", 3000.0),
 ]
 
 # employee_name -> [(topic_name, percentage, comment), ...]
@@ -183,12 +153,6 @@ ADDITIONAL_COSTS = [
     ("Agentic AI and LLM - Enterprise Solutions", "external", "Prototypes", 15000.0, "Testing prototype deployment host."),
     ("Fuel Project", "external", "Supplier Support", 25000.0, "Dedicated validation consulting from supplier."),
     ("Fuel Project", "external", "External Testing", 15000.0, "High pressure chamber certification test lab."),
-    ("Electric Powertrain Integration", "internal", "Engineering Support", 8000.0, "Dedicated thermal simulation compute cluster."),
-    ("Electric Powertrain Integration", "external", "Prototypes", 22000.0, "Powertrain housing prototype tooling."),
-    ("Manufacturing Line Digitalization", "internal", "Internal Equipment", 12000.0, "Line sensor hardware for Mexico plant pilot."),
-    ("Manufacturing Line Digitalization", "external", "Tooling", 18000.0, "Third-party line control software licensing."),
-    ("Predictive Maintenance Analytics", "internal", "Internal Equipment", 4000.0, "GPU compute for model training."),
-    ("Supplier Quality Audit Program", "external", "Supplier Support", 6000.0, "Third-party audit firm engagement - APAC suppliers."),
 ]
 
 # ==========================================================
@@ -338,7 +302,7 @@ def seed():
     ]
     stretch_allocation_plan["Isabella Costa"] = [
         ("Non bookable - Other", 20, "Onboarding and ramp-up training."),
-        ("Manufacturing Line Digitalization", 60, "Supporting Mexico plant rollout.")
+        ("Method Development Pentatonic", 60, "Supporting Pentatonic simulation rollout.")
     ]
 
     _populate_scenario(db, stretch, stretch_employees, stretch_allocation_plan, stretch_topic_id_map)
