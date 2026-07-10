@@ -4,17 +4,17 @@
 // any other resource, so without a cache-busting query param here, editing
 // a component file can silently keep executing a stale cached copy even
 // after main.js itself has been freshly reloaded.
-import { state, DECK_CONFIG_STORAGE_KEY } from "./state.js?v=mobile15";
-import { api } from "./api.js?v=mobile15";
-import { showToast, applyTranslations, t, markApiRequestStart, markApiRequestEnd } from "./utils.js?v=mobile15";
-import { initAuth } from "./components/auth.js?v=mobile15";
-import { initAi } from "./components/ai.js?v=mobile15";
-import { initScenarios } from "./components/scenarios.js?v=mobile15";
-import { initMatrix } from "./components/matrix.js?v=mobile15";
-import { initReports } from "./components/reports.js?v=mobile15";
-import { initDashboards } from "./components/dashboards.js?v=mobile15";
-import { initPresentation } from "./components/presentation.js?v=mobile15";
-import { initModals } from "./components/modals.js?v=mobile15";
+import { state, DECK_CONFIG_STORAGE_KEY } from "./state.js?v=mobile16";
+import { api } from "./api.js?v=mobile16";
+import { showToast, applyTranslations, t, markApiRequestStart, markApiRequestEnd } from "./utils.js?v=mobile16";
+import { initAuth } from "./components/auth.js?v=mobile16";
+import { initAi } from "./components/ai.js?v=mobile16";
+import { initScenarios } from "./components/scenarios.js?v=mobile16";
+import { initMatrix } from "./components/matrix.js?v=mobile16";
+import { initReports } from "./components/reports.js?v=mobile16";
+import { initDashboards } from "./components/dashboards.js?v=mobile16";
+import { initPresentation } from "./components/presentation.js?v=mobile16";
+import { initModals } from "./components/modals.js?v=mobile16";
 
 document.addEventListener("DOMContentLoaded", () => {
     // DOM Elements - bound onto `window` (not local consts) so every component
@@ -1607,4 +1607,58 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Launch Application Init
     init();
+
+    // Directional scroll locking on touch devices for elements with X/Y overflow
+    function setupDirectionalScrollLock(el) {
+        if (!el) return;
+        let startX = 0;
+        let startY = 0;
+        let startScrollLeft = 0;
+        let isScrollingX = false;
+        let isScrollingY = false;
+        let firstMove = false;
+
+        el.addEventListener('touchstart', (e) => {
+            if (e.touches.length !== 1) return;
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+            startScrollLeft = el.scrollLeft;
+            isScrollingX = false;
+            isScrollingY = false;
+            firstMove = true;
+        }, { passive: true });
+
+        el.addEventListener('touchmove', (e) => {
+            if (e.touches.length !== 1) return;
+
+            const currentX = e.touches[0].clientX;
+            const currentY = e.touches[0].clientY;
+            const diffX = currentX - startX;
+            const diffY = currentY - startY;
+
+            if (firstMove) {
+                firstMove = false;
+                if (Math.abs(diffX) > Math.abs(diffY)) {
+                    isScrollingX = true;
+                    isScrollingY = false;
+                } else {
+                    isScrollingY = true;
+                    isScrollingX = false;
+                }
+            }
+
+            if (isScrollingX) {
+                // Lock vertical viewport scroll
+                if (e.cancelable) {
+                    e.preventDefault();
+                }
+                el.scrollLeft = startScrollLeft - diffX;
+            } else if (isScrollingY) {
+                // Lock horizontal grid scroll
+                el.scrollLeft = startScrollLeft;
+            }
+        }, { passive: false });
+    }
+
+    setupDirectionalScrollLock(document.querySelector(".matrix-wrapper"));
 });
