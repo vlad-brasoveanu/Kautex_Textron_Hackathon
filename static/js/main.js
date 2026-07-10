@@ -255,9 +255,6 @@ document.addEventListener("DOMContentLoaded", () => {
             document.querySelectorAll(".btn-delete-emp, .btn-edit-emp, .btn-delete-topic, .btn-edit-topic").forEach(b => {
                 b.style.display = "none";
             });
-            document.getElementById("btn-clone-scenario").style.display = "none";
-            document.getElementById("btn-create-scenario").style.display = "none";
-            document.getElementById("btn-delete-scenario").style.display = "none";
         } else {
             document.body.classList.add("role-admin-active");
             document.body.classList.remove("role-user-active");
@@ -268,9 +265,6 @@ document.addEventListener("DOMContentLoaded", () => {
             document.querySelectorAll(".btn-delete-emp, .btn-edit-emp, .btn-delete-topic, .btn-edit-topic").forEach(b => {
                 b.style.display = "inline-flex";
             });
-            document.getElementById("btn-clone-scenario").style.display = "inline-flex";
-            document.getElementById("btn-create-scenario").style.display = "inline-flex";
-            document.getElementById("btn-delete-scenario").style.display = "inline-flex";
         }
 
         // Show or hide admin-only elements
@@ -393,6 +387,18 @@ document.addEventListener("DOMContentLoaded", () => {
                     loginErrorAlert.innerText = "Network connection error.";
                     loginErrorAlert.style.display = "block";
                 }
+            });
+        }
+
+        // Clicking the header logo/title always jumps back to the Allocation
+        // Grid, matching the conventional "logo = home" pattern.
+        const headerLogoLink = document.getElementById("header-logo-link");
+        if (headerLogoLink) {
+            headerLogoLink.addEventListener("click", () => {
+                if (!isSectionAccessible("matrix-section")) return;
+                navigateToSection("matrix-section");
+                history.pushState({ section: "matrix-section" }, "", `#${sectionIdToSlug("matrix-section")}`);
+                closeMobileMenu();
             });
         }
 
@@ -752,11 +758,21 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
 
-        // Scenario Creation launches
-        document.getElementById("btn-create-scenario").addEventListener("click", () => {
-            formCreateScenario.reset();
-            document.getElementById("modal-scenario").classList.add("active");
-        });
+        // Scenario Creation launches - the header's Clone/New/Delete/Backup/
+        // Restore buttons were removed (duplicated the per-row actions on
+        // the Planning Version Management page); "New Version" now lives
+        // only there (#btn-pv-create), reusing this same modal/form. Clone
+        // and Delete are handled entirely by the pv-clone/pv-delete row
+        // actions in renderPvScenarioTable (scenarios.js), so those two
+        // button-click-to-open handlers and the clone modal's submit
+        // handler were removed rather than left as dead code.
+        const btnPvCreate = document.getElementById("btn-pv-create");
+        if (btnPvCreate) {
+            btnPvCreate.addEventListener("click", () => {
+                formCreateScenario.reset();
+                document.getElementById("modal-scenario").classList.add("active");
+            });
+        }
 
         formCreateScenario.addEventListener("submit", async (e) => {
             e.preventDefault();
@@ -775,61 +791,42 @@ document.addEventListener("DOMContentLoaded", () => {
                     await fetchScenarios();
                     await fetchActiveScenario();
                     await refreshAllData();
+                    renderPvScenarioTable();
                 }
             } catch (err) {
                 console.error("Error creating scenario:", err);
             }
         });
 
-        // Scenario Clone launches
-        document.getElementById("btn-clone-scenario").addEventListener("click", () => {
-            formCloneScenario.reset();
-            document.getElementById("clone-scenario-name").value = `Clone of ${activeScenario.name}`;
-            document.getElementById("modal-clone").classList.add("active");
-        });
-
-        formCloneScenario.addEventListener("submit", async (e) => {
-            e.preventDefault();
-            const cloneData = {
-                new_name: document.getElementById("clone-scenario-name").value,
-                new_description: document.getElementById("clone-scenario-desc").value || ""
-            };
-            try {
-                const response = await fetch(`/api/scenarios/${activeScenario.id}/clone`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(cloneData)
-                });
-                if (response.ok) {
-                    document.getElementById("modal-clone").classList.remove("active");
+        // Bulk sandbox cleanup: sandbox scenarios are identified the same
+        // way isSandboxScenario() does elsewhere (description mentions
+        // "simulation sandbox"), so this reuses the same single-scenario
+        // DELETE endpoint the per-row pv-delete action already uses,
+        // just looped over every sandbox instead of adding a new
+        // bulk-delete backend endpoint for one button.
+        const btnPvCleanupSandboxes = document.getElementById("btn-pv-cleanup-sandboxes");
+        if (btnPvCleanupSandboxes) {
+            btnPvCleanupSandboxes.addEventListener("click", async () => {
+                const sandboxes = scenarios.filter(s => isSandboxScenario(s) && !s.is_active);
+                if (sandboxes.length === 0) {
+                    alert("No leftover simulation sandboxes to clean up.");
+                    return;
+                }
+                if (!confirm(`Delete ${sandboxes.length} leftover simulation sandbox${sandboxes.length === 1 ? "" : "es"}? This cannot be undone.`)) {
+                    return;
+                }
+                try {
+                    await Promise.all(sandboxes.map(s => fetch(`/api/scenarios/${s.id}`, { method: "DELETE" })));
                     await fetchScenarios();
                     await fetchActiveScenario();
-                    await refreshAllData();
-                }
-            } catch (err) {
-                console.error("Error cloning scenario:", err);
-            }
-        });
-
-        // Scenario Deletion launches
-        document.getElementById("btn-delete-scenario").addEventListener("click", async () => {
-            if (scenarios.length <= 1) {
-                alert("Cannot delete the only scenario. Keep at least one scenario active.");
-                return;
-            }
-            if (confirm(`Are you sure you want to delete scenario: '${activeScenario.name}'? This deletes all mapped employees, topics and allocations.`)) {
-                try {
-                    const response = await fetch(`/api/scenarios/${activeScenario.id}`, { method: "DELETE" });
-                    if (response.ok) {
-                        await fetchScenarios();
-                        await fetchActiveScenario();
-                        await refreshAllData();
-                    }
+                    renderPvScenarioTable();
+                    alert(`Removed ${sandboxes.length} sandbox scenario${sandboxes.length === 1 ? "" : "s"}.`);
                 } catch (err) {
-                    console.error("Error deleting scenario:", err);
+                    console.error("Error cleaning up sandboxes:", err);
+                    alert("Connection error while cleaning up sandboxes.");
                 }
-            }
-        });
+            });
+        }
 
         // CSV File Drag Drop hooks
         const dropArea = document.getElementById("csv-drag-drop");

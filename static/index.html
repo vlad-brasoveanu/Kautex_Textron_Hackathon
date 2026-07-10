@@ -15,7 +15,7 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="css/style.css?v=mobile4">
+    <link rel="stylesheet" href="css/style.css?v=mobile6">
 </head>
 <body>
 
@@ -63,7 +63,7 @@
         
         <!-- Header: Top bar with Scenario Switcher and Role Switcher -->
         <header class="app-header">
-            <div class="header-logo" style="display: flex; align-items: center; gap: 15px;">
+            <div class="header-logo" id="header-logo-link" style="display: flex; align-items: center; gap: 15px; cursor: pointer;" title="Go to Allocation Grid">
                 <img src="kautex_logo.png" alt="Kautex Logo" class="logo-image" style="height: 46px; width: auto; display: block; object-fit: contain;">
                 <div class="control-divider" style="height: 28px; margin: 0; background: var(--glass-border);"></div>
                 <div class="logo-text">
@@ -85,12 +85,6 @@
                     <select id="scenario-select" class="scenario-dropdown">
                         <!-- Populated dynamically -->
                     </select>
-                    <button id="btn-clone-scenario" title="Clone Active Planning Version" class="btn btn-secondary btn-icon-only"><i class="fa-solid fa-copy"></i></button>
-                    <button id="btn-create-scenario" title="New Planning Version" class="btn btn-secondary btn-icon-only"><i class="fa-solid fa-plus"></i></button>
-                    <button id="btn-delete-scenario" title="Delete Planning Version" class="btn btn-danger btn-icon-only"><i class="fa-solid fa-trash"></i></button>
-                    <button id="btn-export-scenario" title="Backup Scenario (JSON)" class="btn btn-secondary btn-icon-only admin-only" style="display: none;"><i class="fa-solid fa-file-export"></i></button>
-                    <button id="btn-import-scenario" title="Restore Scenario (JSON)" class="btn btn-secondary btn-icon-only admin-only" style="display: none;"><i class="fa-solid fa-file-import"></i></button>
-                    <input type="file" id="import-scenario-file" accept=".json" style="display: none;">
                 </div>
 
                 <!-- Language Switcher Widget -->
@@ -188,6 +182,15 @@
                             <button id="btn-view-cards" class="btn-toggle active" style="padding: 6px 10px; border-radius: 6px; border: none; background: var(--primary-color); color: #fff; font-size: 11px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 4px;"><i class="fa-solid fa-address-card"></i> <span data-i18n="matrix.viewCards">Cards</span></button>
                             <button id="btn-view-table" class="btn-toggle" style="padding: 6px 10px; border-radius: 6px; border: none; background: transparent; color: var(--text-secondary); font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px;"><i class="fa-solid fa-table"></i> <span data-i18n="matrix.viewTable">Table</span></button>
                         </div>
+                        <div class="matrix-group-by-control" style="display: flex; align-items: center; gap: 6px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); padding: 4px 10px; border-radius: 8px;">
+                            <label for="matrix-grouping-select" style="font-size: 11px; color: var(--text-secondary); font-weight: 500; display: flex; align-items: center; gap: 4px; white-space: nowrap;"><i class="fa-solid fa-layer-group"></i> <span data-i18n="matrix.groupBy">Group Rows By</span></label>
+                            <select id="matrix-grouping-select" style="padding: 6px 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); font-size: 12px; outline: none; cursor: pointer;">
+                                <option value="none" data-i18n="matrix.groupNone">Default (No Grouping)</option>
+                                <option value="team" data-i18n="matrix.groupTeam">Team</option>
+                                <option value="location" data-i18n="matrix.groupLocation">Country (Location)</option>
+                                <option value="topic" data-i18n="matrix.groupTopic">Primary Topic</option>
+                            </select>
+                        </div>
                         <button id="btn-matrix-add-employee" class="btn btn-secondary admin-only" style="display: none;"><i class="fa-solid fa-user-plus"></i> <span data-i18n="matrix.addRow">Add Row</span></button>
                         <button id="btn-matrix-add-topic" class="btn btn-secondary admin-only" style="display: none;"><i class="fa-solid fa-plus"></i> <span data-i18n="matrix.addColumn">Add Column</span></button>
                         <button id="btn-export-matrix-csv" class="btn btn-secondary"><i class="fa-solid fa-file-csv"></i> <span data-i18n="matrix.exportCsv">Export CSV</span></button>
@@ -204,15 +207,6 @@
                         <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px; color: var(--text-primary);"><i class="fa-solid fa-filter"></i> <span data-i18n="matrix.filtersTitle">Matrix Filters</span></h3>
                         <div id="dynamic-filters-container">
                             <!-- Dynamic filters will be rendered here based on columns/rows -->
-                        </div>
-                        <div class="filter-group" style="margin-top: 15px; margin-bottom: 15px; display: flex; flex-direction: column; gap: 6px;">
-                            <label for="matrix-grouping-select" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;"><i class="fa-solid fa-layer-group"></i> <span data-i18n="matrix.groupBy">Group Rows By</span></label>
-                            <select id="matrix-grouping-select" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); font-size: 13px; outline: none; cursor: pointer; width: 100%;">
-                                <option value="none" data-i18n="matrix.groupNone">Default (No Grouping)</option>
-                                <option value="team" data-i18n="matrix.groupTeam">Team</option>
-                                <option value="location" data-i18n="matrix.groupLocation">Country (Location)</option>
-                                <option value="topic" data-i18n="matrix.groupTopic">Primary Topic</option>
-                            </select>
                         </div>
                         <button id="btn-reset-filters" class="btn btn-secondary btn-full" style="margin-top: 15px; width: 100%;"><i class="fa-solid fa-filter-circle-xmark"></i> <span data-i18n="matrix.resetFilters">Reset Filters</span></button>
                     </div>
@@ -558,7 +552,7 @@
                         </div>
                     </div>
                     <div class="modal-footer" style="justify-content: flex-start; padding-top: 10px;">
-                        <button id="btn-start-simulation" class="btn btn-primary"><i class="fa-solid fa-play"></i> <span data-i18n="sim.startBtn">Start Simulation</span></button>
+                        <button id="btn-start-simulation" class="btn btn-primary"><i class="fa-solid fa-play"></i> <span data-i18n="sim.startBtn">Create Simulation</span></button>
                         <button id="btn-sim-apply-top" class="btn btn-primary" style="display: none; background: var(--success-color);"><i class="fa-solid fa-check-double"></i> <span data-i18n="sim.applyActive">Apply as Active Planning Version</span></button>
                         <button id="btn-sim-stop" class="btn btn-danger" style="display: none;"><i class="fa-solid fa-stop"></i> <span data-i18n="sim.stopBtn">Stop Simulation</span></button>
                     </div>
@@ -1047,7 +1041,7 @@
                     </div>
                     <div style="display: flex; gap: 10px;">
                         <button id="btn-refresh-logs" class="btn btn-primary"><i class="fa-solid fa-rotate"></i> <span data-i18n="logs.refresh">Refresh Logs</span></button>
-                        <button id="btn-clear-logs" class="btn btn-danger master-only"><i class="fa-solid fa-fire"></i> <span data-i18n="logs.clearAll">Clear All Logs</span></button>
+                        <button id="btn-clear-logs" class="btn btn-danger master-only"><i class="fa-solid fa-trash"></i> <span data-i18n="logs.clearAll">Clear All Logs</span></button>
                     </div>
                 </div>
 
@@ -1605,7 +1599,7 @@
     </div>
 
     <!-- Custom Script -->
-    <script src="js/translations.js?v=mobile4"></script>
-    <script type="module" src="js/main.js?v=mobile4"></script>
+    <script src="js/translations.js?v=mobile6"></script>
+    <script type="module" src="js/main.js?v=mobile6"></script>
 </body>
 </html>
