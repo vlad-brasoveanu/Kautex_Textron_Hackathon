@@ -606,29 +606,54 @@ export function initPresentation() {
                 const suggestions = [...(data.cost_optimizations || []), ...(data.reallocations || [])].slice(0, 3);
                 const pages = chunkRows(data.bottlenecks || [], ROWS_PER_SLIDE);
 
+                const severityBadge = (sev) => {
+                    const isHigh = sev === "High";
+                    return `<span class="ai-severity-badge ${isHigh ? "ai-severity-high" : "ai-severity-medium"}">${sev || "Medium"}</span>`;
+                };
+                // The deterministic AI-insights generator (routers/reports.py) wraps
+                // key terms in **markdown bold** - the Admin Insights dashboard tab
+                // already converts that to <strong> (see dashboards.js's mdBold);
+                // this slide was rendering the raw asterisks unconverted.
+                const mdBold = (text) => String(text ?? "").replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+
                 return pages.map((rows, i) => {
                     const isFirst = i === 0;
                     const bottleneckList = `
-                        <ul class="risk-list">
+                        <ul class="ai-insight-list-pres">
                             ${rows.map(b => `
-                                <li style="padding: 8px 12px; border-radius: 6px; background: rgba(239, 68, 68, 0.04); border-left: 3px solid ${b.severity === 'High' ? 'var(--danger-color)' : 'var(--warning-color)'}; margin-bottom: 6px; font-size: 11px;">
-                                    <strong>[${b.type || ""}]</strong> ${b.description || ""}
+                                <li class="ai-insight-item ai-insight-item-risk">
+                                    <i class="fa-solid fa-triangle-exclamation ai-insight-icon"></i>
+                                    <div class="ai-insight-item-body">
+                                        <div class="ai-insight-item-head">
+                                            <strong>${b.type || "Bottleneck"}</strong>
+                                            ${severityBadge(b.severity)}
+                                        </div>
+                                        <p>${mdBold(b.description)}</p>
+                                    </div>
                                 </li>
                             `).join("")}
                         </ul>
                     `;
                     const body = isFirst ? `
+                        <div class="ai-pres-summary-row">
+                            <span class="ai-pres-summary-pill ai-pres-summary-risk"><i class="fa-solid fa-triangle-exclamation"></i> ${(data.bottlenecks || []).length} bottleneck${(data.bottlenecks || []).length === 1 ? "" : "s"} identified</span>
+                            <span class="ai-pres-summary-pill ai-pres-summary-suggestion"><i class="fa-solid fa-lightbulb"></i> ${suggestions.length} suggestion${suggestions.length === 1 ? "" : "s"}</span>
+                        </div>
                         <div class="slide-content-split">
                             <div class="slide-col-left">
-                                <h4 class="risk-title" style="color: var(--accent-color); font-size: 13px;" contenteditable="true" data-slide-id="${slideId}" data-edit-key="label-left"><i class="fa-solid fa-brain"></i> ${getSlideText(slideId, "label-left", "Predicted Resource Bottlenecks")}</h4>
+                                <h4 class="risk-title" style="color: var(--accent-color);" contenteditable="true" data-slide-id="${slideId}" data-edit-key="label-left"><i class="fa-solid fa-brain"></i> ${getSlideText(slideId, "label-left", "Predicted Resource Bottlenecks")}</h4>
                                 ${bottleneckList}
                             </div>
                             <div class="slide-col-right">
-                                <h4 class="risk-title" style="color: var(--warning-color); font-size: 13px;" contenteditable="true" data-slide-id="${slideId}" data-edit-key="label-right"><i class="fa-solid fa-chart-line"></i> ${getSlideText(slideId, "label-right", "Strategic Optimization Suggestions")}</h4>
-                                <ul class="risk-list" style="gap: 6px;">
+                                <h4 class="risk-title" style="color: var(--warning-color);" contenteditable="true" data-slide-id="${slideId}" data-edit-key="label-right"><i class="fa-solid fa-chart-line"></i> ${getSlideText(slideId, "label-right", "Strategic Optimization Suggestions")}</h4>
+                                <ul class="ai-insight-list-pres">
                                     ${suggestions.map(s => `
-                                        <li style="padding: 8px 12px; border-radius: 6px; background: rgba(59, 130, 246, 0.04); border-left: 3px solid var(--primary-color); margin-bottom: 6px; font-size: 11px;">
-                                            <strong>[${s.category || s.action || ""}]</strong> ${s.description || ""}
+                                        <li class="ai-insight-item ai-insight-item-suggestion">
+                                            <i class="fa-solid fa-lightbulb ai-insight-icon"></i>
+                                            <div class="ai-insight-item-body">
+                                                <div class="ai-insight-item-head"><strong>${s.category || s.action || "Suggestion"}</strong></div>
+                                                <p>${mdBold(s.description)}</p>
+                                            </div>
                                         </li>
                                     `).join("")}
                                 </ul>
@@ -637,7 +662,7 @@ export function initPresentation() {
                     ` : `
                         <div class="slide-content-split">
                             <div class="slide-col-full">
-                                <h4 class="risk-title" style="color: var(--accent-color); font-size: 13px;" contenteditable="true" data-slide-id="${slideId}" data-edit-key="label-left-cont"><i class="fa-solid fa-brain"></i> ${getSlideText(slideId, "label-left-cont", "Predicted Resource Bottlenecks (continued)")}</h4>
+                                <h4 class="risk-title" style="color: var(--accent-color);" contenteditable="true" data-slide-id="${slideId}" data-edit-key="label-left-cont"><i class="fa-solid fa-brain"></i> ${getSlideText(slideId, "label-left-cont", "Predicted Resource Bottlenecks (continued)")}</h4>
                                 ${bottleneckList}
                             </div>
                         </div>

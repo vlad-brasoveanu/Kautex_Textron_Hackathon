@@ -2494,13 +2494,103 @@ th.sortable-emp:hover, th.sortable-topic:hover {
 }
 
 .risk-title {
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 600;
     color: #ffffff;
     margin-bottom: 10px;
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+/* AI Portfolio Predictions slide redesign: bigger, better-structured list
+   items (icon + severity badge + description) instead of a flat colored
+   bar with bracketed "[Type]" text, plus a summary pill row up top. */
+.ai-pres-summary-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+.ai-pres-summary-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+}
+.ai-pres-summary-pill.ai-pres-summary-risk {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger-color);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+}
+.ai-pres-summary-pill.ai-pres-summary-suggestion {
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--primary-color);
+    border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+.ai-insight-list-pres {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow: visible;
+}
+.ai-insight-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.03);
+    border-left: 3px solid var(--danger-color);
+}
+.ai-insight-item.ai-insight-item-suggestion {
+    border-left-color: var(--primary-color);
+}
+.ai-insight-icon {
+    flex-shrink: 0;
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--danger-color);
+}
+.ai-insight-item-suggestion .ai-insight-icon {
+    color: var(--primary-color);
+}
+.ai-insight-item-body {
+    flex: 1;
+    min-width: 0;
+}
+.ai-insight-item-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 3px;
+    font-size: 12.5px;
+}
+.ai-insight-item-body p {
+    margin: 0;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+.ai-severity-badge {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 8px;
+    border-radius: 999px;
+}
+.ai-severity-badge.ai-severity-high {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--danger-color);
+}
+.ai-severity-badge.ai-severity-medium {
+    background: rgba(245, 158, 11, 0.15);
+    color: var(--warning-color);
 }
 
 .risk-list {
