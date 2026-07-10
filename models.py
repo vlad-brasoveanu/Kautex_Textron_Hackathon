@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, UniqueConstraint, LargeBinary
 from sqlalchemy.orm import relationship
 import datetime
 from database import Base
@@ -30,6 +30,8 @@ class Employee(Base):
     status = Column(String, default="Active")  # Active, New Position, Replacement, Temporary, Inactive
     manager = Column(String, nullable=True)
     notes = Column(String, nullable=True)
+    is_deleted = Column(Boolean, default=False, index=True)
+    deleted_at = Column(DateTime, nullable=True)
 
     scenario = relationship("Scenario", back_populates="employees")
     allocations = relationship("Allocation", back_populates="employee", cascade="all, delete-orphan")
@@ -51,6 +53,8 @@ class Topic(Base):
     comments = Column(String, nullable=True)
     notes = Column(String, nullable=True)
     recovery = Column(Float, default=0.0)
+    is_deleted = Column(Boolean, default=False, index=True)
+    deleted_at = Column(DateTime, nullable=True)
 
     scenario = relationship("Scenario", back_populates="topics")
     allocations = relationship("Allocation", back_populates="topic", cascade="all, delete-orphan")
@@ -88,7 +92,12 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
-    role = Column(String, default="user")  # "admin" or "user"
+    role = Column(String, default="user")  # "master_admin", "admin", or "user"
+    name = Column(String, nullable=False, default="Unnamed User")
+    email = Column(String, nullable=True)
+    department = Column(String, nullable=True)
+    position = Column(String, nullable=True)
+    supervisor = Column(String, nullable=True)
 
 
 class SystemLog(Base):
@@ -99,3 +108,25 @@ class SystemLog(Base):
     username = Column(String, nullable=False, index=True)
     action = Column(String, nullable=False, index=True)  # Login, Failed Login, Import CSV, Export Report, Registration
     details = Column(String, nullable=True)
+
+
+class UploadHistory(Base):
+    __tablename__ = "upload_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    scenario_id = Column(Integer, ForeignKey("scenarios.id"), nullable=False, index=True)
+    original_filename = Column(String, nullable=False)
+    stored_filename = Column(String, nullable=False)  # unique name on disk under UPLOAD_STORAGE_DIR
+    file_type = Column(String, nullable=False)  # "csv" or "excel"
+    size_bytes = Column(Integer, default=0)
+    uploaded_by = Column(String, nullable=False)
+    uploaded_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    imported_employees = Column(Integer, default=0)
+    imported_topics = Column(Integer, default=0)
+    imported_allocations = Column(Integer, default=0)
+    imported_additional_costs = Column(Integer, default=0)
+    archived_employees = Column(Integer, default=0)
+    archived_topics = Column(Integer, default=0)
+    file_content = Column(LargeBinary, nullable=True)
+
+    scenario = relationship("Scenario")

@@ -22,9 +22,207 @@
     --success-color: #10b981; /* Neon Green */
     
     --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-    --font-stack: 'Outfit', sans-serif;
+    --font-stack: 'Outfit', -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans', 'Noto Sans CJK SC', sans-serif;
     --sidebar-width: 260px;
     --header-height: 80px;
+}
+
+/* Matrix Overloaded rows highlighting */
+.matrix-table tr.tr-overloaded {
+    background: rgba(239, 68, 68, 0.08) !important;
+}
+
+.matrix-table td.matrix-overloaded-name {
+    color: #fca5a5 !important;
+    font-weight: bold;
+    border-left: 4px solid var(--danger-color) !important;
+}
+
+/* Theme Override classes */
+body.theme-light {
+    /* Brighter, less "grey slate" surface than the original f8fafc/f1f5f9 pair -
+       near-white with just a whisper of cool tint instead of a flat grey cast. */
+    --bg-primary: #fbfcfe;
+    --bg-secondary: #eef2f9;
+    --glass-bg: rgba(255, 255, 255, 0.85);
+    --glass-border: rgba(15, 23, 42, 0.12);
+    --glass-highlight: rgba(255, 255, 255, 0.5);
+    /* .app-main's base rule is a hardcoded dark navy overlay (rgba(11,15,25,0.4))
+       that was never made theme-aware - left as-is it muddies light mode with a
+       dark tint no matter how light --bg-primary/--bg-secondary are. */
+    --app-main-bg: rgba(238, 242, 249, 0.5);
+    
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    
+    --primary-color: #0284c7;
+    --primary-hover: #0369a1;
+    --accent-color: #6d28d9;
+    --danger-color: #dc2626;
+    --warning-color: #d97706;
+    --success-color: #16a34a;
+    
+    --card-shadow: 0 4px 20px 0 rgba(15, 23, 42, 0.08);
+}
+
+body.theme-light .matrix-table td.matrix-overloaded-name {
+    color: #b91c1c !important;
+}
+
+body.theme-light select option {
+    background-color: #eef2f9;
+    color: #0f172a;
+}
+
+body.theme-light ::-webkit-scrollbar-track {
+    background: rgba(238, 242, 249, 0.5);
+}
+
+body.theme-light ::-webkit-scrollbar-thumb {
+    background: rgba(15, 23, 42, 0.1);
+}
+
+body.theme-light ::-webkit-scrollbar-thumb:hover {
+    background: rgba(15, 23, 42, 0.2);
+}
+
+/* Light Mode Presentation Slides styling overrides */
+body.theme-light .presentation-slide {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+}
+
+body.theme-light .slide-header-brand {
+    color: #475569 !important;
+}
+
+body.theme-light .slide-body-center h2 {
+    color: #0f172a !important;
+}
+
+body.theme-light .slide-subtitle-divider {
+    background: rgba(15, 23, 42, 0.1) !important;
+}
+
+body.theme-light .slide-footer {
+    color: #475569 !important;
+    border-top: 1px solid #e2e8f0 !important;
+}
+
+body.theme-light .slide-title-bar h3, 
+body.theme-light .pres-kpi-number, 
+body.theme-light .risk-title {
+    color: #0f172a !important;
+}
+
+body.theme-light .pres-kpi-item,
+body.theme-light .pres-chart-box,
+body.theme-light .pres-notes-box {
+    background: #f4f7fc !important;
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
+}
+
+body.theme-light .pres-kpi-label, 
+body.theme-light .pres-chart-box h4 {
+    color: #475569 !important;
+}
+
+body.theme-light .pres-table th {
+    background: #eef2f9 !important;
+    color: #0f172a !important;
+    border-color: #cbd5e1 !important;
+}
+
+body.theme-light .pres-table td {
+    border-color: #e2e8f0 !important;
+    color: #334155 !important;
+}
+
+/* Midnight Dark: a deliberately different mood from the default Glass theme -
+   near-black and almost opaque (little glass transparency) with a cool
+   cyan/teal accent family instead of Glass's blue/violet, so switching
+   between the two reads as a real change, not just "darker". */
+body.theme-dark {
+    --bg-primary: #05070d;
+    --bg-secondary: #0a0e18;
+    --glass-bg: rgba(8, 12, 22, 0.94);
+    --glass-border: rgba(148, 163, 184, 0.14);
+    --glass-highlight: rgba(255, 255, 255, 0.02);
+
+    --text-primary: #e5e7eb;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+
+    --primary-color: #0ea5e9; /* Sky Cyan */
+    --primary-hover: #0284c7;
+    --accent-color: #14b8a6; /* Teal */
+    --danger-color: #f43f5e;
+    --warning-color: #fb923c;
+    --success-color: #22c55e;
+
+    --card-shadow: 0 8px 36px 0 rgba(0, 0, 0, 0.8);
+    --font-stack: 'Outfit', -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans', 'Noto Sans CJK SC', sans-serif;
+    --app-main-bg: rgba(2, 4, 9, 0.6);
+}
+
+/* Midnight favors flat, low-blur surfaces over Glass's frosted look */
+body.theme-dark .glass,
+body.theme-dark .crud-card,
+body.theme-dark .chart-box,
+body.theme-dark .app-header,
+body.theme-dark .app-sidebar,
+body.theme-dark .modal-content {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+body.theme-high-contrast {
+    --bg-primary: #000000;
+    --bg-secondary: #000000;
+    --glass-bg: #000000;
+    --glass-border: #ffffff;
+    --glass-highlight: #000000;
+    
+    --text-primary: #ffffff;
+    --text-secondary: #ffffff;
+    --text-muted: #ffffff;
+    
+    --primary-color: #00ff00;
+    --primary-hover: #00dd00;
+    --accent-color: #ffff00;
+    --danger-color: #ff0000;
+    --warning-color: #ffaa00;
+    --success-color: #00ffff;
+
+    --card-shadow: none;
+    --app-main-bg: #000000;
+}
+
+body.theme-high-contrast .crud-card,
+body.theme-high-contrast .app-header,
+body.theme-high-contrast .app-sidebar,
+body.theme-high-contrast .matrix-table th,
+body.theme-high-contrast .matrix-table td,
+body.theme-high-contrast .crud-table th,
+body.theme-high-contrast .crud-table td,
+body.theme-high-contrast select,
+body.theme-high-contrast input {
+    border: 2px solid #ffffff !important;
+    background-color: #000000 !important;
+    color: #ffffff !important;
+}
+body.theme-high-contrast button {
+    border: 2px solid #ffffff !important;
+    background-color: #000000 !important;
+    color: #ffffff !important;
+}
+body.theme-high-contrast button:hover {
+    background-color: #ffffff !important;
+    color: #000000 !important;
 }
 
 * {
@@ -95,11 +293,13 @@ body {
     gap: 12px;
 }
 
-.logo-icon {
-    font-size: 26px;
-    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+.logo-image, .login-logo-image {
+    transition: filter 0.3s ease;
+}
+
+body:not(.theme-light) .logo-image,
+body:not(.theme-light) .login-logo-image {
+    filter: invert(1) hue-rotate(180deg);
 }
 
 .logo-text h1 {
@@ -120,20 +320,71 @@ body {
     gap: 20px;
 }
 
+/* Hamburger toggle for the mobile controls/nav drawer - hidden on desktop,
+   shown only under the max-width:768px breakpoint below. */
+.mobile-menu-toggle-btn {
+    display: none;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    font-size: 16px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
 .control-group {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     background: rgba(255, 255, 255, 0.03);
-    padding: 6px 12px;
+    padding: 5px 10px;
     border-radius: 8px;
     border: 1px solid var(--glass-border);
 }
 
 .control-group label {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-secondary);
     font-weight: 500;
+    white-space: nowrap;
+}
+
+/* Denser header controls: the top bar packs a lot of widgets
+   (planning version + its 5 action buttons, language, theme,
+   user profile, logout) side by side, so everything in it runs
+   smaller than the same components used elsewhere in the app. */
+.app-header {
+    padding: 0 20px;
+}
+
+.header-controls {
+    gap: 10px;
+}
+
+.app-header .scenario-dropdown,
+.app-header .theme-dropdown {
+    padding: 5px 8px;
+    font-size: 11px;
+    min-width: 140px;
+}
+
+.app-header .btn {
+    padding: 5px 10px;
+    font-size: 11px;
+    gap: 4px;
+}
+
+.app-header .btn-icon-only {
+    padding: 5px 7px;
+}
+
+.app-header .user-display-name {
+    font-size: 12px !important;
 }
 
 .scenario-dropdown, .control-dropdown, .filter-dropdown {
@@ -206,7 +457,7 @@ body {
    SIDEBAR STYLES
    ========================================================== */
 .app-sidebar {
-    background: rgba(17, 24, 39, 0.8);
+    background: var(--glass-bg);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-right: 1px solid var(--glass-border);
@@ -366,7 +617,7 @@ body {
     grid-column: 2;
     padding: 24px;
     overflow-y: auto;
-    background: rgba(11, 15, 25, 0.4);
+    background: var(--app-main-bg, rgba(11, 15, 25, 0.4));
 }
 
 .main-section {
@@ -434,7 +685,7 @@ body {
 
 /* Topic Headers (Vertical Sticky) */
 .matrix-table thead th {
-    background: #1e293b;
+    background: var(--bg-secondary);
     color: var(--text-primary);
     font-weight: 500;
     position: sticky;
@@ -446,7 +697,7 @@ body {
 .matrix-table td.sticky-col, .matrix-table th.sticky-col {
     position: sticky;
     left: 0;
-    background: #1e293b;
+    background: var(--bg-secondary);
     z-index: 4;
     text-align: left;
     font-weight: 500;
@@ -457,12 +708,31 @@ body {
     z-index: 6;
 }
 
+/* Employee body cell: name (+ overload icon) on the left, remove control
+   pinned to the right edge - a flex row keeps the "x" button consistently
+   aligned regardless of name length, instead of just trailing the text inline. */
+.matrix-table td.sticky-col {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.matrix-row-name-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .matrix-table tbody tr:hover td {
     background: rgba(255, 255, 255, 0.02);
 }
 
 .matrix-table tbody tr:hover td.sticky-col {
-    background: #1e293b;
+    background: var(--bg-secondary);
 }
 
 /* Editable cells */
@@ -489,12 +759,143 @@ body.role-user-active .matrix-cell-pct:hover {
     background: transparent;
 }
 
-/* Cell Comment indicator */
+/* Cell Comment indicator - click to view, not just hover */
 .matrix-comment-indicator {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    background: var(--warning-color, #f5a623);
+    font-size: 9px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    margin-left: 5px;
+    box-shadow: 0 0 0 2px var(--bg-secondary), 0 1px 3px rgba(0, 0, 0, 0.35);
+    cursor: pointer;
+    vertical-align: middle;
+    transition: transform 0.15s ease;
+}
+
+.matrix-comment-indicator:hover {
+    transform: scale(1.2);
+}
+
+/* Click-to-view comment popover */
+.comment-popover {
+    position: fixed;
+    z-index: 500;
+    max-width: 280px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+    padding: 12px 14px;
+    animation: popoverFadeIn 0.12s ease;
+}
+
+.comment-popover-arrow {
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    width: 12px;
+    height: 12px;
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--glass-border);
+    border-top: 1px solid var(--glass-border);
+}
+
+.comment-popover p {
+    font-size: 13px;
+    color: var(--text-primary);
+    line-height: 1.5;
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+@keyframes popoverFadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Row/Column remove controls (full grid control for admin/master admin).
+   Fixed-size circular hit targets, vertically centered via the flex
+   containers above/below instead of relying on inline vertical-align, which
+   drifted depending on neighboring text size. */
+.matrix-row-remove, .matrix-col-remove {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    color: var(--danger-color);
+    font-size: 14px;
+    border-radius: 50%;
+    cursor: pointer;
+    opacity: 0.55;
+    transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.matrix-row-remove:hover, .matrix-col-remove:hover {
+    opacity: 1;
+    background: rgba(239, 68, 68, 0.12);
+}
+
+/* Topic (column) headers: a top row with the label + sort icon on the left
+   and the remove control pinned to the right, a category subtitle below. */
+.matrix-topic-th {
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s ease;
+}
+
+.matrix-topic-th:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.matrix-th-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.matrix-th-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.matrix-th-subtitle {
+    display: block;
+    font-weight: normal;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+/* Sortable metadata/topic headers */
+.matrix-sortable-th {
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s ease;
+}
+
+.matrix-sortable-th:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.matrix-sort-icon {
+    font-size: 11px;
+    opacity: 0.4;
+    margin-left: 6px;
+    transition: opacity 0.15s ease;
+}
+
+.matrix-sort-icon.active {
+    opacity: 1;
     color: var(--primary-color);
-    font-size: 10px;
-    margin-left: 4px;
-    cursor: help;
 }
 
 /* Utilisation Highlight Classes */
@@ -591,6 +992,640 @@ body.role-user-active .matrix-cell-pct:hover {
 
 .text-green { color: var(--success-color); }
 .text-blue { color: var(--primary-color); }
+.text-danger { color: var(--danger-color); }
+
+/* ==========================================================
+   SIMULATION (WHAT-IF PLANNING) TAB
+   ========================================================== */
+.sim-status-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    margin-bottom: 18px;
+    font-size: 13px;
+    border: 1px solid var(--glass-border);
+}
+
+.sim-status-banner.sim-status-empty {
+    background: var(--glass-bg);
+    color: var(--text-secondary);
+}
+
+.sim-status-banner.sim-status-active {
+    background: color-mix(in srgb, var(--primary-color) 10%, var(--glass-bg));
+    border-color: color-mix(in srgb, var(--primary-color) 30%, var(--glass-border));
+    color: var(--text-primary);
+}
+
+.sim-status-banner i {
+    font-size: 15px;
+}
+
+.sim-status-banner.sim-status-empty i { color: var(--text-secondary); }
+.sim-status-banner.sim-status-active i { color: var(--primary-color); }
+
+#simulation-section select,
+#simulation-section input[type="text"],
+#simulation-section input[type="number"] {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--glass-border);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease;
+}
+
+#simulation-section select {
+    cursor: pointer;
+}
+
+#simulation-section select:hover,
+#simulation-section input[type="text"]:hover,
+#simulation-section input[type="number"]:hover,
+#simulation-section select:focus,
+#simulation-section input[type="text"]:focus,
+#simulation-section input[type="number"]:focus {
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Scenario comparison delta table/cards */
+.delta-positive { color: var(--danger-color); font-weight: 600; }
+.delta-negative { color: var(--success-color); font-weight: 600; }
+.delta-neutral { color: var(--text-secondary); }
+
+/* Pros/Cons summary vs. the real active planning version */
+.sim-verdict-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    margin-bottom: 16px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+}
+
+.sim-verdict-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+    color: #ffffff;
+}
+
+.sim-pro-con-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 16px;
+}
+
+.sim-pro-con-card {
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--glass-border);
+    background: var(--glass-bg);
+}
+
+.sim-pro-con-card h4 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 8px;
+}
+
+.sim-pro-con-card ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12.5px;
+}
+
+.sim-pro-con-card li {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    line-height: 1.4;
+}
+
+/* ==========================================================
+   STATUS BADGES (severity, role, log action pills)
+   ========================================================== */
+.badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 999px;
+    text-transform: capitalize;
+    white-space: nowrap;
+    border: 1px solid transparent;
+}
+
+.badge-danger {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--danger-color);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.badge-warning {
+    background: rgba(245, 158, 11, 0.15);
+    color: var(--warning-color);
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+.badge-success {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--success-color);
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.badge-primary {
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--primary-color);
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+.badge-secondary {
+    background: rgba(156, 163, 175, 0.15);
+    color: var(--text-secondary);
+    border-color: rgba(156, 163, 175, 0.3);
+}
+
+.badge-info {
+    background: rgba(139, 92, 246, 0.15);
+    color: var(--accent-color);
+    border-color: rgba(139, 92, 246, 0.3);
+}
+
+/* ==========================================================
+   EXECUTIVE ALERT STRIP
+   ========================================================== */
+.exec-alert-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.exec-alert-chip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid var(--glass-border);
+    background: var(--glass-bg);
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.exec-alert-chip:hover {
+    transform: translateY(-1px);
+}
+
+.exec-alert-chip i {
+    font-size: 14px;
+}
+
+.exec-alert-chip.ok { border-color: rgba(16, 185, 129, 0.3); color: var(--success-color); }
+.exec-alert-chip.warn { border-color: rgba(245, 158, 11, 0.35); color: var(--warning-color); }
+.exec-alert-chip.danger { border-color: rgba(239, 68, 68, 0.35); color: var(--danger-color); }
+
+/* ==========================================================
+   RANKED LIST (Top Cost Drivers)
+   ========================================================== */
+.ranked-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ranked-list-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--glass-border);
+}
+
+.ranked-list-rank {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.ranked-list-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.ranked-list-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ranked-list-meta {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.ranked-list-value {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    flex-shrink: 0;
+}
+
+/* Clickable overview table rows (Team / Employee dashboards) */
+tr.overview-row {
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+tr.overview-row:hover td {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+/* ==========================================================
+   ADMIN INSIGHTS (AI) TAB - readable insight cards
+   ========================================================== */
+.ai-insight-list {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    margin-top: 12px;
+}
+
+.ai-insight-item {
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.ai-insight-item:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.ai-insight-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.ai-insight-label {
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.ai-insight-desc {
+    font-size: 13px;
+    color: var(--text-primary);
+    opacity: 0.82;
+    line-height: 1.6;
+}
+
+.ai-insight-impact {
+    color: var(--success-color);
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+/* Admin Insights banner header */
+.ai-insights-banner {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.16), rgba(16, 185, 129, 0.08));
+    border: 1px solid var(--glass-border);
+    border-radius: 14px;
+    padding: 22px 26px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+.ai-insights-banner::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.18), transparent 55%);
+    pointer-events: none;
+}
+
+.ai-insights-banner-icon {
+    flex-shrink: 0;
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: #ffffff;
+    background: linear-gradient(135deg, var(--accent-color), var(--primary-color));
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.35);
+}
+
+.ai-insights-banner-text {
+    flex: 1;
+    min-width: 0;
+    z-index: 1;
+}
+
+.ai-insights-banner-text h3 {
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.ai-insights-banner-text p {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    max-width: 640px;
+}
+
+.ai-insights-banner-pill {
+    flex-shrink: 0;
+    font-size: 11px;
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    z-index: 1;
+}
+
+/* Admin Insights stat strip */
+.ai-insights-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 22px;
+}
+
+.ai-stat-tile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-top: 3px solid var(--text-secondary);
+    border-radius: 10px;
+    padding: 14px 16px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ai-stat-tile:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
+.ai-stat-tile-danger { border-top-color: var(--danger-color); }
+.ai-stat-tile-warning { border-top-color: var(--warning-color); }
+.ai-stat-tile-primary { border-top-color: var(--primary-color); }
+.ai-stat-tile-success { border-top-color: var(--success-color); }
+
+.ai-stat-icon {
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+}
+
+.ai-stat-tile-danger .ai-stat-icon { color: var(--danger-color); }
+.ai-stat-tile-warning .ai-stat-icon { color: var(--warning-color); }
+.ai-stat-tile-primary .ai-stat-icon { color: var(--primary-color); }
+.ai-stat-tile-success .ai-stat-icon { color: var(--success-color); }
+
+.ai-stat-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.ai-stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.ai-stat-label {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.ai-stat-sub {
+    font-size: 10.5px;
+    color: var(--text-secondary);
+    opacity: 0.75;
+}
+
+/* Admin Insights redesigned cards */
+.ai-insights-grid {
+    margin-bottom: 18px;
+}
+
+.ai-insight-card {
+    height: auto !important;
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
+    border-top: 3px solid var(--text-secondary);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    overflow: visible !important;
+}
+
+.ai-insight-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+}
+
+.ai-insight-card-danger { border-top-color: var(--danger-color); }
+.ai-insight-card-warning { border-top-color: var(--warning-color); }
+.ai-insight-card-primary { border-top-color: var(--primary-color); }
+
+.ai-insight-card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    margin-bottom: 10px;
+    color: #ffffff;
+}
+
+.ai-insight-card-danger .ai-insight-card-icon { background: linear-gradient(135deg, var(--danger-color), #b91c1c); }
+.ai-insight-card-warning .ai-insight-card-icon { background: linear-gradient(135deg, var(--warning-color), #b45309); }
+.ai-insight-card-primary .ai-insight-card-icon { background: linear-gradient(135deg, var(--primary-color), var(--accent-color)); }
+
+.ai-insight-card h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0;
+}
+
+.ai-insight-card .ai-insight-list {
+    flex: 1;
+    overflow: visible !important;
+}
+
+.ai-insight-card .local-pill {
+    align-self: flex-start;
+    margin-top: 15px;
+}
+
+.ai-insight-list .ai-insight-item {
+    position: relative;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--accent, var(--glass-border)) 6%, var(--glass-bg));
+    border: 1px solid color-mix(in srgb, var(--accent, var(--glass-border)) 22%, var(--glass-border));
+    padding: 10px 12px;
+}
+
+/* Removed ::before pseudo element which caused left red border */
+
+.ai-insight-list .ai-insight-item + .ai-insight-item {
+    margin-top: 10px;
+}
+
+.ai-insights-footer-note {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    opacity: 0.75;
+    padding: 12px 4px 0;
+}
+
+/* ==========================================================
+   PRESENTATION DECK CUSTOMIZATION LIST
+   ========================================================== */
+.deck-customize-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: unset;
+}
+
+.deck-customize-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--glass-border);
+}
+
+.deck-customize-item.excluded {
+    opacity: 0.55;
+}
+
+.deck-customize-item input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary-color);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.deck-customize-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.deck-customize-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.deck-customize-desc {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.deck-customize-order-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.deck-customize-order-controls button {
+    width: 24px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--glass-border);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 10px;
+    padding: 0;
+}
+
+.deck-customize-order-controls button:hover:not(:disabled) {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.deck-customize-order-controls button:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
 
 /* ==========================================================
    DASHBOARD TABS & CHART DESIGN
@@ -602,7 +1637,7 @@ body.role-user-active .matrix-cell-pct:hover {
     margin-bottom: 20px;
 }
 
-.dash-tab {
+.dash-tab, .upload-tab {
     background: transparent;
     color: var(--text-secondary);
     border: none;
@@ -615,21 +1650,21 @@ body.role-user-active .matrix-cell-pct:hover {
     transition: all 0.2s ease;
 }
 
-.dash-tab:hover {
+.dash-tab:hover, .upload-tab:hover {
     color: var(--text-primary);
 }
 
-.dash-tab.active {
+.dash-tab.active, .upload-tab.active {
     color: var(--primary-color);
     border-bottom-color: var(--primary-color);
 }
 
-.dash-tab-content {
+.dash-tab-content, .upload-tab-content {
     display: none;
     animation: fadeIn 0.4s ease forwards;
 }
 
-.dash-tab-content.active {
+.dash-tab-content.active, .upload-tab-content.active {
     display: block;
 }
 
@@ -637,6 +1672,66 @@ body.role-user-active .matrix-cell-pct:hover {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
     gap: 20px;
+}
+
+/* Executive Summary "Customize View" toolbar/panel */
+.exec-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 14px;
+}
+
+.exec-customize-panel {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    width: 320px;
+    max-height: 60vh;
+    overflow-y: auto;
+    background: var(--bg-secondary);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+    padding: 14px;
+    z-index: 50;
+}
+
+.exec-customize-panel h4 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 10px 0;
+}
+
+.exec-customize-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.exec-customize-list li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 9px;
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--glass-border);
+    font-size: 12.5px;
+    color: var(--text-primary);
+}
+
+.exec-customize-list input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    accent-color: var(--primary-color);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.exec-widget-hidden {
+    display: none !important;
 }
 
 .chart-box {
@@ -709,6 +1804,22 @@ th.sortable-emp:hover, th.sortable-topic:hover {
     margin-bottom: 8px;
 }
 
+.detail-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.detail-card-header h4 {
+    margin-bottom: 0;
+}
+
+.btn-detail-edit {
+    flex-shrink: 0;
+}
+
 .detail-card p {
     font-size: 14px;
     line-height: 1.5;
@@ -765,6 +1876,7 @@ th.sortable-emp:hover, th.sortable-topic:hover {
 
 .crud-table-wrapper {
     overflow-y: auto;
+    overflow-x: auto;
     flex-grow: 1;
 }
 
@@ -966,6 +2078,32 @@ th.sortable-emp:hover, th.sortable-topic:hover {
     gap: 8px;
 }
 
+.upload-sync-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--warning-color) 8%, var(--glass-bg));
+    border: 1px solid color-mix(in srgb, var(--warning-color) 25%, var(--glass-border));
+    font-size: 12px;
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+
+.upload-sync-note i {
+    color: var(--warning-color);
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.upload-sync-note a {
+    color: var(--primary-color);
+    font-weight: 600;
+    text-decoration: underline;
+}
+
 .upload-instructions {
     margin-top: 30px;
     padding-top: 20px;
@@ -1099,13 +2237,57 @@ th.sortable-emp:hover, th.sortable-topic:hover {
 /* ==========================================================
    PRESENTATION DECK (SLIDES & PDF EXPORT)
    ========================================================== */
+
+/* Deck + customization panel side by side, filling the available width */
+.presentation-layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+    width: 100%;
+}
+
 .presentation-deck {
     display: flex;
     flex-direction: column;
     gap: 40px;
-    max-width: 900px;
-    margin: 0 auto;
+    flex: 1 1 auto;
+    min-width: 0;
     padding-bottom: 40px;
+}
+
+.deck-customize-panel {
+    flex: 0 0 320px;
+    width: 320px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 18px;
+    position: sticky;
+    top: 20px;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    scrollbar-gutter: stable;
+    overscroll-behavior: contain;
+}
+
+.deck-customize-panel h3 {
+    font-size: 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    flex-shrink: 0;
+}
+
+.deck-customize-panel .deck-customize-list {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    margin-bottom: 12px;
+    padding-right: 4px;
 }
 
 .presentation-slide {
@@ -1277,8 +2459,10 @@ th.sortable-emp:hover, th.sortable-topic:hover {
 }
 
 .pres-table-wrapper {
-    overflow-y: auto;
-    max-height: 220px;
+    /* No internal scroll: table row counts are paginated in JS (see
+       ROWS_PER_SLIDE) so content always fits without clipping or scrolling,
+       which matters for print/PDF and CSV export completeness. */
+    overflow: visible;
 }
 
 .pres-table {
@@ -1300,7 +2484,7 @@ th.sortable-emp:hover, th.sortable-topic:hover {
 }
 
 .risk-title {
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 600;
     color: #ffffff;
     margin-bottom: 10px;
@@ -1309,14 +2493,107 @@ th.sortable-emp:hover, th.sortable-topic:hover {
     gap: 8px;
 }
 
+/* AI Portfolio Predictions slide redesign: bigger, better-structured list
+   items (icon + severity badge + description) instead of a flat colored
+   bar with bracketed "[Type]" text, plus a summary pill row up top. */
+.ai-pres-summary-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+.ai-pres-summary-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+}
+.ai-pres-summary-pill.ai-pres-summary-risk {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger-color);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+}
+.ai-pres-summary-pill.ai-pres-summary-suggestion {
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--primary-color);
+    border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+.ai-insight-list-pres {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow: visible;
+}
+.ai-insight-list-pres .ai-insight-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--accent, var(--glass-border)) 6%, var(--glass-bg));
+    border: 1px solid color-mix(in srgb, var(--accent, var(--glass-border)) 20%, transparent);
+    border-left: 3px solid var(--danger-color);
+}
+.ai-insight-list-pres .ai-insight-item.ai-insight-item-suggestion {
+    border-left-color: var(--primary-color);
+}
+.ai-insight-list-pres .ai-insight-icon {
+    flex-shrink: 0;
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--danger-color);
+}
+.ai-insight-list-pres .ai-insight-item-suggestion .ai-insight-icon {
+    color: var(--primary-color);
+}
+.ai-insight-list-pres .ai-insight-item-body {
+    flex: 1;
+    min-width: 0;
+}
+.ai-insight-list-pres .ai-insight-item-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 3px;
+    font-size: 12.5px;
+}
+.ai-insight-list-pres .ai-insight-item-body p {
+    margin: 0;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+.ai-severity-badge {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 8px;
+    border-radius: 999px;
+}
+.ai-severity-badge.ai-severity-high {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--danger-color);
+}
+.ai-severity-badge.ai-severity-medium {
+    background: rgba(245, 158, 11, 0.15);
+    color: var(--warning-color);
+}
+
 .risk-list {
     list-style: none;
     font-size: 11px;
     display: flex;
     flex-direction: column;
     gap: 8px;
-    overflow-y: auto;
-    max-height: 200px;
+    /* No internal scroll: list item counts are paginated in JS so content
+       always fits without clipping or scrolling. */
+    overflow: visible;
+    flex-grow: 1 !important;
 }
 
 .risk-list li {
@@ -1335,17 +2612,30 @@ th.sortable-emp:hover, th.sortable-topic:hover {
     line-height: 1.6;
     color: var(--text-secondary);
     height: 100%;
+    flex-grow: 1 !important;
+    display: flex;
+    flex-direction: column;
+}
+
+.pres-notes-box p {
+    flex-grow: 1 !important;
+    margin: 0;
+    outline: none;
 }
 
 /* ==========================================================
    PRINT MEDIA RULES (slide conversion to high-end PDF pages)
    ========================================================== */
 @media print {
-    body {
+    /* Default light print layouts */
+    body:not(.print-theme-dark) {
         background: #ffffff !important;
         color: #000000 !important;
-        overflow: visible !important;
-        height: auto !important;
+    }
+    
+    body.print-theme-dark {
+        background: #030712 !important;
+        color: #f9fafb !important;
     }
     
     .app-container {
@@ -1358,8 +2648,15 @@ th.sortable-emp:hover, th.sortable-topic:hover {
     
     .app-main {
         padding: 0 !important;
-        background: #ffffff !important;
         overflow: visible !important;
+    }
+    
+    body:not(.print-theme-dark) .app-main {
+        background: #ffffff !important;
+    }
+    
+    body.print-theme-dark .app-main {
+        background: #030712 !important;
     }
     
     .main-section {
@@ -1376,59 +2673,175 @@ th.sortable-emp:hover, th.sortable-topic:hover {
         padding: 0 !important;
     }
     
-    .presentation-slide {
+    /* ==================== LIGHT PRINT THEME ==================== */
+    body:not(.print-theme-dark) .presentation-slide {
         background: #ffffff !important;
         color: #000000 !important;
-        border: none !important;
+        border: 1px solid #cbd5e1 !important;
         box-shadow: none !important;
         aspect-ratio: 16 / 9 !important;
         width: 100% !important;
         page-break-after: always !important;
         padding: 40px !important;
-        border: 1px solid #e2e8f0 !important; /* light line for bounds in print */
         margin-bottom: 20px;
     }
     
-    .slide-body-center h2 {
+    body:not(.print-theme-dark) .slide-body-center h2 {
         color: #0f172a !important;
     }
     
-    .slide-title-bar h3, .pres-kpi-number, .risk-title {
+    body:not(.print-theme-dark) .slide-title-bar h3, 
+    body:not(.print-theme-dark) .pres-kpi-number, 
+    body:not(.print-theme-dark) .risk-title {
         color: #0f172a !important;
     }
     
-    .pres-kpi-item, .pres-chart-box, .pres-notes-box {
+    body:not(.print-theme-dark) .pres-kpi-item, 
+    body:not(.print-theme-dark) .pres-chart-box, 
+    body:not(.print-theme-dark) .pres-notes-box {
         background: #f8fafc !important;
         border-color: #cbd5e1 !important;
     }
     
-    .pres-kpi-label, .pres-chart-box h4 {
+    body:not(.print-theme-dark) .pres-kpi-label, 
+    body:not(.print-theme-dark) .pres-chart-box h4 {
         color: #475569 !important;
     }
     
-    .pres-table th {
+    body:not(.print-theme-dark) .pres-table th {
         background: #f1f5f9 !important;
         color: #0f172a !important;
         border-color: #cbd5e1 !important;
     }
     
-    .pres-table td {
+    body:not(.print-theme-dark) .pres-table td {
         border-color: #e2e8f0 !important;
         color: #334155 !important;
     }
     
-    .risk-list li {
+    body:not(.print-theme-dark) .risk-list li {
         background: #fef2f2 !important;
         border-color: #ef4444 !important;
         color: #991b1b !important;
     }
     
-    .slide-footer {
+    body:not(.print-theme-dark) .slide-footer {
         border-color: #cbd5e1 !important;
         color: #64748b !important;
     }
+    
+    /* ==================== DARK PRINT THEME ==================== */
+    body.print-theme-dark .presentation-slide {
+        background: #0f172a !important;
+        color: #f1f5f9 !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        box-shadow: none !important;
+        aspect-ratio: 16 / 9 !important;
+        width: 100% !important;
+        page-break-after: always !important;
+        padding: 40px !important;
+        margin-bottom: 20px;
+    }
+    
+    body.print-theme-dark .slide-body-center h2 {
+        color: #ffffff !important;
+    }
+    
+    body.print-theme-dark .slide-title-bar h3, 
+    body.print-theme-dark .pres-kpi-number, 
+    body.print-theme-dark .risk-title {
+        color: #ffffff !important;
+    }
+    
+    body.print-theme-dark .pres-kpi-item, 
+    body.print-theme-dark .pres-chart-box, 
+    body.print-theme-dark .pres-notes-box {
+        background: rgba(255, 255, 255, 0.02) !important;
+        border-color: rgba(255, 255, 255, 0.05) !important;
+    }
+    
+    body.print-theme-dark .pres-kpi-label, 
+    body.print-theme-dark .pres-chart-box h4 {
+        color: #d1d5db !important;
+    }
+    
+    body.print-theme-dark .pres-table th {
+        background: rgba(255, 255, 255, 0.05) !important;
+        color: #ffffff !important;
+        border-color: rgba(255, 255, 255, 0.1) !important;
+    }
+    
+    body.print-theme-dark .pres-table td {
+        border-color: rgba(255, 255, 255, 0.05) !important;
+        color: #cbd5e1 !important;
+    }
+    
+    body.print-theme-dark .risk-list li {
+        background: rgba(239, 68, 68, 0.08) !important;
+        border-color: #ef4444 !important;
+        color: #fca5a5 !important;
+    }
+    
+    body.print-theme-dark .slide-footer {
+        border-color: rgba(255, 255, 255, 0.1) !important;
+        color: #9ca3af !important;
+    }
 }
 
+
+/* ==========================================================
+   COLD-START OVERLAY (free-tier host waking from idle)
+   ========================================================== */
+.cold-start-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(10, 12, 20, 0.75);
+    backdrop-filter: blur(6px);
+    z-index: 300;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s ease;
+}
+
+.cold-start-card {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 36px 40px;
+    width: 100%;
+    max-width: 380px;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+.cold-start-spinner {
+    font-size: 32px;
+    color: var(--primary-color);
+    margin-bottom: 14px;
+    animation: coldStartPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes coldStartPulse {
+    0%, 100% { opacity: 0.5; transform: scale(0.95); }
+    50% { opacity: 1; transform: scale(1.05); }
+}
+
+.cold-start-card h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.cold-start-card p {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
 
 /* ==========================================================
    LOGIN SCREEN LAYOUT
@@ -1522,4 +2935,1168 @@ body.authenticated .login-overlay {
     opacity: 0;
     pointer-events: none;
 }
+
+/* Inline content editable styles */
+[contenteditable="true"] {
+    transition: outline 0.15s ease, background 0.15s ease;
+    border-radius: 4px;
+}
+[contenteditable="true"]:hover {
+    outline: 1px dashed var(--primary-color) !important;
+    cursor: text;
+}
+[contenteditable="true"]:focus {
+    outline: 2px solid var(--accent-color) !important;
+    background: rgba(99, 102, 241, 0.08) !important;
+    padding: 2px 4px;
+}
+
+/* Presentation Mode Overlay */
+.presentation-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: var(--bg-primary); /* Consistent with the dashboard theme background */
+    z-index: 10000;
+    display: none; /* Controlled via active class */
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    box-sizing: border-box;
+    padding: 3vh 3vw 12vh 3vw; /* Space for toolbar at bottom */
+    overflow: hidden;
+    transition: opacity 0.3s ease;
+    opacity: 0;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+}
+
+.presentation-overlay.active {
+    display: flex;
+    opacity: 1;
+}
+
+/* Container wrappers for scaling slides to fit viewport */
+.presentation-content-wrapper {
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.presentation-slide-viewport {
+    width: 100%;
+    max-width: 1250px; /* Upgraded size from 1050px */
+    height: 100%;
+    max-height: 700px; /* Upgraded size from 590px */
+    aspect-ratio: 16 / 9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Font and scale overrides inside Fullscreen Presentation Overlay */
+.presentation-overlay .presentation-slide h3 {
+    font-size: 24px !important;
+}
+.presentation-overlay .presentation-slide {
+    font-size: 14.5px !important;
+}
+.presentation-overlay .pres-table th,
+.presentation-overlay .pres-table td {
+    padding: 10px 14px !important;
+    font-size: 12.5px !important;
+}
+.presentation-overlay .pres-kpi-number {
+    font-size: 26px !important;
+}
+.presentation-overlay .pres-kpi-label {
+    font-size: 12.5px !important;
+}
+.presentation-overlay .risk-list li {
+    font-size: 12.5px !important;
+    padding: 10px 14px !important;
+}
+
+/* Ensure slide takes full size of viewport */
+.presentation-slide-viewport .presentation-slide {
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 36px 48px !important;
+    border-radius: 16px;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+    background: var(--bg-secondary) !important;
+    border: 1px solid var(--glass-border) !important;
+    animation: slideFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideFadeIn {
+    from { opacity: 0; transform: scale(0.96) translateY(12px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Control Toolbar at bottom (Always in White/Light Mode) */
+.presentation-toolbar {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 800px;
+    background: rgba(255, 255, 255, 0.92) !important;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    border-radius: 50px;
+    padding: 12px 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 10001;
+    box-shadow: 0 15px 35px rgba(15, 23, 42, 0.08) !important;
+}
+
+.presentation-toolbar .toolbar-left,
+.presentation-toolbar .toolbar-center,
+.presentation-toolbar .toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.pres-slide-counter {
+    color: #475569 !important;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+/* Explicit white mode buttons for the presentation toolbar */
+.presentation-toolbar .btn-secondary {
+    background: #f1f5f9 !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #334155 !important;
+}
+
+.presentation-toolbar .btn-secondary:hover {
+    background: #e2e8f0 !important;
+    color: #0f172a !important;
+}
+
+.presentation-toolbar .btn-primary {
+    background: #3b82f6 !important;
+    color: #ffffff !important;
+    border: none !important;
+}
+
+.presentation-toolbar .btn-primary:hover {
+    background: #2563eb !important;
+    color: #ffffff !important;
+}
+
+.presentation-toolbar .text-red {
+    color: #dc2626 !important;
+}
+
+.presentation-toolbar .text-red:hover {
+    color: #b91c1c !important;
+}
+
+body #presentation-overlay.theme-light-presentation {
+    background: #0f172a !important; /* Darker navy background for high contrast framing */
+}
+
+/* Dark presentation overlay theme forcing dark slides regardless of body theme */
+body #presentation-overlay.theme-dark-presentation {
+    background: #070a13 !important; /* Pitch black / very dark navy screen background */
+}
+
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide {
+    background: #0f172a !important; /* Dark card background */
+    color: #f8fafc !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5) !important;
+}
+
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide .slide-header-brand {
+    color: #94a3b8 !important;
+}
+
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide .slide-body-center h2 {
+    color: #f8fafc !important;
+}
+
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide .slide-subtitle-divider {
+    background: rgba(255, 255, 255, 0.08) !important;
+}
+
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide .slide-footer {
+    color: #94a3b8 !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.06) !important;
+}
+
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .slide-header-brand {
+    color: #475569 !important;
+}
+
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .slide-body-center h2 {
+    color: #0f172a !important;
+}
+
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .slide-subtitle-divider {
+    background: rgba(15, 23, 42, 0.1) !important;
+}
+
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .slide-footer {
+    color: #475569 !important;
+    border-top: 1px solid #e2e8f0 !important;
+}
+
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .slide-title-bar h3,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .pres-kpi-number,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .risk-title {
+    color: #0f172a !important;
+}
+
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .pres-kpi-item,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .pres-chart-box,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .pres-notes-box {
+    background: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
+}
+
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .pres-kpi-label,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .pres-chart-box h4 {
+    color: #475569 !important;
+}
+
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .pres-table th {
+    background: #eef2f9 !important;
+    color: #0f172a !important;
+    border-color: #cbd5e1 !important;
+}
+
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .pres-table td {
+    border-color: #cbd5e1 !important;
+    color: #334155 !important;
+}
+
+/* General high contrast resets for all slides in light presentation mode */
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide h1,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide h2,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide h3,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide h4,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide p,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide li,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide div,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide span,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide td,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide th,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide strong,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide a,
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide [contenteditable="true"] {
+    color: #0f172a !important;
+}
+
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .text-blue {
+    color: #1d4ed8 !important; /* Darker blue for light mode high contrast */
+}
+
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .text-green {
+    color: #15803d !important; /* Darker green */
+}
+
+body #presentation-overlay.theme-light-presentation .presentation-slide-viewport .presentation-slide .text-red {
+    color: #b91c1c !important; /* Darker red */
+}
+
+/* Force dark slide theme styling inside viewport when theme-dark-presentation is active */
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide h1,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide h2,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide h3,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide h4,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide p,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide li,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide div,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide span,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide td,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide th,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide strong,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide a,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide [contenteditable="true"] {
+    color: #f8fafc !important;
+}
+
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide .pres-kpi-item,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide .pres-chart-box,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide .pres-notes-box {
+    background: rgba(255, 255, 255, 0.02) !important;
+    border-color: rgba(255, 255, 255, 0.06) !important;
+    color: #f8fafc !important;
+}
+
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide .pres-kpi-label,
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide .pres-chart-box h4 {
+    color: #94a3b8 !important;
+}
+
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide .pres-table th {
+    background: rgba(255, 255, 255, 0.04) !important;
+    color: #f8fafc !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide .pres-table td {
+    border-color: rgba(255, 255, 255, 0.05) !important;
+    color: #cbd5e1 !important;
+}
+
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide .text-blue {
+    color: #3b82f6 !important;
+}
+
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide .text-green {
+    color: #10b981 !important;
+}
+
+body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport .presentation-slide .text-red {
+    color: #ef4444 !important;
+}
+
+/* ==========================================================
+   MOBILE & RESPONSIVE LAYOUT IMPROVEMENTS (max-width: 768px)
+   ========================================================== */
+@media (max-width: 768px) {
+    .app-container {
+        grid-template-columns: 1fr !important;
+        grid-template-rows: auto auto 1fr !important;
+        height: auto !important;
+        min-height: 100vh !important;
+    }
+    
+    /* Compact header: logo + hamburger stay on one short row so the header
+       doesn't eat the whole screen before any content is visible. Planning
+       Version/Language/Theme/user controls collapse into a drawer that only
+       appears once the hamburger is tapped (body.mobile-nav-open). */
+    .app-header {
+        height: auto !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        padding: 10px 16px !important;
+        gap: 10px !important;
+        align-items: center !important;
+    }
+
+    .header-logo {
+        justify-content: flex-start !important;
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        gap: 10px !important;
+    }
+    .header-logo h1 {
+        font-size: 15px !important;
+    }
+    .header-logo p {
+        display: none !important;
+    }
+
+    .mobile-menu-toggle-btn {
+        display: flex !important;
+    }
+
+    .header-controls {
+        display: none !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+        flex-basis: 100% !important;
+        width: 100% !important;
+        padding-top: 10px !important;
+        border-top: 1px solid var(--glass-border) !important;
+    }
+    body.mobile-nav-open .header-controls {
+        display: flex !important;
+    }
+
+    /* Nav collapses into the same drawer as the header controls; the AI
+       trigger button is pulled out of normal flow into a fixed FAB (below)
+       so it stays reachable even while the drawer is closed. */
+    .app-sidebar {
+        padding: 0 16px !important;
+        border-right: none !important;
+        border-bottom: none !important;
+        height: auto !important;
+        overflow: visible !important;
+        display: block !important;
+    }
+    body.mobile-nav-open .app-sidebar {
+        padding-bottom: 12px !important;
+        border-bottom: 1px solid var(--glass-border) !important;
+    }
+
+    .sidebar-nav {
+        display: none !important;
+    }
+    body.mobile-nav-open .sidebar-nav {
+        display: block !important;
+    }
+
+    .sidebar-nav ul {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 4px !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    .nav-item {
+        margin-bottom: 0 !important;
+        border-radius: 8px !important;
+        padding: 12px 14px !important;
+        font-size: 13px !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+    }
+
+    /* .app-sidebar's backdrop-filter creates a new containing block for any
+       position:fixed descendant (a CSS gotcha), which would make the FAB
+       below position itself relative to the sidebar's own shrunken box
+       instead of the viewport. Dropping the blur on mobile only (desktop's
+       pinned-bottom sidebar layout is untouched) fixes that. */
+    .app-sidebar {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+
+    /* AI chat trigger becomes a fixed circular FAB, always reachable
+       regardless of the drawer's open/closed state (it lives inside
+       .app-sidebar, which the rules above no longer hide). */
+    .ai-trigger-container {
+        position: fixed !important;
+        bottom: 18px !important;
+        right: 18px !important;
+        margin-top: 0 !important;
+        width: auto !important;
+        z-index: 95 !important;
+    }
+    .ai-trigger-container .btn-ai {
+        width: 56px !important;
+        height: 56px !important;
+        border-radius: 50% !important;
+        padding: 0 !important;
+        box-shadow: 0 4px 20px rgba(139, 92, 246, 0.45) !important;
+        font-size: 20px !important;
+    }
+    .ai-trigger-container .btn-ai span {
+        display: none !important;
+    }
+    /* Hide the FAB while the chat drawer itself is open (full-screen on
+       mobile) so it doesn't float on top of the message input. */
+    body:has(#ai-drawer.active) .ai-trigger-container {
+        display: none !important;
+    }
+
+    .app-main {
+        grid-column: 1 !important;
+        padding: 16px !important;
+        overflow-y: visible !important;
+        /* Without this, .app-main's default min-width:auto lets a wide
+           descendant (e.g. the matrix table) grow past its grid track's
+           width and blow out the whole page horizontally - the classic
+           CSS Grid/Flexbox min-content overflow trap. */
+        min-width: 0 !important;
+    }
+
+    /* Mobile-only toggle container */
+    .mobile-only-flex {
+        display: flex !important;
+    }
+
+    /* Header control groups (Planning Version + its 5 action buttons, etc.)
+       wrap instead of overflowing the viewport width */
+    .control-group {
+        flex-wrap: wrap !important;
+    }
+    .app-header .scenario-dropdown {
+        min-width: 0 !important;
+        flex: 1 1 140px !important;
+    }
+    .user-profile-widget {
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        gap: 10px !important;
+    }
+
+    /* Matrix: filters panel stacks below the grid instead of beside it
+       (both are laid out with an inline style="display:flex" in index.html,
+       so the fixed 280px filters panel forced the whole layout wider than
+       the viewport on phones). */
+    .matrix-layout-container {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+    .matrix-filters-panel {
+        width: 100% !important;
+        max-height: none !important;
+        box-sizing: border-box !important;
+    }
+    .matrix-wrapper {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    /* Presentation Deck: customize panel stacks below the slides instead of
+       sitting in a fixed 320px sticky column beside them. */
+    .presentation-layout {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+    .presentation-deck {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    .deck-customize-panel {
+        width: 100% !important;
+        flex: none !important;
+        position: static !important;
+        max-height: none !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Management Panel: Employees/Topics cards stack instead of squeezing
+       into two ~150px-wide columns. min-width:0 on both the grid item and
+       the card breaks the min-content chain so the wide table inside can't
+       blow out the grid track (same trap as .app-main above). */
+    .crud-layout {
+        grid-template-columns: 1fr !important;
+        min-width: 0 !important;
+    }
+    .crud-card {
+        min-width: 0 !important;
+    }
+    .crud-card-header {
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+    }
+    /* The title+button and search+filter rows inside .crud-card-header are
+       plain inline-styled divs (no shared class), each a flex row of its
+       own - same min-content trap one level deeper. */
+    .crud-card-header > div {
+        min-width: 0 !important;
+        flex-wrap: wrap !important;
+    }
+    .crud-card-header select {
+        min-width: 0 !important;
+        max-width: none !important;
+        flex: 1 1 auto !important;
+    }
+
+    /* Several sections (Matrix, Planning Version) set
+       style="display:flex; justify-content:space-between" inline directly
+       on .section-header to put action buttons beside the title - stack
+       those instead of clipping the buttons off-screen. */
+    .section-header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 12px !important;
+    }
+    .section-header > div {
+        flex-wrap: wrap !important;
+    }
+
+    /* Simulation scenario-comparison pros/cons cards stack on narrow screens */
+    .sim-pro-con-columns {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Executive memo header/KPI strip and simulation comparison KPI grid:
+       2-4 column grids that overflowed their slide box on narrow screens
+       (each slide is otherwise a fixed presentation-sized canvas, not a
+       normal responsive page section). */
+    .memo-header-block {
+        grid-template-columns: 1fr !important;
+    }
+    .memo-kpi-strip {
+        grid-template-columns: 1fr !important;
+    }
+    .sim-compare-kpi-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    /* Dashboard/Upload tab bars scroll horizontally instead of overflowing
+       the page (same pattern as the sidebar nav pills). */
+    .dash-tabs {
+        overflow-x: auto !important;
+        flex-wrap: nowrap !important;
+        -webkit-overflow-scrolling: touch;
+    }
+    .dash-tab, .upload-tab {
+        flex-shrink: 0 !important;
+        white-space: nowrap !important;
+    }
+
+    /* Two-field form rows (e.g. Full Name / Team in Simulation Quick Actions
+       and the Add/Edit modals) stack instead of squeezing side by side. */
+    .form-row {
+        flex-direction: column !important;
+    }
+
+    /* Responsive Grids */
+    .dashboard-metrics-grid, .ai-insights-grid, .pres-kpi-grid, .kpi-cards-grid, .dashboard-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+
+    /* KPI cards (the real class - .kpi-cards, above was targeting a class
+       that isn't actually used) run 2-across instead of 1-per-row on
+       mobile: same info density, roughly half the scroll length. */
+    .kpi-cards {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px !important;
+        margin-bottom: 16px !important;
+    }
+    .kpi-card {
+        padding: 10px !important;
+        gap: 10px !important;
+    }
+    .kpi-icon {
+        width: 34px !important;
+        height: 34px !important;
+        font-size: 15px !important;
+    }
+    .kpi-val {
+        font-size: 16px !important;
+    }
+    .kpi-title {
+        font-size: 9px !important;
+    }
+
+    /* Charts run shorter on mobile - desktop's 260px is generous for a
+       narrow screen where the chart itself is much smaller anyway. */
+    .chart-canvas-container {
+        height: 190px !important;
+    }
+
+    /* Simulation quick-action / detail cards: tighter padding shaves a
+       meaningful amount off what is otherwise a very long scroll (8 cards
+       each with 2+ form fields). */
+    .detail-card {
+        padding: 14px !important;
+    }
+    .detail-grid {
+        gap: 12px !important;
+        margin-top: 12px !important;
+    }
+
+    /* Matrix Mobile Card Styles */
+    .matrix-mobile-card-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin-top: 15px;
+        width: 100%;
+    }
+    .matrix-mobile-card {
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: var(--shadow-sm);
+        backdrop-filter: blur(10px);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    .matrix-mobile-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        border-bottom: 1px solid var(--glass-border);
+        padding-bottom: 10px;
+    }
+    .matrix-mobile-card-title {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    .matrix-mobile-card-name {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+    .matrix-mobile-card-meta {
+        font-size: 11px;
+        color: var(--text-secondary);
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .matrix-mobile-card-util {
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+    .matrix-mobile-card-allocations {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .matrix-mobile-alloc-row {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    .matrix-mobile-alloc-info {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        color: var(--text-primary);
+    }
+    .matrix-mobile-alloc-bar {
+        height: 6px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 3px;
+        overflow: hidden;
+        width: 100%;
+        position: relative;
+    }
+    .matrix-mobile-alloc-bar-fill {
+        height: 100%;
+        background: var(--primary-color);
+        border-radius: 3px;
+    }
+    
+    /* Full-screen AI chat drawer on small mobile.
+       right must stay off-screen (-100%, matching the full-width override)
+       until .active is applied, otherwise the close button can't hide it. */
+    @media (max-width: 480px) {
+        .ai-drawer {
+            width: 100% !important;
+            max-width: 100% !important;
+            right: -100% !important;
+            border-left: none !important;
+            border-radius: 0 !important;
+        }
+        .ai-drawer.active {
+            right: 0 !important;
+        }
+    }
+    
+    /* Mobile Presentation Overlay Overrides */
+    .presentation-slide {
+        padding: 24px !important;
+        overflow-y: auto !important;
+        max-height: 100% !important;
+    }
+    .presentation-slide .slide-content-split {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 16px !important;
+    }
+    .presentation-slide .slide-col-left,
+    .presentation-slide .slide-col-right,
+    .presentation-slide .slide-col-full {
+        width: 100% !important;
+        flex: none !important;
+    }
+}
+
+/* Bottom sheet modals style for small mobile devices */
+@media (max-width: 576px) {
+    .modal-content {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        border-radius: 20px 20px 0 0 !important;
+        transform: translateY(0) !important;
+        max-height: 85vh !important;
+        overflow-y: auto !important;
+        padding: 24px !important;
+        box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.3) !important;
+        animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+    }
+    
+    @keyframes slideUp {
+        from { transform: translateY(100%); }
+        to { transform: translateY(0); }
+    }
+}
+
+/* Matrix row grouping styles */
+.matrix-group-header-row td {
+    background: rgba(59, 130, 246, 0.08) !important;
+    border-bottom: 2px solid rgba(59, 130, 246, 0.2) !important;
+    text-align: left !important;
+    backdrop-filter: blur(4px);
+}
+body.theme-dark .matrix-group-header-row td {
+    background: rgba(59, 130, 246, 0.15) !important;
+    border-bottom: 2px solid rgba(59, 130, 246, 0.3) !important;
+}
+
+/* Premium Presentation Custom Slide Styles */
+.slide-memo, .slide-comparison {
+    box-sizing: border-box;
+}
+
+.slide-memo .pres-kpi-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--glass-border);
+    border-radius: 6px;
+    box-shadow: var(--shadow-sm);
+}
+
+/* Executive memo redesign: a formal To/From/Re/Date header block (like a
+   real corporate memo), a horizontal KPI strip instead of stacked cards,
+   and a "paper" card for the AI-drafted body with proper paragraph rhythm
+   instead of a plain unstyled text block. */
+.memo-header-block {
+    margin-top: 14px;
+    padding: 10px 16px;
+    border-top: 2px solid var(--primary-color);
+    border-bottom: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.02);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 24px;
+}
+.memo-header-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 11px;
+}
+.memo-header-label {
+    flex-shrink: 0;
+    width: 40px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+}
+.memo-header-value {
+    color: var(--text-primary);
+    font-weight: 500;
+    outline: none;
+}
+
+.memo-kpi-strip {
+    margin-top: 14px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+.memo-kpi-item {
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: rgba(59, 130, 246, 0.05);
+    border: 1px solid var(--glass-border);
+    border-left: 3px solid var(--accent-color);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.memo-kpi-item.memo-kpi-alert { border-left-color: var(--danger-color); background: rgba(239, 68, 68, 0.05); }
+.memo-kpi-item.memo-kpi-ok { border-left-color: var(--success-color); background: rgba(16, 185, 129, 0.05); }
+.memo-kpi-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.memo-kpi-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.memo-body-paper {
+    margin-top: 14px;
+    padding: 18px 22px;
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.025);
+    box-shadow: var(--shadow-sm);
+    text-align: left;
+}
+.memo-body-text {
+    outline: none;
+    font-size: 13.5px;
+    line-height: 1.75;
+    color: var(--text-primary);
+}
+.memo-body-text p {
+    margin: 0 0 14px 0;
+}
+.memo-body-text p:last-child {
+    margin-bottom: 0;
+}
+.memo-body-text p:first-of-type {
+    font-size: 14.5px;
+}
+
+.memo-footer-note {
+    margin-top: 12px;
+    font-size: 10px;
+    color: var(--text-secondary);
+    font-style: italic;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.slide-comparison .pres-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 15px;
+}
+
+.slide-comparison .pres-kpi-item {
+    background: rgba(59, 130, 246, 0.04);
+    border: 1px solid rgba(59, 130, 246, 0.15);
+    border-left: 3px solid var(--primary-color);
+    padding: 10px 14px;
+    border-radius: 6px;
+    text-align: left;
+}
+
+.slide-comparison .pres-kpi-label {
+    display: block;
+    font-size: 9px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.slide-comparison .pres-kpi-number {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.text-danger-delta {
+    color: var(--danger-color) !important;
+}
+.text-success-delta {
+    color: var(--success-color) !important;
+}
+.text-neutral-delta {
+    color: var(--text-secondary) !important;
+}
+
+/* Simulation comparison redesign: split into an overview slide (verdict +
+   big-number KPI cards, no table) and a dedicated team-detail table slide,
+   both sized to fit without an internal scrollbar instead of the old
+   single cramped slide. */
+.sim-compare-body {
+    margin-top: 16px;
+    outline: none;
+}
+
+.sim-compare-scenarios-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 14px;
+}
+.sim-compare-scenario-pill {
+    padding: 5px 14px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 12px;
+}
+.sim-compare-scenario-pill.sim-compare-baseline {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+    border: 1px solid var(--glass-border);
+}
+.sim-compare-scenario-pill.sim-compare-target {
+    background: var(--primary-color);
+    color: #ffffff;
+}
+
+.sim-compare-kpi-grid {
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+}
+.sim-compare-kpi-card {
+    padding: 16px 14px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+}
+.sim-compare-kpi-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.sim-compare-kpi-value {
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.sim-compare-kpi-value i {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.slide-comparison-table .pres-table-wrapper {
+    margin-top: 4px;
+}
+
+/* ==========================================================
+   DESKTOP GRID & UPLOAD TAB OPTIMIZATIONS
+   ========================================================== */
+@media (min-width: 769px) {
+    .matrix-wrapper {
+        max-height: none !important;
+        overflow-y: visible !important;
+    }
+    .upload-container {
+        max-width: 100% !important; /* Full width so it fits all contents without scroll */
+    }
+}
+
+/* ==========================================================
+   MOBILE SCROLLING, MODALS & AI DRAWER POLISH
+   ========================================================== */
+@media (max-width: 768px) {
+    html, body {
+        overflow: auto !important;
+        height: auto !important;
+    }
+    
+    .control-divider {
+        display: none !important; /* Hide the grey line before the user widget */
+    }
+
+    .header-controls {
+        border-top: none !important; /* Remove grey border line */
+        padding-top: 5px !important;
+        gap: 6px !important;
+    }
+
+    .user-profile-widget {
+        margin-top: 0 !important;
+        padding-top: 8px !important;
+        gap: 10px !important;
+    }
+
+    /* Modals centering instead of bottom sheets */
+    .modal {
+        display: none;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 16px !important;
+        overflow-y: auto !important;
+    }
+    .modal.active {
+        display: flex !important;
+    }
+    .modal-content {
+        position: relative !important;
+        bottom: auto !important;
+        left: auto !important;
+        right: auto !important;
+        width: 100% !important;
+        max-width: 480px !important;
+        margin: 20px auto !important;
+        border-radius: 16px !important;
+        transform: none !important;
+        max-height: 85vh !important;
+        overflow-y: auto !important;
+        padding: 20px !important;
+        box-shadow: var(--card-shadow) !important;
+        animation: modalPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;
+    }
+
+    /* AI Assistant Drawer mobile viewport fixes */
+    .ai-drawer {
+        z-index: 9999 !important;
+        height: 100dvh !important; /* Lock to dynamic viewport height */
+        max-height: 100dvh !important;
+    }
+
+    .ai-drawer-header {
+        padding: 12px 16px !important;
+        gap: 8px !important;
+        align-items: center !important;
+    }
+    .ai-drawer-header h3 span {
+        display: none !important; /* Hide long title text to prevent close btn wrapping */
+    }
+    .ai-drawer-header h3::after {
+        content: " AI Assistant" !important;
+    }
+    .local-pill {
+        display: none !important; /* Hide local pill to make room */
+    }
+    .btn-close {
+        padding: 8px 12px !important;
+        font-size: 22px !important;
+        margin-left: auto !important;
+    }
+}
+
+/* AI Assistant Drawer Backdrop overlay */
+.ai-drawer-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    z-index: 9998;
+}
+
+
 

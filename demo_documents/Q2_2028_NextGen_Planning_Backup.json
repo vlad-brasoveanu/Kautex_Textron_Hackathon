@@ -1,0 +1,123 @@
+{
+  "version": "1.0",
+  "name": "Q2 2028 NextGen Platform Planning",
+  "description": "Strategic scenario for Q2 2028 covering Next-Gen fuel cell systems, high-performance computing expansion, and new automated test rigs.",
+  "employees": [
+    {
+      "name": "Dr. Markus Weber",
+      "team": "GV CAE Germany",
+      "department": "CAE",
+      "location": "Germany",
+      "available_hours": 1600.0,
+      "hourly_rate": 160.0,
+      "manager": "Dr. Müller",
+      "status": "Active",
+      "notes": "Lead CAE crash safety validation lead."
+    },
+    {
+      "name": "Priya Sharma",
+      "team": "GV CAE India",
+      "department": "CAE",
+      "location": "India",
+      "available_hours": 1800.0,
+      "hourly_rate": 52.0,
+      "manager": "Rajesh Kumar",
+      "status": "Active",
+      "notes": "Mesh automation and validation engineer."
+    },
+    {
+      "name": "Alex Martinez",
+      "team": "GV Test Mexico",
+      "department": "Test",
+      "location": "Mexico",
+      "available_hours": 1800.0,
+      "hourly_rate": 42.0,
+      "manager": "Sofia Gomez",
+      "status": "Active",
+      "notes": "Fuel valve durability testing supervisor."
+    }
+  ],
+  "topics": [
+    {
+      "name": "NextGen Fuel Cell Systems",
+      "category": "Customer Requests",
+      "area": "Customer Engineering",
+      "description": "Design and physical validation of next-generation zero-emission hydrogen fuel cells.",
+      "objective": "Achieve validation certification from German and US automotive safety regulators.",
+      "deliverables": "Physical test rig safety certificates, FEA crash logs, thermal boundary reports.",
+      "justification": "Required for a key customer platform rollout in late 2028.",
+      "status": "Active",
+      "comments": "High visibility project.",
+      "notes": "No milestone delays allowed.",
+      "recovery": 25000.0
+    },
+    {
+      "name": "High Performance Computing Integration",
+      "category": "AI Initiatives",
+      "area": "Internal Development",
+      "description": "Upgrading local cluster capacity and integrating LLM-based mesh generation assistants.",
+      "objective": "Reduce average mesh generation iteration times by 40%.",
+      "deliverables": "LLM model pipelines, cluster job-scheduler, training materials.",
+      "justification": "Significant engineering efficiency savings across German and India hubs.",
+      "status": "Active",
+      "comments": "Internal productivity enhancement initiative.",
+      "notes": "HPC clusters configured in Frankfurt hub.",
+      "recovery": 0.0
+    }
+  ],
+  "allocations": [
+    {
+      "employee_name": "Dr. Markus Weber",
+      "topic_name": "NextGen Fuel Cell Systems",
+      "percentage": 50.0,
+      "comment": "Leading structural crash simulations."
+    },
+    {
+      "employee_name": "Dr. Markus Weber",
+      "topic_name": "High Performance Computing Integration",
+      "percentage": 50.0,
+      "comment": "Configuring crash job scheduler."
+    },
+    {
+      "employee_name": "Priya Sharma",
+      "topic_name": "NextGen Fuel Cell Systems",
+      "percentage": 30.0,
+      "comment": "Meshing support."
+    },
+    {
+      "employee_name": "Priya Sharma",
+      "topic_name": "High Performance Computing Integration",
+      "percentage": 70.0,
+      "comment": "Developing automated mesh scripting pipeline."
+    },
+    {
+      "employee_name": "Alex Martinez",
+      "topic_name": "NextGen Fuel Cell Systems",
+      "percentage": 80.0,
+      "comment": "Running pressure tests on physical cell fixtures."
+    }
+  ],
+  "additional_costs": [
+    {
+      "topic_name": "NextGen Fuel Cell Systems",
+      "cost_type": "external",
+      "category": "Tooling",
+      "amount": 18000.0,
+      "notes": "Custom high-pressure valve validation fixture."
+    },
+    {
+      "topic_name": "NextGen Fuel Cell Systems",
+      "cost_type": "external",
+      "category": "Supplier Support",
+      "amount": 12000.0,
+      "notes": "Consulting support for hydrogen sealing safety."
+    },
+    {
+      "topic_name": "High Performance Computing Integration",
+      "cost_type": "internal",
+      "category": "Internal Equipment",
+      "amount": 8000.0,
+      "notes": "Frankfurt cluster compute time licenses."
+    }
+  ]
+}
