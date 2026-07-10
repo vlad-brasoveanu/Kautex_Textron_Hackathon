@@ -3,6 +3,29 @@
    FastAPI integration, Matrix Grid Renderer, and Local AI Chat
    ========================================================== */
 
+// UI chrome translation (see translations.js, loaded before this file).
+// Scope: static nav/labels/headers/buttons only - AI chat answers, the
+// AI-generated memo, Admin Insights text, audit log details, and actual
+// planning data (employee names/notes/topic descriptions) are dynamic/user
+// content and stay in English regardless of the selected language.
+function t(key) {
+    const lang = localStorage.getItem("app-lang") || "en";
+    const table = (typeof TRANSLATIONS !== "undefined" && TRANSLATIONS[lang]) || {};
+    return table[key] || (typeof TRANSLATIONS !== "undefined" && TRANSLATIONS.en[key]) || key;
+}
+
+function applyTranslations() {
+    document.querySelectorAll("[data-i18n]").forEach(el => {
+        el.textContent = t(el.getAttribute("data-i18n"));
+    });
+    document.querySelectorAll("[data-i18n-placeholder]").forEach(el => {
+        el.placeholder = t(el.getAttribute("data-i18n-placeholder"));
+    });
+    document.querySelectorAll("[data-i18n-title]").forEach(el => {
+        el.title = t(el.getAttribute("data-i18n-title"));
+    });
+}
+
 // Cold-start overlay: free-tier hosts (Render) spin the backend down after
 // idle and take 30-60s to wake on the next request. If an /api/ request is
 // still pending after a few seconds, show a "waking up" overlay instead of
@@ -254,6 +277,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function init() {
         setupEventListeners();
+        applyTranslations();
 
         // Check session - the token itself lives in an HttpOnly cookie we
         // can't read from JS, so ask the backend who (if anyone) it belongs to.
@@ -582,27 +606,27 @@ document.addEventListener("DOMContentLoaded", () => {
         // Metadata headers - each one is click-to-sort.
         const thEmp = document.createElement("th");
         thEmp.className = "sticky-col";
-        thEmp.innerHTML = "<span>Employee</span>";
+        thEmp.innerHTML = `<span>${t("matrix.colEmployee")}</span>`;
         attachSort(thEmp, "name");
         headerRow.appendChild(thEmp);
 
         const thTeam = document.createElement("th");
-        thTeam.innerHTML = "<span>Team</span>";
+        thTeam.innerHTML = `<span>${t("matrix.colTeam")}</span>`;
         attachSort(thTeam, "team");
         headerRow.appendChild(thTeam);
 
         const thLoc = document.createElement("th");
-        thLoc.innerHTML = "<span>Location</span>";
+        thLoc.innerHTML = `<span>${t("matrix.colLocation")}</span>`;
         attachSort(thLoc, "location");
         headerRow.appendChild(thLoc);
 
         const thHours = document.createElement("th");
-        thHours.innerHTML = "<span>Hours/Yr</span>";
+        thHours.innerHTML = `<span>${t("matrix.colHours")}</span>`;
         attachSort(thHours, "hours");
         headerRow.appendChild(thHours);
 
         const thRate = document.createElement("th");
-        thRate.innerHTML = "<span>Rate ($)</span>";
+        thRate.innerHTML = `<span>${t("matrix.colRate")}</span>`;
         attachSort(thRate, "rate");
         headerRow.appendChild(thRate);
 
@@ -666,7 +690,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Total Column Header
         const thTotal = document.createElement("th");
-        thTotal.innerHTML = "<span>Total Util %</span>";
+        thTotal.innerHTML = `<span>${t("matrix.colTotalUtil")}</span>`;
         attachSort(thTotal, "total");
         headerRow.appendChild(thTotal);
 
@@ -994,7 +1018,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const tdATLabel = document.createElement("td");
         tdATLabel.className = "sticky-col matrix-cost-title";
-        tdATLabel.innerText = "Total Allocation %";
+        tdATLabel.innerText = t("matrix.rowTotalAllocation");
         trAllocTotal.appendChild(tdATLabel);
 
         for (let i = 0; i < 4; i++) trAllocTotal.appendChild(document.createElement("td"));
@@ -1015,7 +1039,7 @@ document.addEventListener("DOMContentLoaded", () => {
         
         const tdECLabel = document.createElement("td");
         tdECLabel.className = "sticky-col matrix-cost-title";
-        tdECLabel.innerText = "Employee Cost";
+        tdECLabel.innerText = t("matrix.rowEmployeeCost");
         trEmpCost.appendChild(tdECLabel);
         
         // Empty cells for other meta columns
@@ -1035,7 +1059,7 @@ document.addEventListener("DOMContentLoaded", () => {
         
         const tdICLabel = document.createElement("td");
         tdICLabel.className = "sticky-col matrix-cost-title";
-        tdICLabel.innerText = "Additional Internal Cost";
+        tdICLabel.innerText = t("matrix.rowAdditionalInternal");
         trIntCost.appendChild(tdICLabel);
         for(let i=0; i<4; i++) trIntCost.appendChild(document.createElement("td"));
         
@@ -1054,7 +1078,7 @@ document.addEventListener("DOMContentLoaded", () => {
         
         const tdEXCLabel = document.createElement("td");
         tdEXCLabel.className = "sticky-col matrix-cost-title";
-        tdEXCLabel.innerText = "External Cost";
+        tdEXCLabel.innerText = t("matrix.rowExternalCost");
         trExtCost.appendChild(tdEXCLabel);
         for(let i=0; i<4; i++) trExtCost.appendChild(document.createElement("td"));
         
@@ -1073,7 +1097,7 @@ document.addEventListener("DOMContentLoaded", () => {
         
         const tdRecLabel = document.createElement("td");
         tdRecLabel.className = "sticky-col matrix-cost-title text-green";
-        tdRecLabel.innerText = "Recovery";
+        tdRecLabel.innerText = t("matrix.rowRecovery");
         trRecovery.appendChild(tdRecLabel);
         for(let i=0; i<4; i++) trRecovery.appendChild(document.createElement("td"));
         
@@ -1093,7 +1117,7 @@ document.addEventListener("DOMContentLoaded", () => {
         
         const tdTTL = document.createElement("td");
         tdTTL.className = "sticky-col matrix-cost-title text-blue";
-        tdTTL.innerText = "Total Topic Cost";
+        tdTTL.innerText = t("matrix.rowTotalTopicCost");
         trTopicTotal.appendChild(tdTTL);
         for(let i=0; i<4; i++) trTopicTotal.appendChild(document.createElement("td"));
         
@@ -4547,6 +4571,20 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
 
+        // Language selector binding - a full reload (not live re-render) is
+        // deliberate: many labels are baked into already-rendered dynamic
+        // content (matrix footer, dashboards, filters panel), and correctly
+        // live-patching every one of those render paths individually isn't
+        // worth the risk for a chrome-only translation feature.
+        const langSelect = document.getElementById("lang-select");
+        if (langSelect) {
+            langSelect.value = localStorage.getItem("app-lang") || "en";
+            langSelect.addEventListener("change", (e) => {
+                localStorage.setItem("app-lang", e.target.value);
+                window.location.reload();
+            });
+        }
+
         // Theme selector binding
         const themeSelect = document.getElementById("theme-select");
         if (themeSelect) {
@@ -5997,74 +6035,74 @@ document.addEventListener("DOMContentLoaded", () => {
 
         let html = `
             <div class="filter-group" style="margin-bottom: 12px;">
-                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">Location</label>
+                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">${t("filter.location")}</label>
                 <select id="filter-location" class="filter-dropdown" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);">
-                    <option value="">All Locations</option>
+                    <option value="">${t("filter.allLocations")}</option>
                     ${locations.map(loc => `<option value="${loc}" ${filters.location === loc ? 'selected' : ''}>${loc}</option>`).join('')}
                 </select>
             </div>
             <div class="filter-group" style="margin-bottom: 12px;">
-                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">Team</label>
+                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">${t("filter.team")}</label>
                 <select id="filter-team" class="filter-dropdown" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);">
-                    <option value="">All Teams</option>
-                    ${teams.map(t => `<option value="${t}" ${filters.team === t ? 'selected' : ''}>${t}</option>`).join('')}
+                    <option value="">${t("filter.allTeams")}</option>
+                    ${teams.map(t2 => `<option value="${t2}" ${filters.team === t2 ? 'selected' : ''}>${t2}</option>`).join('')}
                 </select>
             </div>
             <div class="filter-group" style="margin-bottom: 12px;">
-                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">Department</label>
+                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">${t("filter.department")}</label>
                 <select id="filter-dept" class="filter-dropdown" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);">
-                    <option value="">All Departments</option>
+                    <option value="">${t("filter.allDepartments")}</option>
                     ${depts.map(d => `<option value="${d}" ${filters.department === d ? 'selected' : ''}>${d}</option>`).join('')}
                 </select>
             </div>
             <div class="filter-group" style="margin-bottom: 12px;">
-                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">Topic Category (columns)</label>
+                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">${t("filter.category")}</label>
                 <select id="filter-category" class="filter-dropdown" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);">
-                    <option value="">All Categories</option>
+                    <option value="">${t("filter.allCategories")}</option>
                     ${categories.map(c => `<option value="${c}" ${filters.category === c ? 'selected' : ''}>${c}</option>`).join('')}
                 </select>
             </div>
             <div class="filter-group" style="margin-bottom: 12px;">
-                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">Manager</label>
+                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">${t("filter.manager")}</label>
                 <select id="filter-manager" class="filter-dropdown" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);">
-                    <option value="">All Managers</option>
+                    <option value="">${t("filter.allManagers")}</option>
                     ${managers.map(m => `<option value="${m}" ${filters.manager === m ? 'selected' : ''}>${m}</option>`).join('')}
                 </select>
             </div>
             <div class="filter-group" style="margin-bottom: 12px;">
-                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">Status</label>
+                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">${t("filter.status")}</label>
                 <select id="filter-status" class="filter-dropdown" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);">
-                    <option value="">All Statuses</option>
+                    <option value="">${t("filter.allStatuses")}</option>
                     ${statuses.map(s => `<option value="${s}" ${filters.status === s ? 'selected' : ''}>${s}</option>`).join('')}
                 </select>
             </div>
             <div class="filter-group" style="margin-bottom: 12px;">
-                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">Active Project Allocation</label>
+                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">${t("filter.activeProject")}</label>
                 <select id="filter-active-topic" class="filter-dropdown" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);">
-                    <option value="">Any Project</option>
-                    ${topics.map(t => `<option value="${t.id}" ${filters.topicId === String(t.id) ? 'selected' : ''}>${t.name}</option>`).join('')}
+                    <option value="">${t("filter.anyProject")}</option>
+                    ${topics.map(t2 => `<option value="${t2.id}" ${filters.topicId === String(t2.id) ? 'selected' : ''}>${t2.name}</option>`).join('')}
                 </select>
             </div>
             <div class="filter-group" style="margin-bottom: 12px;">
-                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">Hourly Rate ($)</label>
+                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">${t("filter.hourlyRate")}</label>
                 <div style="display: flex; gap: 10px;">
                     <input type="number" id="filter-min-rate" placeholder="Min" class="filter-dropdown" style="width: 50%; padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);" value="${filters.minRate || ''}">
                     <input type="number" id="filter-max-rate" placeholder="Max" class="filter-dropdown" style="width: 50%; padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);" value="${filters.maxRate === 999999 ? '' : filters.maxRate}">
                 </div>
             </div>
             <div class="filter-group" style="margin-bottom: 12px;">
-                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">Employee Search</label>
+                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">${t("filter.employeeSearch")}</label>
                 <input type="text" id="filter-employee-search" placeholder="Search by name..." class="filter-dropdown" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);" value="${filters.employeeSearch || ''}">
             </div>
             <div class="filter-group" style="margin-bottom: 12px;">
-                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">Total Utilization (%)</label>
+                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">${t("filter.totalUtilization")}</label>
                 <div style="display: flex; gap: 10px;">
                     <input type="number" id="filter-min-util" placeholder="Min" class="filter-dropdown" style="width: 50%; padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);" value="${filters.minUtil || ''}">
                     <input type="number" id="filter-max-util" placeholder="Max" class="filter-dropdown" style="width: 50%; padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);" value="${filters.maxUtil === 999 ? '' : filters.maxUtil}">
                 </div>
             </div>
             <div class="filter-group" style="margin-bottom: 12px;">
-                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">Total Annual Cost ($)</label>
+                <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; color: var(--text-secondary);">${t("filter.totalCost")}</label>
                 <div style="display: flex; gap: 10px;">
                     <input type="number" id="filter-min-cost" placeholder="Min" class="filter-dropdown" style="width: 50%; padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);" value="${filters.minCost || ''}">
                     <input type="number" id="filter-max-cost" placeholder="Max" class="filter-dropdown" style="width: 50%; padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);" value="${filters.maxCost === 999999999 ? '' : filters.maxCost}">

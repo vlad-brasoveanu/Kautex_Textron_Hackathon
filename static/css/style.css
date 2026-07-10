@@ -22,7 +22,7 @@
     --success-color: #10b981; /* Neon Green */
     
     --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-    --font-stack: 'Outfit', sans-serif;
+    --font-stack: 'Outfit', -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans', 'Noto Sans CJK SC', sans-serif;
     --sidebar-width: 260px;
     --header-height: 80px;
 }
@@ -165,7 +165,7 @@ body.theme-dark {
     --success-color: #22c55e;
 
     --card-shadow: 0 8px 36px 0 rgba(0, 0, 0, 0.8);
-    --font-stack: 'Outfit', sans-serif;
+    --font-stack: 'Outfit', -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans', 'Noto Sans CJK SC', sans-serif;
     --app-main-bg: rgba(2, 4, 9, 0.6);
 }
 

@@ -25,8 +25,8 @@
     <div id="cold-start-overlay" class="cold-start-overlay" style="display: none;">
         <div class="cold-start-card glass">
             <div class="cold-start-spinner"><i class="fa-solid fa-server"></i></div>
-            <h3>Starting up the server&hellip;</h3>
-            <p>This app is hosted on a free tier that goes to sleep when idle. It's waking back up now &mdash; this can take up to a minute on the first request.</p>
+            <h3 data-i18n="coldstart.title">Starting up the server&hellip;</h3>
+            <p data-i18n="coldstart.message">This app is hosted on a free tier that goes to sleep when idle. It's waking back up now &mdash; this can take up to a minute on the first request.</p>
         </div>
     </div>
 
@@ -35,23 +35,23 @@
         <div class="login-card glass animate-login-pop">
             <div class="login-header">
                 <img src="kautex_logo.png" alt="Kautex Logo" class="login-logo-image" style="height: 62px; width: auto; display: block; margin-bottom: 16px; object-fit: contain;">
-                <h2>Kautex Planning Portal</h2>
-                <p>Confidential Engineering Resource Dashboard</p>
+                <h2 data-i18n="login.title">Kautex Planning Portal</h2>
+                <p data-i18n="login.subtitle">Confidential Engineering Resource Dashboard</p>
             </div>
             <form id="form-login" class="login-form">
                 <div class="form-col-full" style="gap: 4px; display: flex; flex-direction: column;">
-                    <label for="login-username" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;"><i class="fa-solid fa-user"></i> Username</label>
-                    <input type="text" id="login-username" required placeholder="e.g. admin or user" autocomplete="username">
+                    <label for="login-username" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;"><i class="fa-solid fa-user"></i> <span data-i18n="login.username">Username</span></label>
+                    <input type="text" id="login-username" required placeholder="e.g. admin or user" data-i18n-placeholder="login.usernamePlaceholder" autocomplete="username">
                 </div>
                 <div class="form-col-full" style="gap: 4px; display: flex; flex-direction: column; margin-top: 10px;">
-                    <label for="login-password" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;"><i class="fa-solid fa-lock"></i> Password</label>
+                    <label for="login-password" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;"><i class="fa-solid fa-lock"></i> <span data-i18n="login.password">Password</span></label>
                     <input type="password" id="login-password" required placeholder="••••••••" autocomplete="current-password">
                 </div>
                 <div id="login-error-alert" class="login-error-alert" style="display: none; color: var(--danger-color); font-size: 12px; margin-top: 10px;">
-                    <i class="fa-solid fa-circle-exclamation"></i> Invalid credentials. Try again.
+                    <i class="fa-solid fa-circle-exclamation"></i> <span data-i18n="login.invalidCredentials">Invalid credentials. Try again.</span>
                 </div>
                 <button type="submit" class="btn btn-primary btn-full" style="margin-top: 18px; padding: 10px;">
-                    Sign In <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                    <span data-i18n="login.signIn">Sign In</span> <i class="fa-solid fa-arrow-right-to-bracket"></i>
                 </button>
             </form>
             <!-- Credentials printout removed for security -->
@@ -67,16 +67,16 @@
                 <img src="kautex_logo.png" alt="Kautex Logo" class="logo-image" style="height: 46px; width: auto; display: block; object-fit: contain;">
                 <div class="control-divider" style="height: 28px; margin: 0; background: var(--glass-border);"></div>
                 <div class="logo-text">
-                    <h1>Kautex Planning Portal</h1>
+                    <h1 data-i18n="login.title">Kautex Planning Portal</h1>
                     <p>Resource & Cost Management Dashboard</p>
                 </div>
             </div>
-            
+
             <!-- Active Scenario and Role widgets -->
             <div class="header-controls">
                 <!-- Planning Version Controls -->
                 <div class="control-group">
-                    <label for="scenario-select"><i class="fa-solid fa-database"></i> Planning Version:</label>
+                    <label for="scenario-select"><i class="fa-solid fa-database"></i> <span data-i18n="header.planningVersion">Planning Version:</span></label>
                     <select id="scenario-select" class="scenario-dropdown">
                         <!-- Populated dynamically -->
                     </select>
@@ -88,9 +88,22 @@
                     <input type="file" id="import-scenario-file" accept=".json" style="display: none;">
                 </div>
 
+                <!-- Language Switcher Widget -->
+                <div class="control-group" style="margin-right: 4px;">
+                    <label for="lang-select"><i class="fa-solid fa-language"></i> <span data-i18n="header.language">Language:</span></label>
+                    <select id="lang-select" class="theme-dropdown" style="padding: 6px 10px; font-size: 11px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none; cursor: pointer;">
+                        <option value="en">English</option>
+                        <option value="ro">Română</option>
+                        <option value="de">Deutsch</option>
+                        <option value="es">Español</option>
+                        <option value="zh">中文</option>
+                        <option value="ja">日本語</option>
+                    </select>
+                </div>
+
                 <!-- Theme Toggler Widget -->
                 <div class="control-group" style="margin-right: 4px;">
-                    <label for="theme-select"><i class="fa-solid fa-circle-half-stroke"></i> Theme:</label>
+                    <label for="theme-select"><i class="fa-solid fa-circle-half-stroke"></i> <span data-i18n="header.theme">Theme:</span></label>
                     <select id="theme-select" class="theme-dropdown" style="padding: 6px 10px; font-size: 11px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none; cursor: pointer;">
                         <option value="theme-glass">Glass (Default)</option>
                         <option value="theme-light">Light Mode</option>
@@ -104,9 +117,9 @@
 
                 <!-- User Profile & Logout -->
                 <div class="user-profile-widget" style="display: flex; align-items: center; gap: 14px;">
-                    <button id="btn-reset-demo" class="btn btn-warning" style="padding: 6px 12px; font-size: 11px; display: none; align-items: center; gap: 6px; font-weight: 500; cursor: pointer; border-radius: 6px;"><i class="fa-solid fa-rotate-left"></i> Reset Demo</button>
+                    <button id="btn-reset-demo" class="btn btn-warning" style="padding: 6px 12px; font-size: 11px; display: none; align-items: center; gap: 6px; font-weight: 500; cursor: pointer; border-radius: 6px;"><i class="fa-solid fa-rotate-left"></i> <span data-i18n="header.resetDemo">Reset Demo</span></button>
                     <span id="user-display-name" class="user-display-name" style="font-size: 13px; font-weight: 500; color: var(--text-primary); text-transform: capitalize;"><i class="fa-solid fa-user-circle" style="color: var(--primary-color);"></i> admin</span>
-                    <button id="btn-logout" class="btn btn-danger" style="padding: 6px 12px; font-size: 11px;"><i class="fa-solid fa-power-off"></i> Logout</button>
+                    <button id="btn-logout" class="btn btn-danger" style="padding: 6px 12px; font-size: 11px;"><i class="fa-solid fa-power-off"></i> <span data-i18n="header.logout">Logout</span></button>
                 </div>
             </div>
         </header>
@@ -116,31 +129,31 @@
             <nav class="sidebar-nav">
                 <ul>
                     <li class="nav-item active" data-target="matrix-section">
-                        <i class="fa-solid fa-table-cells"></i> Allocation Grid
+                        <i class="fa-solid fa-table-cells"></i> <span data-i18n="nav.matrix">Allocation Grid</span>
                     </li>
                     <li class="nav-item" data-target="dashboards-section">
-                        <i class="fa-solid fa-chart-pie"></i> KPI Dashboards
+                        <i class="fa-solid fa-chart-pie"></i> <span data-i18n="nav.dashboards">KPI Dashboards</span>
                     </li>
                     <li class="nav-item" data-target="presentation-section">
-                        <i class="fa-solid fa-display"></i> Presentation Deck
+                        <i class="fa-solid fa-display"></i> <span data-i18n="nav.presentation">Presentation Deck</span>
                     </li>
                     <li class="nav-item admin-only" data-target="simulation-section" style="display: none;">
-                        <i class="fa-solid fa-flask"></i> Simulation
+                        <i class="fa-solid fa-flask"></i> <span data-i18n="nav.simulation">Simulation</span>
                     </li>
                     <li class="nav-item" data-target="crud-section">
-                        <i class="fa-solid fa-sliders"></i> Management Panel
+                        <i class="fa-solid fa-sliders"></i> <span data-i18n="nav.crud">Management Panel</span>
                     </li>
                     <li class="nav-item admin-only" data-target="upload-section" style="display: none;">
-                        <i class="fa-solid fa-cloud-arrow-up"></i> Upload CSV / Excel (Admin)
+                        <i class="fa-solid fa-cloud-arrow-up"></i> <span data-i18n="nav.upload">Upload CSV / Excel (Admin)</span>
                     </li>
                     <li class="nav-item admin-only" data-target="planning-version-section" style="display: none;">
-                        <i class="fa-solid fa-code-branch"></i> Planning Version (Admin)
+                        <i class="fa-solid fa-code-branch"></i> <span data-i18n="nav.planningVersion">Planning Version (Admin)</span>
                     </li>
                     <li class="nav-item admin-only" data-target="logs-section" style="display: none;">
-                        <i class="fa-solid fa-list-check"></i> Audit Logs (Admin)
+                        <i class="fa-solid fa-list-check"></i> <span data-i18n="nav.logs">Audit Logs (Admin)</span>
                     </li>
                     <li class="nav-item admin-only" data-target="users-section" style="display: none;">
-                        <i class="fa-solid fa-users-gear"></i> User Settings (Admin)
+                        <i class="fa-solid fa-users-gear"></i> <span data-i18n="nav.users">User Settings (Admin)</span>
                     </li>
                 </ul>
             </nav>
@@ -150,7 +163,7 @@
             <!-- AI Trigger Button -->
             <div class="ai-trigger-container">
                 <button id="btn-toggle-ai" class="btn btn-ai btn-full">
-                    <i class="fa-solid fa-robot"></i> Confidential AI Chat
+                    <i class="fa-solid fa-robot"></i> <span data-i18n="nav.aiChat">Confidential AI Chat</span>
                 </button>
             </div>
         </aside>
@@ -162,41 +175,41 @@
             <section id="matrix-section" class="main-section active">
                 <div class="section-header" style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
-                        <h2><i class="fa-solid fa-table-cells"></i> Resource Allocation Matrix</h2>
-                        <p class="section-desc">Double-click any cell or column header to edit. Use the row/column controls to add or remove employees and topics. Switch to User mode to prevent changes.</p>
+                        <h2><i class="fa-solid fa-table-cells"></i> <span data-i18n="matrix.title">Resource Allocation Matrix</span></h2>
+                        <p class="section-desc" data-i18n="matrix.desc">Double-click any cell or column header to edit. Use the row/column controls to add or remove employees and topics. Switch to User mode to prevent changes.</p>
                     </div>
                     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                         <div id="matrix-view-toggle-container" class="mobile-only-flex" style="display: none; gap: 4px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); padding: 4px; border-radius: 8px; align-items: center;">
-                            <button id="btn-view-cards" class="btn-toggle active" style="padding: 6px 10px; border-radius: 6px; border: none; background: var(--primary-color); color: #fff; font-size: 11px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 4px;"><i class="fa-solid fa-address-card"></i> Cards</button>
-                            <button id="btn-view-table" class="btn-toggle" style="padding: 6px 10px; border-radius: 6px; border: none; background: transparent; color: var(--text-secondary); font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px;"><i class="fa-solid fa-table"></i> Table</button>
+                            <button id="btn-view-cards" class="btn-toggle active" style="padding: 6px 10px; border-radius: 6px; border: none; background: var(--primary-color); color: #fff; font-size: 11px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 4px;"><i class="fa-solid fa-address-card"></i> <span data-i18n="matrix.viewCards">Cards</span></button>
+                            <button id="btn-view-table" class="btn-toggle" style="padding: 6px 10px; border-radius: 6px; border: none; background: transparent; color: var(--text-secondary); font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px;"><i class="fa-solid fa-table"></i> <span data-i18n="matrix.viewTable">Table</span></button>
                         </div>
-                        <button id="btn-matrix-add-employee" class="btn btn-secondary admin-only" style="display: none;"><i class="fa-solid fa-user-plus"></i> Add Row</button>
-                        <button id="btn-matrix-add-topic" class="btn btn-secondary admin-only" style="display: none;"><i class="fa-solid fa-plus"></i> Add Column</button>
-                        <button id="btn-export-matrix-csv" class="btn btn-secondary"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
-                        <button id="btn-export-matrix-excel" class="btn btn-secondary"><i class="fa-solid fa-file-excel"></i> Export Excel</button>
+                        <button id="btn-matrix-add-employee" class="btn btn-secondary admin-only" style="display: none;"><i class="fa-solid fa-user-plus"></i> <span data-i18n="matrix.addRow">Add Row</span></button>
+                        <button id="btn-matrix-add-topic" class="btn btn-secondary admin-only" style="display: none;"><i class="fa-solid fa-plus"></i> <span data-i18n="matrix.addColumn">Add Column</span></button>
+                        <button id="btn-export-matrix-csv" class="btn btn-secondary"><i class="fa-solid fa-file-csv"></i> <span data-i18n="matrix.exportCsv">Export CSV</span></button>
+                        <button id="btn-export-matrix-excel" class="btn btn-secondary"><i class="fa-solid fa-file-excel"></i> <span data-i18n="matrix.exportExcel">Export Excel</span></button>
                     </div>
                 </div>
-                
+
                 <div class="matrix-layout-container" style="display: flex; gap: 20px; align-items: flex-start; width: 100%;">
                     <div class="matrix-wrapper" style="flex: 1; min-width: 0; overflow-x: auto;">
                         <!-- Matrix Grid will be rendered dynamically -->
                         <div id="allocation-matrix-container"></div>
                     </div>
                     <div id="matrix-filters-panel" class="matrix-filters-panel" style="width: 280px; flex-shrink: 0; background: var(--glass-bg); backdrop-filter: blur(10px); border: 1px solid var(--glass-border); padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm); max-height: calc(100vh - 180px); overflow-y: auto;">
-                        <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px; color: var(--text-primary);"><i class="fa-solid fa-filter"></i> Matrix Filters</h3>
+                        <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px; color: var(--text-primary);"><i class="fa-solid fa-filter"></i> <span data-i18n="matrix.filtersTitle">Matrix Filters</span></h3>
                         <div id="dynamic-filters-container">
                             <!-- Dynamic filters will be rendered here based on columns/rows -->
                         </div>
                         <div class="filter-group" style="margin-top: 15px; margin-bottom: 15px; display: flex; flex-direction: column; gap: 6px;">
-                            <label for="matrix-grouping-select" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;"><i class="fa-solid fa-layer-group"></i> Group Rows By</label>
+                            <label for="matrix-grouping-select" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;"><i class="fa-solid fa-layer-group"></i> <span data-i18n="matrix.groupBy">Group Rows By</span></label>
                             <select id="matrix-grouping-select" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); font-size: 13px; outline: none; cursor: pointer; width: 100%;">
-                                <option value="none">Default (No Grouping)</option>
-                                <option value="team">Team</option>
-                                <option value="location">Country (Location)</option>
-                                <option value="topic">Primary Topic</option>
+                                <option value="none" data-i18n="matrix.groupNone">Default (No Grouping)</option>
+                                <option value="team" data-i18n="matrix.groupTeam">Team</option>
+                                <option value="location" data-i18n="matrix.groupLocation">Country (Location)</option>
+                                <option value="topic" data-i18n="matrix.groupTopic">Primary Topic</option>
                             </select>
                         </div>
-                        <button id="btn-reset-filters" class="btn btn-secondary btn-full" style="margin-top: 15px; width: 100%;"><i class="fa-solid fa-filter-circle-xmark"></i> Reset Filters</button>
+                        <button id="btn-reset-filters" class="btn btn-secondary btn-full" style="margin-top: 15px; width: 100%;"><i class="fa-solid fa-filter-circle-xmark"></i> <span data-i18n="matrix.resetFilters">Reset Filters</span></button>
                     </div>
                 </div>
             </section>
@@ -204,23 +217,23 @@
             <!-- SECTION 2: DASHBOARDS -->
             <section id="dashboards-section" class="main-section">
                 <div class="section-header">
-                    <h2><i class="fa-solid fa-chart-pie"></i> KPI Dashboards</h2>
+                    <h2><i class="fa-solid fa-chart-pie"></i> <span data-i18n="dash.title">KPI Dashboards</span></h2>
                 </div>
 
                 <!-- Tab system inside Dashboard -->
                 <div class="dash-tabs">
-                    <button class="dash-tab active" data-tab="tab-executive">Executive Summary</button>
-                    <button class="dash-tab" data-tab="tab-topics">Topic Breakdown</button>
-                    <button class="dash-tab" data-tab="tab-teams">Team Utilization</button>
-                    <button class="dash-tab" data-tab="tab-employees">Employee Profiles</button>
-                    <button class="dash-tab admin-only" data-tab="tab-admin-insights" style="display: none;"><i class="fa-solid fa-brain" style="color: var(--accent-color);"></i> Admin Insights (AI)</button>
+                    <button class="dash-tab active" data-tab="tab-executive" data-i18n="dash.tabExecutive">Executive Summary</button>
+                    <button class="dash-tab" data-tab="tab-topics" data-i18n="dash.tabTopics">Topic Breakdown</button>
+                    <button class="dash-tab" data-tab="tab-teams" data-i18n="dash.tabTeams">Team Utilization</button>
+                    <button class="dash-tab" data-tab="tab-employees" data-i18n="dash.tabEmployees">Employee Profiles</button>
+                    <button class="dash-tab admin-only" data-tab="tab-admin-insights" style="display: none;"><i class="fa-solid fa-brain" style="color: var(--accent-color);"></i> <span data-i18n="dash.tabAdminInsights">Admin Insights (AI)</span></button>
                 </div>
 
                 <!-- TAB: EXECUTIVE SUMMARY -->
                 <div id="tab-executive" class="dash-tab-content active">
                     <div class="exec-toolbar">
                         <div style="position: relative;">
-                            <button type="button" class="btn btn-secondary" id="btn-exec-customize"><i class="fa-solid fa-sliders"></i> Customize View</button>
+                            <button type="button" class="btn btn-secondary" id="btn-exec-customize"><i class="fa-solid fa-sliders"></i> <span data-i18n="dash.customizeView">Customize View</span></button>
                             <div id="exec-customize-panel" class="exec-customize-panel" style="display: none;">
                                 <h4>Show / Hide Components</h4>
                                 <ul id="exec-customize-list" class="exec-customize-list"></ul>
@@ -235,42 +248,42 @@
                             <div class="kpi-icon icon-headcount"><i class="fa-solid fa-users"></i></div>
                             <div class="kpi-details">
                                 <span class="kpi-val" id="kpi-headcount">-</span>
-                                <span class="kpi-title">Total Headcount</span>
+                                <span class="kpi-title" data-i18n="dash.kpiHeadcount">Total Headcount</span>
                             </div>
                         </div>
                         <div class="kpi-card">
                             <div class="kpi-icon icon-internal"><i class="fa-solid fa-user-tie"></i></div>
                             <div class="kpi-details">
                                 <span class="kpi-val" id="kpi-internal-cost">-</span>
-                                <span class="kpi-title">Internal Employee Cost</span>
+                                <span class="kpi-title" data-i18n="dash.kpiInternal">Internal Employee Cost</span>
                             </div>
                         </div>
                         <div class="kpi-card">
                             <div class="kpi-icon icon-add"><i class="fa-solid fa-circle-plus"></i></div>
                             <div class="kpi-details">
                                 <span class="kpi-val" id="kpi-add-cost">-</span>
-                                <span class="kpi-title">Additional Cost</span>
+                                <span class="kpi-title" data-i18n="dash.kpiAdditional">Additional Cost</span>
                             </div>
                         </div>
                         <div class="kpi-card">
                             <div class="kpi-icon icon-external"><i class="fa-solid fa-truck-ramp-box"></i></div>
                             <div class="kpi-details">
                                 <span class="kpi-val" id="kpi-external-cost">-</span>
-                                <span class="kpi-title">External Vendor Cost</span>
+                                <span class="kpi-title" data-i18n="dash.kpiExternal">External Vendor Cost</span>
                             </div>
                         </div>
                         <div class="kpi-card kpi-card-recovery">
                             <div class="kpi-icon icon-recovery"><i class="fa-solid fa-arrow-down-long"></i></div>
                             <div class="kpi-details">
                                 <span class="kpi-val text-green" id="kpi-recovery">-</span>
-                                <span class="kpi-title">Cost Recovery</span>
+                                <span class="kpi-title" data-i18n="dash.kpiRecovery">Cost Recovery</span>
                             </div>
                         </div>
                         <div class="kpi-card kpi-card-net">
                             <div class="kpi-icon icon-net"><i class="fa-solid fa-wallet"></i></div>
                             <div class="kpi-details">
                                 <span class="kpi-val text-blue" id="kpi-net-cost">-</span>
-                                <span class="kpi-title">Net Planning Budget</span>
+                                <span class="kpi-title" data-i18n="dash.kpiNet">Net Planning Budget</span>
                             </div>
                         </div>
                     </div>
@@ -283,13 +296,13 @@
                     <!-- Layout splits -->
                     <div class="dashboard-grid">
                         <div class="chart-box" data-widget-id="chart-location" data-widget-label="Cost Distribution by Location">
-                            <h3>Cost Distribution by Location</h3>
+                            <h3 data-i18n="dash.chartLocation">Cost Distribution by Location</h3>
                             <div class="chart-canvas-container">
                                 <canvas id="chart-location"></canvas>
                             </div>
                         </div>
                         <div class="chart-box" data-widget-id="chart-category" data-widget-label="Cost Distribution by Category">
-                            <h3>Cost Distribution by Category</h3>
+                            <h3 data-i18n="dash.chartCategory">Cost Distribution by Category</h3>
                             <div class="chart-canvas-container">
                                 <canvas id="chart-category"></canvas>
                             </div>
@@ -298,13 +311,13 @@
 
                     <div class="dashboard-grid" style="margin-top: 20px;">
                         <div class="chart-box" data-widget-id="chart-composition" data-widget-label="Gross Cost Composition">
-                            <h3>Gross Cost Composition</h3>
+                            <h3 data-i18n="dash.chartComposition">Gross Cost Composition</h3>
                             <div class="chart-canvas-container">
                                 <canvas id="chart-composition"></canvas>
                             </div>
                         </div>
                         <div class="chart-box" data-widget-id="chart-department" data-widget-label="Cost Distribution by Department">
-                            <h3>Cost Distribution by Department</h3>
+                            <h3 data-i18n="dash.chartDepartment">Cost Distribution by Department</h3>
                             <div class="chart-canvas-container">
                                 <canvas id="chart-department"></canvas>
                             </div>
@@ -313,13 +326,13 @@
 
                     <div class="dashboard-grid" style="margin-top: 20px;">
                         <div class="chart-box" style="height: auto; min-height: 350px;" data-widget-id="top-drivers" data-widget-label="Top 5 Cost Drivers">
-                            <h3>Top 5 Cost Drivers</h3>
+                            <h3 data-i18n="dash.topDrivers">Top 5 Cost Drivers</h3>
                             <div id="exec-top-drivers-list" class="ranked-list">
                                 <!-- Populated dynamically -->
                             </div>
                         </div>
                         <div class="chart-box" data-widget-id="chart-utilization" data-widget-label="Staff Utilization Distribution">
-                            <h3>Staff Utilization Distribution</h3>
+                            <h3 data-i18n="dash.chartUtilization">Staff Utilization Distribution</h3>
                             <div class="chart-canvas-container">
                                 <canvas id="chart-utilization"></canvas>
                             </div>
@@ -328,13 +341,13 @@
 
                     <div class="dashboard-grid" style="margin-top: 20px;">
                         <div class="chart-box" style="height: auto; min-height: 200px;" data-widget-id="util-by-department" data-widget-label="Avg. Utilization by Department">
-                            <h3>Avg. Utilization by Department</h3>
+                            <h3 data-i18n="dash.utilByDept">Avg. Utilization by Department</h3>
                             <div id="exec-util-by-department-list" class="ranked-list">
                                 <!-- Populated dynamically -->
                             </div>
                         </div>
                         <div class="chart-box" style="height: auto; min-height: 200px;" data-widget-id="util-by-location" data-widget-label="Avg. Utilization by Location">
-                            <h3>Avg. Utilization by Location</h3>
+                            <h3 data-i18n="dash.utilByLoc">Avg. Utilization by Location</h3>
                             <div id="exec-util-by-location-list" class="ranked-list">
                                 <!-- Populated dynamically -->
                             </div>
@@ -345,7 +358,7 @@
                 <!-- TAB: TOPIC BREAKDOWN -->
                 <div id="tab-topics" class="dash-tab-content">
                     <div class="dashboard-control-header">
-                        <label for="select-dash-topic">Select Topic/Project:</label>
+                        <label for="select-dash-topic" data-i18n="dash.selectTopic">Select Topic/Project:</label>
                         <select id="select-dash-topic" class="control-dropdown"></select>
                     </div>
                     <div class="topic-dashboard-layout" id="topic-dash-details">
@@ -357,7 +370,7 @@
                 <div id="tab-teams" class="dash-tab-content">
                     <div class="crud-card" style="margin-bottom: 20px;">
                         <div class="crud-card-header">
-                            <h3>All Teams Overview</h3>
+                            <h3 data-i18n="dash.teamOverview">All Teams Overview</h3>
                             <p class="section-desc" style="margin: 0;">Click a column to sort, or a row to view that team's detail below.</p>
                         </div>
                         <div class="crud-table-wrapper">
@@ -378,7 +391,7 @@
                         </div>
                     </div>
                     <div class="dashboard-control-header">
-                        <label for="select-dash-team">Select Team:</label>
+                        <label for="select-dash-team" data-i18n="dash.selectTeam">Select Team:</label>
                         <select id="select-dash-team" class="control-dropdown"></select>
                     </div>
                     <div class="team-dashboard-layout" id="team-dash-details">
@@ -390,7 +403,7 @@
                 <div id="tab-employees" class="dash-tab-content">
                     <div class="crud-card" style="margin-bottom: 20px;">
                         <div class="crud-card-header">
-                            <h3>All Employees Overview</h3>
+                            <h3 data-i18n="dash.employeeOverview">All Employees Overview</h3>
                             <p class="section-desc" style="margin: 0;">Click a column to sort, or a row to view that employee's detail below.</p>
                         </div>
                         <div class="crud-table-wrapper">
@@ -411,7 +424,7 @@
                         </div>
                     </div>
                     <div class="dashboard-control-header">
-                        <label for="select-dash-employee">Select Employee:</label>
+                        <label for="select-dash-employee" data-i18n="dash.selectEmployee">Select Employee:</label>
                         <select id="select-dash-employee" class="control-dropdown"></select>
                     </div>
                     <div class="employee-dashboard-layout" id="employee-dash-details">
@@ -423,7 +436,7 @@
                     <div class="ai-insights-banner">
                         <div class="ai-insights-banner-icon"><i class="fa-solid fa-brain"></i></div>
                         <div class="ai-insights-banner-text">
-                            <h3>AI-Powered Portfolio Insights</h3>
+                            <h3 data-i18n="dash.adminInsightsTitle">AI-Powered Portfolio Insights</h3>
                             <p>Continuously analyzing the active planning version's real allocation, staffing, and cost data - enriched with the local LLM when available - to surface risks and opportunities before they become budget or delivery problems.</p>
                         </div>
                         <span class="local-pill ai-insights-banner-pill"><i class="fa-solid fa-lock"></i> Fully Local & Confidential</span>
@@ -436,7 +449,7 @@
                     <div class="dashboard-grid ai-insights-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
                         <div class="chart-box ai-insight-card ai-insight-card-danger">
                             <div class="ai-insight-card-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
-                            <h3>Staff Bottleneck Predictions</h3>
+                            <h3 data-i18n="dash.bottlenecks">Staff Bottleneck Predictions</h3>
                             <div class="ai-insight-list" id="ai-insight-bottlenecks-list">
                                 Analyzing allocations load...
                             </div>
@@ -445,7 +458,7 @@
 
                         <div class="chart-box ai-insight-card ai-insight-card-warning">
                             <div class="ai-insight-card-icon"><i class="fa-solid fa-sack-dollar"></i></div>
-                            <h3>Cost Optimization Advice</h3>
+                            <h3 data-i18n="dash.costOptimization">Cost Optimization Advice</h3>
                             <div class="ai-insight-list" id="ai-insight-costs-list">
                                 Analyzing project cost margins...
                             </div>
@@ -454,7 +467,7 @@
 
                         <div class="chart-box ai-insight-card ai-insight-card-primary">
                             <div class="ai-insight-card-icon"><i class="fa-solid fa-shuffle"></i></div>
-                            <h3>Overload Mitigation Actions</h3>
+                            <h3 data-i18n="dash.reallocations">Overload Mitigation Actions</h3>
                             <div class="ai-insight-list" id="ai-insight-reallocations-list">
                                 Scanning bandwidth levels...
                             </div>
@@ -472,12 +485,12 @@
             <!-- SECTION 3: PRESENTATION DECK (High-End visual report) -->
             <section id="presentation-section" class="main-section">
                 <div class="section-header no-print">
-                    <h2><i class="fa-solid fa-display"></i> Visual Presentation Deck</h2>
-                    <p class="section-desc">Formatted slides suitable for presenting directly to Textron executive leadership. Customize which slides are included and their order using the panel alongside the deck.</p>
+                    <h2><i class="fa-solid fa-display"></i> <span data-i18n="pres.title">Visual Presentation Deck</span></h2>
+                    <p class="section-desc" data-i18n="pres.desc">Formatted slides suitable for presenting directly to Textron executive leadership. Customize which slides are included and their order using the panel alongside the deck.</p>
                     <div style="display: flex; gap: 10px;">
-                        <button id="btn-export-deck-csv" class="btn btn-secondary"><i class="fa-solid fa-file-csv"></i> Export Report to CSV</button>
-                        <button id="btn-print-deck" class="btn btn-secondary"><i class="fa-solid fa-print"></i> Export PDF</button>
-                        <button id="btn-present-deck" class="btn btn-primary"><i class="fa-solid fa-play"></i> Present Mode</button>
+                        <button id="btn-export-deck-csv" class="btn btn-secondary"><i class="fa-solid fa-file-csv"></i> <span data-i18n="pres.exportCsv">Export Report to CSV</span></button>
+                        <button id="btn-print-deck" class="btn btn-secondary"><i class="fa-solid fa-print"></i> <span data-i18n="pres.printPdf">Export PDF</span></button>
+                        <button id="btn-present-deck" class="btn btn-primary"><i class="fa-solid fa-play"></i> <span data-i18n="pres.presentMode">Present Mode</span></button>
                     </div>
                 </div>
 
@@ -487,19 +500,19 @@
                     </div>
 
                     <aside class="deck-customize-panel no-print">
-                        <h3><i class="fa-solid fa-sliders"></i> Customize Slides</h3>
+                        <h3><i class="fa-solid fa-sliders"></i> <span data-i18n="pres.customizeSlides">Customize Slides</span></h3>
                         <p class="section-desc" style="margin: 0 0 14px 0;">Check the slides to include, and use the arrows to reorder them. For example, include Team Breakdown for aggregate staffing info without exposing individual employees - just leave Employee Breakdown unchecked.</p>
                         <ul id="deck-customize-list" class="deck-customize-list">
                             <!-- Populated dynamically -->
                         </ul>
                         <div style="display: flex; gap: 10px; margin-top: 14px;">
-                            <button type="button" class="btn btn-secondary" id="btn-deck-add-custom-slide" style="flex: 1;"><i class="fa-solid fa-plus"></i> Add Slide</button>
-                            <button type="button" class="btn btn-secondary" id="btn-deck-reset-default" style="flex: 1;">Reset Layout</button>
+                            <button type="button" class="btn btn-secondary" id="btn-deck-add-custom-slide" style="flex: 1;"><i class="fa-solid fa-plus"></i> <span data-i18n="pres.addSlide">Add Slide</span></button>
+                            <button type="button" class="btn btn-secondary" id="btn-deck-reset-default" style="flex: 1;" data-i18n="pres.resetLayout">Reset Layout</button>
                         </div>
                         <div style="margin-top: 10px;">
-                            <button type="button" class="btn btn-secondary" id="btn-deck-generate-ai-memo" style="width: 100%;"><i class="fa-solid fa-wand-magic-sparkles"></i> Generate AI Memo</button>
+                            <button type="button" class="btn btn-secondary" id="btn-deck-generate-ai-memo" style="width: 100%;"><i class="fa-solid fa-wand-magic-sparkles"></i> <span data-i18n="pres.generateMemo">Generate AI Memo</span></button>
                         </div>
-                        
+
                         <div class="control-group" style="margin-top: 15px; border-top: 1px solid var(--glass-border); padding-top: 15px;">
                             <label for="pdf-print-theme" style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600; color: var(--text-secondary);">PDF Export Theme</label>
                             <select id="pdf-print-theme" class="control-dropdown" style="width: 100%; min-width: unset; box-sizing: border-box;">
@@ -514,8 +527,8 @@
             <!-- SECTION 3B: SIMULATION (WHAT-IF PLANNING, ADMIN ONLY) -->
             <section id="simulation-section" class="main-section admin-only" style="display: none;">
                 <div class="section-header">
-                    <h2><i class="fa-solid fa-flask"></i> Simulation</h2>
-                    <p class="section-desc">Test planning scenarios before committing them &mdash; clone the active plan into a private sandbox, try what-if edits, and compare the results against the real planning version. Nothing here is visible anywhere else in the app until you explicitly apply it.</p>
+                    <h2><i class="fa-solid fa-flask"></i> <span data-i18n="sim.title">Simulation</span></h2>
+                    <p class="section-desc" data-i18n="sim.desc">Test planning scenarios before committing them &mdash; clone the active plan into a private sandbox, try what-if edits, and compare the results against the real planning version. Nothing here is visible anywhere else in the app until you explicitly apply it.</p>
                 </div>
 
                 <!-- Live status of the sandbox you're currently working on (if any) -->
@@ -527,32 +540,32 @@
                 <!-- Setup: start a simulation sandbox from an existing scenario -->
                 <div class="crud-card" style="max-height: none; margin-bottom: 20px;">
                     <div class="crud-card-header">
-                        <h3><i class="fa-solid fa-flask-vial"></i> Start a Simulation</h3>
+                        <h3><i class="fa-solid fa-flask-vial"></i> <span data-i18n="sim.startTitle">Start a Simulation</span></h3>
                     </div>
                     <div class="form-row">
                         <div class="form-col">
-                            <label for="sim-base-scenario">Base Scenario</label>
+                            <label for="sim-base-scenario" data-i18n="sim.baseScenario">Base Scenario</label>
                             <select id="sim-base-scenario"></select>
                         </div>
                         <div class="form-col">
-                            <label for="sim-new-name">New Simulation Name</label>
+                            <label for="sim-new-name" data-i18n="sim.newSimName">New Simulation Name</label>
                             <input type="text" id="sim-new-name" placeholder="e.g. Q3 What-If">
                         </div>
                     </div>
                     <div class="modal-footer" style="justify-content: flex-start; padding-top: 10px;">
-                        <button id="btn-start-simulation" class="btn btn-primary"><i class="fa-solid fa-play"></i> Start Simulation</button>
-                        <button id="btn-sim-apply-top" class="btn btn-primary" style="display: none; background: var(--success-color);"><i class="fa-solid fa-check-double"></i> Apply as Active Planning Version</button>
-                        <button id="btn-sim-stop" class="btn btn-danger" style="display: none;"><i class="fa-solid fa-stop"></i> Stop Simulation</button>
+                        <button id="btn-start-simulation" class="btn btn-primary"><i class="fa-solid fa-play"></i> <span data-i18n="sim.startBtn">Start Simulation</span></button>
+                        <button id="btn-sim-apply-top" class="btn btn-primary" style="display: none; background: var(--success-color);"><i class="fa-solid fa-check-double"></i> <span data-i18n="sim.applyActive">Apply as Active Planning Version</span></button>
+                        <button id="btn-sim-stop" class="btn btn-danger" style="display: none;"><i class="fa-solid fa-stop"></i> <span data-i18n="sim.stopBtn">Stop Simulation</span></button>
                     </div>
                     <p class="section-desc" style="margin-top: 8px;">Cloning creates a private sandbox that stays invisible everywhere else in the app. Quick Actions below only ever edit this sandbox. Nothing changes for anyone else until you click Apply.</p>
                 </div>
 
                 <!-- Quick Actions: apply what-if edits to the sandbox scenario only -->
-                <h3 style="font-size: 15px; margin-bottom: 4px;"><i class="fa-solid fa-bolt"></i> Quick Actions</h3>
+                <h3 style="font-size: 15px; margin-bottom: 4px;"><i class="fa-solid fa-bolt"></i> <span data-i18n="sim.quickActions">Quick Actions</span></h3>
                 <p class="section-desc" id="sim-quick-actions-hint" style="margin: 0 0 10px;">Start a simulation above to enable these.</p>
                 <div class="detail-grid">
                     <div class="detail-card">
-                        <h4><i class="fa-solid fa-user-plus"></i> Add New Employee</h4>
+                        <h4><i class="fa-solid fa-user-plus"></i> <span data-i18n="sim.addEmployee">Add New Employee</span></h4>
                         <div class="form-row">
                             <div class="form-col">
                                 <label for="sim-newemp-name">Full Name</label>
@@ -597,7 +610,7 @@
                     </div>
 
                     <div class="detail-card">
-                        <h4><i class="fa-solid fa-user-slash"></i> Remove Employee</h4>
+                        <h4><i class="fa-solid fa-user-slash"></i> <span data-i18n="sim.removeEmployee">Remove Employee</span></h4>
                         <p style="margin-bottom: 8px;">Test the impact of attrition or a layoff on cost and utilization.</p>
                         <div class="form-row">
                             <div class="form-col-full">
@@ -611,7 +624,7 @@
                     </div>
 
                     <div class="detail-card">
-                        <h4><i class="fa-solid fa-diagram-project"></i> Add New Topic</h4>
+                        <h4><i class="fa-solid fa-diagram-project"></i> <span data-i18n="sim.addTopic">Add New Topic</span></h4>
                         <p style="margin-bottom: 8px;">Test taking on a new project or initiative.</p>
                         <div class="form-row">
                             <div class="form-col-full">
@@ -646,7 +659,7 @@
                     </div>
 
                     <div class="detail-card">
-                        <h4><i class="fa-solid fa-people-arrows"></i> Move Work Between Employees</h4>
+                        <h4><i class="fa-solid fa-people-arrows"></i> <span data-i18n="sim.moveWork">Move Work Between Employees</span></h4>
                         <div class="form-row">
                             <div class="form-col-full">
                                 <label for="sim-move-topic">Topic</label>
@@ -675,7 +688,7 @@
                     </div>
 
                     <div class="detail-card">
-                        <h4><i class="fa-solid fa-people-group"></i> Move Team Workload</h4>
+                        <h4><i class="fa-solid fa-people-group"></i> <span data-i18n="sim.moveTeam">Move Team Workload</span></h4>
                         <p style="margin-bottom: 8px;">Shift a topic's effort from every member of one team to another, proportionally.</p>
                         <div class="form-row">
                             <div class="form-col-full">
@@ -705,7 +718,7 @@
                     </div>
 
                     <div class="detail-card">
-                        <h4><i class="fa-solid fa-sliders"></i> Adjust Topic Effort</h4>
+                        <h4><i class="fa-solid fa-sliders"></i> <span data-i18n="sim.adjustEffort">Adjust Topic Effort</span></h4>
                         <div class="form-row">
                             <div class="form-col-full">
                                 <label for="sim-effort-topic">Topic</label>
@@ -730,7 +743,7 @@
                     </div>
 
                     <div class="detail-card">
-                        <h4><i class="fa-solid fa-business-time"></i> Adjust Available Hours</h4>
+                        <h4><i class="fa-solid fa-business-time"></i> <span data-i18n="sim.adjustHours">Adjust Available Hours</span></h4>
                         <p style="margin-bottom: 8px;">Test a part-time / full-time capacity change (e.g. reduced hours, parental leave return).</p>
                         <div class="form-row">
                             <div class="form-col-full">
@@ -750,7 +763,7 @@
                     </div>
 
                     <div class="detail-card">
-                        <h4><i class="fa-solid fa-sack-dollar"></i> Change Hourly Rate</h4>
+                        <h4><i class="fa-solid fa-sack-dollar"></i> <span data-i18n="sim.changeRate">Change Hourly Rate</span></h4>
                         <div class="form-row">
                             <div class="form-col-full">
                                 <label for="sim-rate-emp">Employee</label>
@@ -770,7 +783,7 @@
                 </div>
 
                 <!-- Compare: any scenario vs. any other, including the real active version -->
-                <h3 style="font-size: 15px; margin: 24px 0 4px;"><i class="fa-solid fa-scale-balanced"></i> Compare Scenarios</h3>
+                <h3 style="font-size: 15px; margin: 24px 0 4px;"><i class="fa-solid fa-scale-balanced"></i> <span data-i18n="sim.compareScenarios">Compare Scenarios</span></h3>
                 <div class="crud-card" style="max-height: none;">
                     <div class="form-row">
                         <div class="form-col">
@@ -783,7 +796,7 @@
                         </div>
                     </div>
                     <div class="modal-footer" style="justify-content: flex-start; padding-top: 10px;">
-                        <button id="btn-sim-compare" class="btn btn-primary"><i class="fa-solid fa-scale-balanced"></i> Compare</button>
+                        <button id="btn-sim-compare" class="btn btn-primary"><i class="fa-solid fa-scale-balanced"></i> <span data-i18n="sim.compareBtn">Compare</span></button>
                     </div>
                     <div id="sim-compare-results" style="margin-top: 16px;"></div>
                 </div>
@@ -792,8 +805,8 @@
             <!-- SECTION 4: CRUD MANAGEMENT -->
             <section id="crud-section" class="main-section">
                 <div class="section-header">
-                    <h2><i class="fa-solid fa-sliders"></i> Management Panel</h2>
-                    <p class="section-desc">Create, Edit, and Delete planning entities. Locked in User mode.</p>
+                    <h2><i class="fa-solid fa-sliders"></i> <span data-i18n="crud.title">Management Panel</span></h2>
+                    <p class="section-desc" data-i18n="crud.desc">Create, Edit, and Delete planning entities. Locked in User mode.</p>
                 </div>
 
                 <div class="crud-layout">
@@ -801,11 +814,11 @@
                     <div class="crud-card">
                         <div class="crud-card-header" style="flex-direction: column; align-items: stretch; gap: 8px;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <h3>Employees Manager</h3>
-                                <button id="btn-add-employee" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Add Employee</button>
+                                <h3 data-i18n="crud.employeesManager">Employees Manager</h3>
+                                <button id="btn-add-employee" class="btn btn-primary"><i class="fa-solid fa-plus"></i> <span data-i18n="crud.addEmployee">Add Employee</span></button>
                             </div>
                             <div style="display: flex; gap: 8px; margin-top: 4px;">
-                                <input type="text" id="search-crud-employees" placeholder="Search employees..." style="flex: 1; padding: 6px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none;">
+                                <input type="text" id="search-crud-employees" placeholder="Search employees..." data-i18n-placeholder="crud.searchEmployees" style="flex: 1; padding: 6px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none;">
                                 <select id="filter-crud-employees-location" style="padding: 6px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none; max-width: 140px;">
                                     <option value="">All Locations</option>
                                 </select>
@@ -839,11 +852,11 @@
                     <div class="crud-card">
                         <div class="crud-card-header" style="flex-direction: column; align-items: stretch; gap: 8px;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <h3>Topics Manager</h3>
-                                <button id="btn-add-topic" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Add Topic</button>
+                                <h3 data-i18n="crud.topicsManager">Topics Manager</h3>
+                                <button id="btn-add-topic" class="btn btn-primary"><i class="fa-solid fa-plus"></i> <span data-i18n="crud.addTopic">Add Topic</span></button>
                             </div>
                             <div style="display: flex; gap: 8px; margin-top: 4px;">
-                                <input type="text" id="search-crud-topics" placeholder="Search topics..." style="flex: 1; padding: 6px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none;">
+                                <input type="text" id="search-crud-topics" placeholder="Search topics..." data-i18n-placeholder="crud.searchTopics" style="flex: 1; padding: 6px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none;">
                                 <select id="filter-crud-topics-category" style="padding: 6px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none; max-width: 140px;">
                                     <option value="">All Categories</option>
                                 </select>
@@ -870,10 +883,10 @@
                 <div class="crud-card admin-only" id="trash-card" style="margin-top: 20px;">
                     <div class="crud-card-header" style="align-items: flex-start;">
                         <div>
-                            <h3><i class="fa-solid fa-trash-can"></i> Trash</h3>
-                            <p class="section-desc" style="margin: 0;">Soft-deleted employees and topics land here. Restore them to bring them back into the active scenario, allocations and all.</p>
+                            <h3><i class="fa-solid fa-trash-can"></i> <span data-i18n="crud.trashTitle">Trash</span></h3>
+                            <p class="section-desc" style="margin: 0;" data-i18n="crud.trashDesc">Soft-deleted employees and topics land here. Restore them to bring them back into the active scenario, allocations and all.</p>
                         </div>
-                        <button type="button" id="btn-empty-trash" class="btn btn-danger master-only" style="flex-shrink: 0;"><i class="fa-solid fa-fire"></i> Empty Trash</button>
+                        <button type="button" id="btn-empty-trash" class="btn btn-danger master-only" style="flex-shrink: 0;"><i class="fa-solid fa-fire"></i> <span data-i18n="crud.emptyTrash">Empty Trash</span></button>
                     </div>
                     <div class="crud-table-wrapper">
                         <table class="crud-table" id="trash-table">
@@ -897,22 +910,22 @@
              <!-- SECTION 5: EXCEL / CSV FILE UPLOAD (ADMIN ONLY) -->
             <section id="upload-section" class="main-section admin-only" style="display: none;">
                 <div class="section-header">
-                    <h2><i class="fa-solid fa-file-arrow-up"></i> Upload CSV / Excel Sheet</h2>
-                    <p class="section-desc">Instantly populate the active planning version by uploading an Excel (.xlsx/.xls) or CSV matrix planning sheet, or re-apply a file from your upload history below.</p>
+                    <h2><i class="fa-solid fa-file-arrow-up"></i> <span data-i18n="upload.title">Upload CSV / Excel Sheet</span></h2>
+                    <p class="section-desc" data-i18n="upload.desc">Instantly populate the active planning version by uploading an Excel (.xlsx/.xls) or CSV matrix planning sheet, or re-apply a file from your upload history below.</p>
                 </div>
 
                 <div class="dash-tabs">
-                    <button class="upload-tab active" data-upload-tab="tab-upload-new">Upload New File</button>
-                    <button class="upload-tab" data-upload-tab="tab-upload-history">Upload History</button>
+                    <button class="upload-tab active" data-upload-tab="tab-upload-new" data-i18n="upload.newTab">Upload New File</button>
+                    <button class="upload-tab" data-upload-tab="tab-upload-history" data-i18n="upload.historyTab">Upload History</button>
                 </div>
 
                 <div id="tab-upload-new" class="upload-tab-content active">
                     <div class="upload-container">
                         <div class="drag-drop-area" id="csv-drag-drop">
                             <i class="fa-solid fa-file-excel upload-big-icon" style="color: #107c41;"></i>
-                            <p>Drag and drop your planning CSV or Excel file here, or click to browse</p>
+                            <p data-i18n="upload.dragDrop">Drag and drop your planning CSV or Excel file here, or click to browse</p>
                             <input type="file" id="csv-file-input" accept=".csv, .xlsx, .xls" style="display: none;">
-                            <button class="btn btn-primary">Browse Files</button>
+                            <button class="btn btn-primary" data-i18n="upload.browseFiles">Browse Files</button>
                         </div>
 
                         <!-- Status Display -->
@@ -922,7 +935,7 @@
 
                         <!-- Instructions and Sample Layout -->
                         <div class="upload-instructions">
-                            <h3><i class="fa-solid fa-circle-info"></i> CSV / Excel Layout Format Instructions</h3>
+                            <h3><i class="fa-solid fa-circle-info"></i> <span data-i18n="upload.instructionsTitle">CSV / Excel Layout Format Instructions</span></h3>
                             <p>Your uploaded sheet must match the standard matrix planning layout:</p>
                             <ul>
                                 <li>The first row must contain columns: <code>Employee</code> (required), <code>Team</code>, <code>Location</code>, <code>Hours/Year</code> (or <code>Available hours/year (Region 100%)</code>), <code>Hourly Rate</code>, followed by the specific Topic/Project columns (e.g. <code>Agentic AI</code>, <code>Fuel Project</code>). <strong>Column order doesn't matter</strong> - columns are matched by header name, so a sheet can lead with <code>Team</code> instead of <code>Employee</code> if that's how it's organized.</li>
@@ -938,14 +951,14 @@
                 <div id="tab-upload-history" class="upload-tab-content">
                     <div class="crud-card" style="width: 100%;">
                         <div class="crud-card-header">
-                            <h3>Previously Uploaded Files</h3>
-                            <p class="section-desc" style="margin: 0;">Every CSV/Excel upload is kept here. Select "Apply" to re-import a previous file's data into the active planning version - useful for reverting a bad import or comparing an older sheet.</p>
+                            <h3 data-i18n="upload.historyTitle">Previously Uploaded Files</h3>
+                            <p class="section-desc" style="margin: 0;" data-i18n="upload.historyDesc">Every CSV/Excel upload is kept here. Select "Apply" to re-import a previous file's data into the active planning version - useful for reverting a bad import or comparing an older sheet.</p>
                         </div>
                         <div class="crud-table-wrapper">
                             <table class="crud-table" id="upload-history-table">
                                 <thead>
                                     <tr>
-                                        <th>File</th>
+                                        <th data-i18n="upload.colFile">File</th>
                                         <th style="width: 90px;">Type</th>
                                         <th style="width: 170px;">Uploaded</th>
                                         <th style="width: 130px;">By</th>
@@ -966,28 +979,28 @@
             <section id="planning-version-section" class="main-section admin-only" style="display: none;">
                 <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px; margin-bottom: 20px;">
                     <div>
-                        <h2><i class="fa-solid fa-code-branch"></i> Planning Version Management</h2>
-                        <p class="section-desc">Full control over every planning version - switch which one is active, clone, backup/restore, and delete - plus a log of every version-level change. Switching is always reversible: pick any version below to go back to it.</p>
+                        <h2><i class="fa-solid fa-code-branch"></i> <span data-i18n="planning.title">Planning Version Management</span></h2>
+                        <p class="section-desc" data-i18n="planning.desc">Full control over every planning version - switch which one is active, clone, backup/restore, and delete - plus a log of every version-level change. Switching is always reversible: pick any version below to go back to it.</p>
                     </div>
                     <div style="display: flex; gap: 10px;">
-                        <button id="btn-pv-create" class="btn btn-secondary"><i class="fa-solid fa-plus"></i> New Version</button>
-                        <button id="btn-pv-cleanup-sandboxes" class="btn btn-danger"><i class="fa-solid fa-broom"></i> Clean Up Sandboxes</button>
+                        <button id="btn-pv-create" class="btn btn-secondary"><i class="fa-solid fa-plus"></i> <span data-i18n="planning.newVersion">New Version</span></button>
+                        <button id="btn-pv-cleanup-sandboxes" class="btn btn-danger"><i class="fa-solid fa-broom"></i> <span data-i18n="planning.cleanupSandboxes">Clean Up Sandboxes</span></button>
                     </div>
                 </div>
 
                 <div class="crud-card" style="max-height: none; width: 100%; margin-bottom: 20px;">
                     <div class="crud-card-header">
-                        <h3><i class="fa-solid fa-database"></i> All Planning Versions</h3>
+                        <h3><i class="fa-solid fa-database"></i> <span data-i18n="planning.allVersions">All Planning Versions</span></h3>
                     </div>
                     <div class="crud-table-wrapper">
                         <table class="crud-table" id="pv-scenario-table">
                             <thead>
                                 <tr>
-                                    <th>Name</th>
-                                    <th>Description</th>
-                                    <th>Status</th>
-                                    <th>Created</th>
-                                    <th>Actions</th>
+                                    <th data-i18n="common.name">Name</th>
+                                    <th data-i18n="planning.description">Description</th>
+                                    <th data-i18n="common.status">Status</th>
+                                    <th data-i18n="planning.created">Created</th>
+                                    <th data-i18n="common.actions">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -999,8 +1012,8 @@
 
                 <div class="crud-card" style="margin-top: 20px; width: 100%;">
                     <div class="crud-card-header">
-                        <h3><i class="fa-solid fa-clock-rotate-left"></i> Version Change Log</h3>
-                        <p class="section-desc" style="margin: 0;">Every switch, clone, create, and delete of a planning version, most recent first.</p>
+                        <h3><i class="fa-solid fa-clock-rotate-left"></i> <span data-i18n="planning.changeLog">Version Change Log</span></h3>
+                        <p class="section-desc" style="margin: 0;" data-i18n="planning.changeLogDesc">Every switch, clone, create, and delete of a planning version, most recent first.</p>
                     </div>
                     <div class="crud-table-wrapper" style="max-height: 400px; overflow-y: auto;">
                         <table class="crud-table" id="pv-log-table">
@@ -1024,12 +1037,12 @@
             <section id="logs-section" class="main-section admin-only" style="display: none;">
                 <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px; margin-bottom: 20px;">
                     <div>
-                        <h2><i class="fa-solid fa-list-check"></i> System Audit Logs</h2>
-                        <p class="section-desc">Real-time audit log of CSV imports, report exports, planning version management, registrations, and login actions.</p>
+                        <h2><i class="fa-solid fa-list-check"></i> <span data-i18n="logs.title">System Audit Logs</span></h2>
+                        <p class="section-desc" data-i18n="logs.desc">Real-time audit log of CSV imports, report exports, planning version management, registrations, and login actions.</p>
                     </div>
                     <div style="display: flex; gap: 10px;">
-                        <button id="btn-refresh-logs" class="btn btn-primary"><i class="fa-solid fa-rotate"></i> Refresh Logs</button>
-                        <button id="btn-clear-logs" class="btn btn-danger master-only"><i class="fa-solid fa-fire"></i> Clear All Logs</button>
+                        <button id="btn-refresh-logs" class="btn btn-primary"><i class="fa-solid fa-rotate"></i> <span data-i18n="logs.refresh">Refresh Logs</span></button>
+                        <button id="btn-clear-logs" class="btn btn-danger master-only"><i class="fa-solid fa-fire"></i> <span data-i18n="logs.clearAll">Clear All Logs</span></button>
                     </div>
                 </div>
 
@@ -1050,10 +1063,10 @@
                         <table class="crud-table" id="admin-logs-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 180px;">Timestamp (Local)</th>
-                                    <th style="width: 150px;">User</th>
-                                    <th style="width: 150px;">Action Type</th>
-                                    <th>Activity Details</th>
+                                    <th style="width: 180px;" data-i18n="common.timestamp">Timestamp (Local)</th>
+                                    <th style="width: 150px;" data-i18n="common.user">User</th>
+                                    <th style="width: 150px;" data-i18n="logs.actionType">Action Type</th>
+                                    <th data-i18n="logs.activityDetails">Activity Details</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1067,15 +1080,15 @@
             <!-- SECTION 7: USER MANAGEMENT (ADMIN ONLY) -->
             <section id="users-section" class="main-section admin-only" style="display: none;">
                 <div class="section-header" style="border-bottom: 1px solid var(--glass-border); padding-bottom: 15px; margin-bottom: 20px;">
-                    <h2><i class="fa-solid fa-users-gear"></i> User Settings & Management</h2>
-                    <p class="section-desc">Add new administrators or users, manage profile names, and delete accounts according to system access policies.</p>
+                    <h2><i class="fa-solid fa-users-gear"></i> <span data-i18n="users.title">User Settings & Management</span></h2>
+                    <p class="section-desc" data-i18n="users.desc">Add new administrators or users, manage profile names, and delete accounts according to system access policies.</p>
                 </div>
                 
                 <div class="dashboard-grid" style="grid-template-columns: 2fr 1fr; gap: 20px; align-items: start;">
                     <!-- Left: User Accounts Table -->
                     <div class="crud-card" style="width: 100%;">
                         <div class="crud-card-header" style="flex-direction: column; align-items: stretch; gap: 8px;">
-                            <h3>Active System User Accounts</h3>
+                            <h3 data-i18n="users.activeAccounts">Active System User Accounts</h3>
                             <div style="display: flex; gap: 8px;">
                                 <input type="text" id="search-users" placeholder="Search by name, username, or profile details..." style="flex: 1; padding: 6px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none;">
                                 <select id="filter-users-role" style="padding: 6px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none; max-width: 160px;">
@@ -1088,10 +1101,10 @@
                             <table class="crud-table" id="admin-users-table">
                                 <thead>
                                     <tr>
-                                        <th>Name Profile</th>
-                                        <th>Username</th>
-                                        <th>Role / Privilege</th>
-                                        <th style="width: 100px;">Actions</th>
+                                        <th data-i18n="users.nameProfile">Name Profile</th>
+                                        <th data-i18n="common.username">Username</th>
+                                        <th data-i18n="users.rolePrivilege">Role / Privilege</th>
+                                        <th style="width: 100px;" data-i18n="common.actions">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1100,27 +1113,27 @@
                             </table>
                         </div>
                     </div>
-                    
+
                     <!-- Right: Add New User Form -->
                     <div class="crud-card" style="width: 100%;">
                         <div class="crud-card-header">
-                            <h3>Create New Account</h3>
+                            <h3 data-i18n="users.createAccount">Create New Account</h3>
                         </div>
                         <form id="form-manage-create-user" style="display: flex; flex-direction: column; gap: 12px; padding: 15px 5px;">
                             <div style="display: flex; flex-direction: column; gap: 4px;">
-                                <label for="m-create-name" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;">Full Name</label>
+                                <label for="m-create-name" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;" data-i18n="users.fullName">Full Name</label>
                                 <input type="text" id="m-create-name" required placeholder="e.g. John Doe" style="padding: 8px 12px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none;">
                             </div>
                             <div style="display: flex; flex-direction: column; gap: 4px;">
-                                <label for="m-create-username" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;">Username</label>
+                                <label for="m-create-username" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;" data-i18n="common.username">Username</label>
                                 <input type="text" id="m-create-username" required placeholder="e.g. jdoe" style="padding: 8px 12px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none;">
                             </div>
                             <div style="display: flex; flex-direction: column; gap: 4px;">
-                                <label for="m-create-password" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;">Password</label>
+                                <label for="m-create-password" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;" data-i18n="common.password">Password</label>
                                 <input type="password" id="m-create-password" required placeholder="••••••••" style="padding: 8px 12px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none;">
                             </div>
                             <div style="display: flex; flex-direction: column; gap: 4px;">
-                                <label for="m-create-role" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;">Access Privilege</label>
+                                <label for="m-create-role" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;" data-i18n="users.accessPrivilege">Access Privilege</label>
                                 <select id="m-create-role" required style="padding: 8px 12px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none;">
                                     <option value="user">Standard User (Read-Only)</option>
                                     <option value="admin" id="opt-m-create-admin">Admin Manager (Read/Write)</option>
@@ -1131,24 +1144,24 @@
                                 <p style="font-size: 11px; color: var(--text-secondary); font-weight: 500; margin: 0 0 8px 0;">Optional Profile Details</p>
                             </div>
                             <div style="display: flex; flex-direction: column; gap: 4px;">
-                                <label for="m-create-email" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;">Email Address</label>
+                                <label for="m-create-email" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;" data-i18n="users.email">Email Address</label>
                                 <input type="email" id="m-create-email" placeholder="e.g. jdoe@textron.com" style="padding: 8px 12px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none;">
                             </div>
                             <div style="display: flex; flex-direction: column; gap: 4px;">
-                                <label for="m-create-department" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;">Department</label>
+                                <label for="m-create-department" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;" data-i18n="users.department">Department</label>
                                 <input type="text" id="m-create-department" placeholder="e.g. CAE Engineering" style="padding: 8px 12px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none;">
                             </div>
                             <div style="display: flex; flex-direction: column; gap: 4px;">
-                                <label for="m-create-position" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;">Position in Company</label>
+                                <label for="m-create-position" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;" data-i18n="users.position">Position in Company</label>
                                 <input type="text" id="m-create-position" placeholder="e.g. Senior Test Engineer" style="padding: 8px 12px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none;">
                             </div>
                             <div style="display: flex; flex-direction: column; gap: 4px;">
-                                <label for="m-create-supervisor" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;">Supervisor</label>
+                                <label for="m-create-supervisor" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;" data-i18n="users.supervisor">Supervisor</label>
                                 <input type="text" id="m-create-supervisor" placeholder="e.g. Jane Smith" style="padding: 8px 12px; font-size: 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); outline: none;">
                             </div>
 
                             <div id="m-create-error" style="display: none; color: var(--danger-color); font-size: 11px; margin-top: 4px;"></div>
-                            <button type="submit" class="btn btn-primary" style="margin-top: 8px; width: 100%;"><i class="fa-solid fa-user-plus"></i> Create Account</button>
+                            <button type="submit" class="btn btn-primary" style="margin-top: 8px; width: 100%;"><i class="fa-solid fa-user-plus"></i> <span data-i18n="users.createBtn">Create Account</span></button>
                         </form>
                     </div>
                 </div>
@@ -1165,17 +1178,20 @@
         <!-- AI Assistant Drawer Slide Out -->
         <div id="ai-drawer" class="ai-drawer">
             <div class="ai-drawer-header">
-                <h3><i class="fa-solid fa-robot"></i> Confidential AI Assistant</h3>
-                <span class="local-pill"><i class="fa-solid fa-lock"></i> Completely Local</span>
-                <button id="btn-clear-chat" class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size: 11px; margin-left: auto; margin-right: 8px; display: inline-flex; align-items: center; gap: 4px;" title="Clear Chat History"><i class="fa-solid fa-trash-can"></i> Clear</button>
+                <h3><i class="fa-solid fa-robot"></i> <span data-i18n="ai.drawerTitle">Confidential AI Assistant</span></h3>
+                <span class="local-pill"><i class="fa-solid fa-lock"></i> <span data-i18n="ai.localBadge">Completely Local</span></span>
+                <button id="btn-clear-chat" class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size: 11px; margin-left: auto; margin-right: 8px; display: inline-flex; align-items: center; gap: 4px;" title="Clear Chat History"><i class="fa-solid fa-trash-can"></i> <span data-i18n="ai.clearChat">Clear</span></button>
                 <button id="btn-close-ai" class="btn-close"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            
+
             <div class="ai-chat-body" id="ai-chat-body">
                 <div class="ai-message assistant">
-                    <p>Hello! I am your local planning assistant. All queries are computed inside this system to maintain data confidentiality.</p>
-                    <p>You can ask me questions like:</p>
+                    <p data-i18n="ai.welcome1">Hello! I am your local planning assistant. All queries are computed inside this system to maintain data confidentiality.</p>
+                    <p data-i18n="ai.welcome2">You can ask me questions like:</p>
                     <ul>
+                        <!-- Sample queries stay in English - the AI chat backend
+                             only understands English phrasing, so translating
+                             these would break them as functional inputs. -->
                         <li><a href="#" class="ai-sample-query">Who is working on Agentic AI?</a></li>
                         <li><a href="#" class="ai-sample-query">What is the total cost of Fuel Project?</a></li>
                         <li><a href="#" class="ai-sample-query">List overloaded employees</a></li>
@@ -1185,7 +1201,7 @@
             </div>
 
             <div class="ai-chat-footer">
-                <input type="text" id="ai-chat-input" placeholder="Type your query (e.g., Who is working on Fuel?)..." autocomplete="off">
+                <input type="text" id="ai-chat-input" placeholder="Type your query (e.g., Who is working on Fuel?)..." data-i18n-placeholder="ai.inputPlaceholder" autocomplete="off">
                 <button id="btn-send-ai" class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i></button>
             </div>
         </div>
@@ -1584,6 +1600,7 @@
     </div>
 
     <!-- Custom Script -->
+    <script src="js/translations.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
