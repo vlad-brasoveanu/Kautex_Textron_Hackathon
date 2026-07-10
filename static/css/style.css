@@ -3437,6 +3437,20 @@ body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport 
         grid-template-columns: 1fr !important;
     }
 
+    /* Executive memo header/KPI strip and simulation comparison KPI grid:
+       2-4 column grids that overflowed their slide box on narrow screens
+       (each slide is otherwise a fixed presentation-sized canvas, not a
+       normal responsive page section). */
+    .memo-header-block {
+        grid-template-columns: 1fr !important;
+    }
+    .memo-kpi-strip {
+        grid-template-columns: 1fr !important;
+    }
+    .sim-compare-kpi-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
     /* Dashboard/Upload tab bars scroll horizontally instead of overflowing
        the page (same pattern as the sidebar nav pills). */
     .dash-tabs {
@@ -3665,6 +3679,108 @@ body.theme-dark .matrix-group-header-row td {
     box-shadow: var(--shadow-sm);
 }
 
+/* Executive memo redesign: a formal To/From/Re/Date header block (like a
+   real corporate memo), a horizontal KPI strip instead of stacked cards,
+   and a "paper" card for the AI-drafted body with proper paragraph rhythm
+   instead of a plain unstyled text block. */
+.memo-header-block {
+    margin-top: 14px;
+    padding: 10px 16px;
+    border-top: 2px solid var(--primary-color);
+    border-bottom: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.02);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 24px;
+}
+.memo-header-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 11px;
+}
+.memo-header-label {
+    flex-shrink: 0;
+    width: 40px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+}
+.memo-header-value {
+    color: var(--text-primary);
+    font-weight: 500;
+    outline: none;
+}
+
+.memo-kpi-strip {
+    margin-top: 14px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+.memo-kpi-item {
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: rgba(59, 130, 246, 0.05);
+    border: 1px solid var(--glass-border);
+    border-left: 3px solid var(--accent-color);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.memo-kpi-item.memo-kpi-alert { border-left-color: var(--danger-color); background: rgba(239, 68, 68, 0.05); }
+.memo-kpi-item.memo-kpi-ok { border-left-color: var(--success-color); background: rgba(16, 185, 129, 0.05); }
+.memo-kpi-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.memo-kpi-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.memo-body-paper {
+    margin-top: 14px;
+    padding: 18px 22px;
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.025);
+    box-shadow: var(--shadow-sm);
+    text-align: left;
+}
+.memo-body-text {
+    outline: none;
+    font-size: 13.5px;
+    line-height: 1.75;
+    color: var(--text-primary);
+}
+.memo-body-text p {
+    margin: 0 0 14px 0;
+}
+.memo-body-text p:last-child {
+    margin-bottom: 0;
+}
+.memo-body-text p:first-of-type {
+    font-size: 14.5px;
+}
+
+.memo-footer-note {
+    margin-top: 12px;
+    font-size: 10px;
+    color: var(--text-secondary);
+    font-style: italic;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
 .slide-comparison .pres-kpi-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -3704,6 +3820,84 @@ body.theme-dark .matrix-group-header-row td {
 }
 .text-neutral-delta {
     color: var(--text-secondary) !important;
+}
+
+/* Simulation comparison redesign: split into an overview slide (verdict +
+   big-number KPI cards, no table) and a dedicated team-detail table slide,
+   both sized to fit without an internal scrollbar instead of the old
+   single cramped slide. */
+.sim-compare-body {
+    margin-top: 16px;
+    outline: none;
+}
+
+.sim-compare-scenarios-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 14px;
+}
+.sim-compare-scenario-pill {
+    padding: 5px 14px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 12px;
+}
+.sim-compare-scenario-pill.sim-compare-baseline {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+    border: 1px solid var(--glass-border);
+}
+.sim-compare-scenario-pill.sim-compare-target {
+    background: var(--primary-color);
+    color: #ffffff;
+}
+
+.sim-compare-kpi-grid {
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+}
+.sim-compare-kpi-card {
+    padding: 16px 14px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+}
+.sim-compare-kpi-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.sim-compare-kpi-value {
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.sim-compare-kpi-value i {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.slide-comparison-table .pres-table-wrapper {
+    margin-top: 4px;
 }
 
 

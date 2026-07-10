@@ -1206,7 +1206,9 @@ export function initPresentation() {
             const headcount = data ? (data.total_headcount || 0) : 0;
             const cost = data ? (data.total_annual_planning_cost || 0) : 0;
             const overloads = data ? (data.overloaded_employees ? data.overloaded_employees.length : 0) : 0;
-            
+            const scenarioName = ctx.activeScenario ? ctx.activeScenario.name : "Active Planning Version";
+            const todayStr = new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+
             return {
                 wrapperClass: "slide-memo",
                 bodyHTML: `
@@ -1214,30 +1216,86 @@ export function initPresentation() {
                         <h3 contenteditable="true" data-slide-id="${slideId}" data-edit-key="title-text">${getSlideText(slideId, "title-text", "Executive Strategic Memo")}</h3>
                         <span class="confidential-small">CONFIDENTIAL</span>
                     </div>
-                    <div class="slide-content-split" style="margin-top: 15px; max-height: calc(100% - 40px); align-items: stretch; gap: 20px;">
-                        <div class="slide-col-left" style="width: 32%; display: flex; flex-direction: column; gap: 10px; flex-shrink: 0;">
-                            <div class="pres-kpi-item" style="padding: 10px 14px; border-left: 3px solid var(--accent-color); background: rgba(59, 130, 246, 0.04); border-radius: 6px;">
-                                <span style="display: block; font-size: 9px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Scenario Headcount</span>
-                                <span style="font-size: 15px; font-weight: 700; color: var(--text-primary);">${headcount} Active Staff</span>
-                            </div>
-                            <div class="pres-kpi-item" style="padding: 10px 14px; border-left: 3px solid var(--success-color); background: rgba(16, 185, 129, 0.04); border-radius: 6px;">
-                                <span style="display: block; font-size: 9px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Net Planning Cost</span>
-                                <span style="font-size: 15px; font-weight: 700; color: var(--text-primary);">$${cost.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
-                            </div>
-                            <div class="pres-kpi-item" style="padding: 10px 14px; border-left: 3px solid ${overloads > 0 ? "var(--danger-color)" : "var(--success-color)"}; background: rgba(239, 68, 68, 0.04); border-radius: 6px;">
-                                <span style="display: block; font-size: 9px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Overloaded Alerts</span>
-                                <span style="font-size: 15px; font-weight: 700; color: var(--text-primary);">${overloads} Alert${overloads === 1 ? "" : "s"}</span>
-                            </div>
+
+                    <div class="memo-header-block">
+                        <div class="memo-header-row">
+                            <span class="memo-header-label">To</span>
+                            <span contenteditable="true" data-slide-id="${slideId}" data-edit-key="memo-to" class="memo-header-value">${getSlideText(slideId, "memo-to", "Textron Executive Leadership")}</span>
                         </div>
-                        <div class="slide-col-right" style="width: 65%; flex: 1; padding: 14px 18px; border: 1px solid var(--glass-border); border-radius: 8px; background: rgba(255, 255, 255, 0.02); text-align: left; overflow-y: auto;">
-                            <div contenteditable="true" data-slide-id="${slideId}" data-edit-key="body-text" style="line-height: 1.6; font-size: 12.5px; outline: none; min-height: 160px; color: var(--text-primary);">
-                                ${getSlideText(slideId, "body-text", "<p>Write strategic executive insights here...</p>")}
-                            </div>
+                        <div class="memo-header-row">
+                            <span class="memo-header-label">From</span>
+                            <span contenteditable="true" data-slide-id="${slideId}" data-edit-key="memo-from" class="memo-header-value">${getSlideText(slideId, "memo-from", "Engineering Resource Planning Team")}</span>
                         </div>
+                        <div class="memo-header-row">
+                            <span class="memo-header-label">Re</span>
+                            <span contenteditable="true" data-slide-id="${slideId}" data-edit-key="memo-re" class="memo-header-value">${getSlideText(slideId, "memo-re", scenarioName)}</span>
+                        </div>
+                        <div class="memo-header-row">
+                            <span class="memo-header-label">Date</span>
+                            <span contenteditable="true" data-slide-id="${slideId}" data-edit-key="memo-date" class="memo-header-value">${getSlideText(slideId, "memo-date", todayStr)}</span>
+                        </div>
+                    </div>
+
+                    <div class="memo-kpi-strip">
+                        <div class="memo-kpi-item">
+                            <span class="memo-kpi-label"><i class="fa-solid fa-users"></i> Scenario Headcount</span>
+                            <span class="memo-kpi-value">${headcount}</span>
+                        </div>
+                        <div class="memo-kpi-item">
+                            <span class="memo-kpi-label"><i class="fa-solid fa-sack-dollar"></i> Net Planning Cost</span>
+                            <span class="memo-kpi-value">$${cost.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
+                        </div>
+                        <div class="memo-kpi-item ${overloads > 0 ? "memo-kpi-alert" : "memo-kpi-ok"}">
+                            <span class="memo-kpi-label"><i class="fa-solid fa-triangle-exclamation"></i> Overloaded Alerts</span>
+                            <span class="memo-kpi-value">${overloads}</span>
+                        </div>
+                    </div>
+
+                    <div class="memo-body-paper">
+                        <div contenteditable="true" data-slide-id="${slideId}" data-edit-key="body-text" class="memo-body-text">
+                            ${getSlideText(slideId, "body-text", "<p>Write strategic executive insights here...</p>")}
+                        </div>
+                    </div>
+
+                    <div class="memo-footer-note">
+                        <i class="fa-solid fa-robot"></i> Drafted by the confidential local AI planning assistant, grounded strictly in this scenario's live data.
+                    </div>
+                `
+            };
+        } else if (slideId.startsWith("custom_sim_overview_")) {
+            // First of the two comparison slides: headline verdict + big-number
+            // KPI cards, no table - designed to read at a glance, not scroll.
+            return {
+                wrapperClass: "slide-comparison slide-comparison-overview",
+                bodyHTML: `
+                    <div class="slide-title-bar">
+                        <h3 contenteditable="true" data-slide-id="${slideId}" data-edit-key="title-text">${getSlideText(slideId, "title-text", "Simulation Comparison Analysis")}</h3>
+                        <span class="confidential-small">CONFIDENTIAL</span>
+                    </div>
+                    <div class="sim-compare-body" contenteditable="true" data-slide-id="${slideId}" data-edit-key="body-text">
+                        ${getSlideText(slideId, "body-text", "Comparison content...")}
+                    </div>
+                `
+            };
+        } else if (slideId.startsWith("custom_sim_table_")) {
+            // Second slide: the full team-by-team delta table, given its own
+            // slide instead of being crammed under the overview with a scrollbar.
+            return {
+                wrapperClass: "slide-comparison slide-comparison-table",
+                bodyHTML: `
+                    <div class="slide-title-bar">
+                        <h3 contenteditable="true" data-slide-id="${slideId}" data-edit-key="title-text">${getSlideText(slideId, "title-text", "Simulation Comparison — Team Detail")}</h3>
+                        <span class="confidential-small">CONFIDENTIAL</span>
+                    </div>
+                    <div class="sim-compare-body" contenteditable="true" data-slide-id="${slideId}" data-edit-key="body-text">
+                        ${getSlideText(slideId, "body-text", "Comparison table...")}
                     </div>
                 `
             };
         } else if (slideId.startsWith("custom_sim_")) {
+            // Legacy single-slide comparisons created before the overview/table
+            // split (already saved in someone's localStorage deck config) still
+            // render via the old plain layout so they don't break/disappear.
             return {
                 wrapperClass: "slide-comparison",
                 bodyHTML: `

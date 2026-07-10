@@ -273,8 +273,8 @@ window.renderPlanningVersionTab = async function() {
 
         // Start Simulation / Apply controls
         document.getElementById("btn-start-simulation").innerHTML = simScenario
-            ? '<i class="fa-solid fa-rotate"></i> Start a New Simulation'
-            : '<i class="fa-solid fa-play"></i> Start Simulation';
+            ? '<i class="fa-solid fa-rotate"></i> Create a New Simulation'
+            : '<i class="fa-solid fa-play"></i> Create Simulation';
         const btnApplyTop = document.getElementById("btn-sim-apply-top");
         btnApplyTop.style.display = simScenario ? "inline-flex" : "none";
         const btnStopTop = document.getElementById("btn-sim-stop");
@@ -748,6 +748,47 @@ window.renderPlanningVersionTab = async function() {
         });
     }
 
+    // Compare Scenarios trigger - pre-existing HTML/CSS for this whole section
+    // (the "Compare Scenarios" card, #sim-compare-a/#sim-compare-b selects,
+    // renderScenarioComparison, buildSimVerdict) was already built, but the
+    // button itself had no click listener anywhere, so clicking it silently
+    // did nothing. Fetches both scenarios' dashboard reports and per-employee
+    // data, computes the deltas, and renders the comparison.
+    const btnSimCompare = document.getElementById("btn-sim-compare");
+    if (btnSimCompare) {
+        btnSimCompare.addEventListener("click", async () => {
+            const idA = parseInt(document.getElementById("sim-compare-a").value, 10);
+            const idB = parseInt(document.getElementById("sim-compare-b").value, 10);
+            if (!idA || !idB) return;
+            if (idA === idB) {
+                alert("Choose two different planning versions to compare.");
+                return;
+            }
+            const originalHTML = btnSimCompare.innerHTML;
+            btnSimCompare.disabled = true;
+            btnSimCompare.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Comparing...';
+            try {
+                const [reportA, reportB, empsA, allocsA, empsB, allocsB] = await Promise.all([
+                    fetch(`/api/reports/dashboard/${idA}`).then(r => r.json()),
+                    fetch(`/api/reports/dashboard/${idB}`).then(r => r.json()),
+                    fetch(`/api/scenarios/${idA}/employees`).then(r => r.json()),
+                    fetch(`/api/scenarios/${idA}/allocations`).then(r => r.json()),
+                    fetch(`/api/scenarios/${idB}/employees`).then(r => r.json()),
+                    fetch(`/api/scenarios/${idB}/allocations`).then(r => r.json())
+                ]);
+                const employeeDeltas = computeEmployeeDeltas(empsA, allocsA, empsB, allocsB);
+                renderScenarioComparison(reportA, reportB, idA, idB, employeeDeltas);
+            } catch (err) {
+                console.error("Error comparing scenarios:", err);
+                document.getElementById("sim-compare-results").innerHTML =
+                    '<p style="color: var(--danger-color);">Error loading comparison data.</p>';
+            } finally {
+                btnSimCompare.disabled = false;
+                btnSimCompare.innerHTML = originalHTML;
+            }
+        });
+    }
+
     window.simAvgUtilization = function(report) {
         if (!report.team_summaries.length) return 0;
         const totalWeighted = report.team_summaries.reduce((sum, t) => sum + (t.average_utilization * t.member_count), 0);
@@ -1001,13 +1042,54 @@ window.renderPlanningVersionTab = async function() {
         });
     }
 
-    window.buildSimComparisonSlideBody = function(reportA, reportB) {
+    // Split into two purpose-built slides instead of one cramped
+    // headline+KPIs+table slide that needed an internal scrollbar: an
+    // overview slide (big-number KPI cards, no table) and a dedicated
+    // team-detail slide (just the comparison table, given room to breathe).
+    window.buildSimComparisonOverviewHTML = function(reportA, reportB) {
         const money = (val) => `$${val.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
         const utilA = simAvgUtilization(reportA);
         const utilB = simAvgUtilization(reportB);
         const costDelta = reportB.total_annual_planning_cost - reportA.total_annual_planning_cost;
         const overloadedDelta = reportB.overloaded_employees.length - reportA.overloaded_employees.length;
+        const costDeltaClass = costDelta > 0 ? "text-danger-delta" : costDelta < 0 ? "text-success-delta" : "";
+        const overloadedDeltaClass = overloadedDelta > 0 ? "text-danger-delta" : overloadedDelta < 0 ? "text-success-delta" : "";
+        // Reuses the existing pros/cons verdict banner (buildSimVerdict, used
+        // by the in-app comparison modal) rather than a new one-line summary -
+        // it's already a richer, better-designed component than anything
+        // written from scratch here would be.
+        const verdictHtml = buildSimVerdict(reportA, reportB);
 
+        return `
+            <div class="sim-compare-scenarios-row">
+                <span class="sim-compare-scenario-pill sim-compare-baseline">${reportA.scenario_name}</span>
+                <i class="fa-solid fa-arrow-right-long"></i>
+                <span class="sim-compare-scenario-pill sim-compare-target">${reportB.scenario_name}</span>
+            </div>
+            ${verdictHtml}
+            <div class="sim-compare-kpi-grid">
+                <div class="sim-compare-kpi-card">
+                    <span class="sim-compare-kpi-label"><i class="fa-solid fa-users"></i> Headcount</span>
+                    <span class="sim-compare-kpi-value">${reportA.total_headcount} <i class="fa-solid fa-arrow-right"></i> ${reportB.total_headcount}</span>
+                </div>
+                <div class="sim-compare-kpi-card">
+                    <span class="sim-compare-kpi-label"><i class="fa-solid fa-sack-dollar"></i> Cost Shift</span>
+                    <span class="sim-compare-kpi-value ${costDeltaClass}">${costDelta === 0 ? "$0" : `${costDelta > 0 ? "+" : ""}${money(costDelta)}`}</span>
+                </div>
+                <div class="sim-compare-kpi-card">
+                    <span class="sim-compare-kpi-label"><i class="fa-solid fa-gauge-high"></i> Avg Utilization</span>
+                    <span class="sim-compare-kpi-value">${utilA.toFixed(1)}% <i class="fa-solid fa-arrow-right"></i> ${utilB.toFixed(1)}%</span>
+                </div>
+                <div class="sim-compare-kpi-card">
+                    <span class="sim-compare-kpi-label"><i class="fa-solid fa-triangle-exclamation"></i> Overloads Shift</span>
+                    <span class="sim-compare-kpi-value ${overloadedDeltaClass}">${reportA.overloaded_employees.length} <i class="fa-solid fa-arrow-right"></i> ${reportB.overloaded_employees.length} (${overloadedDelta > 0 ? "+" : ""}${overloadedDelta})</span>
+                </div>
+            </div>
+        `;
+    }
+
+    window.buildSimComparisonTableHTML = function(reportA, reportB) {
+        const money = (val) => `$${val.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
         const teamUtilA = {};
         reportA.team_summaries.forEach(t => { teamUtilA[t.team_name] = t.average_utilization; });
         const teamUtilB = {};
@@ -1020,13 +1102,13 @@ window.renderPlanningVersionTab = async function() {
             const costB = reportB.cost_by_team[team] || 0;
             const delta = costB - costA;
             const deltaPct = costA !== 0 ? (delta / costA) * 100 : (costB !== 0 ? 100 : 0);
-            
+
             let deltaClass = "text-neutral-delta";
             if (delta > 0) deltaClass = "text-danger-delta";
             else if (delta < 0) deltaClass = "text-success-delta";
-            
+
             const costDeltaStr = delta === 0 ? "$0" : `${delta > 0 ? "+" : ""}${money(delta)} (${delta > 0 ? "+" : ""}${deltaPct.toFixed(1)}%)`;
-            
+
             return `
                 <tr>
                     <td><strong>${team}</strong></td>
@@ -1038,30 +1120,8 @@ window.renderPlanningVersionTab = async function() {
             `;
         }).join("");
 
-        const costDeltaClass = costDelta > 0 ? "text-danger-delta" : costDelta < 0 ? "text-success-delta" : "";
-        const overloadedDeltaClass = overloadedDelta > 0 ? "text-danger-delta" : overloadedDelta < 0 ? "text-success-delta" : "";
-
         return `
-            <p style="font-weight: 600; margin-top: 0; margin-bottom: 12px; font-size: 13px; color: var(--accent-color);">Comparison: ${reportA.scenario_name} vs ${reportB.scenario_name}</p>
-            <div class="pres-kpi-grid">
-                <div class="pres-kpi-item" style="border-left-color: var(--accent-color);">
-                    <span class="pres-kpi-label">Headcount</span>
-                    <span class="pres-kpi-number">${reportA.total_headcount} &rarr; ${reportB.total_headcount}</span>
-                </div>
-                <div class="pres-kpi-item" style="border-left-color: ${costDelta > 0 ? "var(--danger-color)" : "var(--success-color)"};">
-                    <span class="pres-kpi-label">Cost Shift</span>
-                    <span class="pres-kpi-number ${costDeltaClass}">${costDelta === 0 ? "$0" : `${costDelta > 0 ? "+" : ""}${money(costDelta)}`}</span>
-                </div>
-                <div class="pres-kpi-item" style="border-left-color: var(--warning-color);">
-                    <span class="pres-kpi-label">Avg Utilization</span>
-                    <span class="pres-kpi-number">${utilA.toFixed(1)}% &rarr; ${utilB.toFixed(1)}%</span>
-                </div>
-                <div class="pres-kpi-item" style="border-left-color: ${overloadedDelta > 0 ? "var(--danger-color)" : "var(--success-color)"};">
-                    <span class="pres-kpi-label">Overloads Shift</span>
-                    <span class="pres-kpi-number ${overloadedDeltaClass}">${reportA.overloaded_employees.length} &rarr; ${reportB.overloaded_employees.length} (${overloadedDelta > 0 ? "+" : ""}${overloadedDelta})</span>
-                </div>
-            </div>
-            <div class="pres-table-wrapper" style="margin-top: 14px;">
+            <div class="pres-table-wrapper">
                 <table class="pres-table">
                     <thead>
                         <tr><th>Team</th><th>${reportA.scenario_name}</th><th>${reportB.scenario_name}</th><th>Cost Delta (%)</th><th>Avg Util Shift</th></tr>
@@ -1074,20 +1134,29 @@ window.renderPlanningVersionTab = async function() {
 
     window.addSimComparisonToDeck = function(reportA, reportB) {
         if (!deckConfig) loadDeckConfig();
-        const newId = "custom_sim_" + Date.now();
+        const ts = Date.now();
         deckConfig.push({
-            id: newId,
+            id: `custom_sim_overview_${ts}`,
             included: true,
             isCustom: true,
             overrides: {
                 "title-text": `Simulation Comparison: ${reportA.scenario_name} vs ${reportB.scenario_name}`,
-                "body-text": buildSimComparisonSlideBody(reportA, reportB)
+                "body-text": buildSimComparisonOverviewHTML(reportA, reportB)
+            }
+        });
+        deckConfig.push({
+            id: `custom_sim_table_${ts}`,
+            included: true,
+            isCustom: true,
+            overrides: {
+                "title-text": `Simulation Comparison — Team Detail`,
+                "body-text": buildSimComparisonTableHTML(reportA, reportB)
             }
         });
         saveDeckConfig();
         renderDeckCustomizeList();
         renderPresentationDeck();
-        alert("Comparison slide added to the Presentation Deck. Open the Presentation Deck tab to view, reorder, or remove it.");
+        alert("Comparison added as 2 slides to the Presentation Deck (Overview + Team Detail). Open the Presentation Deck tab to view, reorder, or remove them.");
     }
 
     window.exportComparisonToCSV = async function(reportA, reportB) {
