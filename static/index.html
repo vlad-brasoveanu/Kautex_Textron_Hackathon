@@ -183,6 +183,15 @@
                         <div id="dynamic-filters-container">
                             <!-- Dynamic filters will be rendered here based on columns/rows -->
                         </div>
+                        <div class="filter-group" style="margin-top: 15px; margin-bottom: 15px; display: flex; flex-direction: column; gap: 6px;">
+                            <label for="matrix-grouping-select" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;"><i class="fa-solid fa-layer-group"></i> Group Rows By</label>
+                            <select id="matrix-grouping-select" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary); font-size: 13px; outline: none; cursor: pointer; width: 100%;">
+                                <option value="none">Default (No Grouping)</option>
+                                <option value="team">Team</option>
+                                <option value="location">Country (Location)</option>
+                                <option value="topic">Primary Topic</option>
+                            </select>
+                        </div>
                         <button id="btn-reset-filters" class="btn btn-secondary btn-full" style="margin-top: 15px; width: 100%;"><i class="fa-solid fa-filter-circle-xmark"></i> Reset Filters</button>
                     </div>
                 </div>

@@ -1419,12 +1419,13 @@ tr.overview-row:hover td {
 }
 
 .ai-insight-card {
-    height: auto;
+    height: auto !important;
     min-height: 300px;
     display: flex;
     flex-direction: column;
     border-top: 3px solid var(--text-secondary);
     transition: transform 0.15s ease, box-shadow 0.15s ease;
+    overflow: visible !important;
 }
 
 .ai-insight-card:hover {
@@ -1461,6 +1462,7 @@ tr.overview-row:hover td {
 
 .ai-insight-card .ai-insight-list {
     flex: 1;
+    overflow: visible !important;
 }
 
 .ai-insight-card .local-pill {
@@ -3197,6 +3199,71 @@ body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport 
         padding: 16px !important;
         overflow-y: visible !important;
     }
+}
+
+/* Matrix row grouping styles */
+.matrix-group-header-row td {
+    background: rgba(59, 130, 246, 0.08) !important;
+    border-bottom: 2px solid rgba(59, 130, 246, 0.2) !important;
+    text-align: left !important;
+    backdrop-filter: blur(4px);
+}
+body.theme-dark .matrix-group-header-row td {
+    background: rgba(59, 130, 246, 0.15) !important;
+    border-bottom: 2px solid rgba(59, 130, 246, 0.3) !important;
+}
+
+/* Premium Presentation Custom Slide Styles */
+.slide-memo, .slide-comparison {
+    box-sizing: border-box;
+}
+
+.slide-memo .pres-kpi-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--glass-border);
+    border-radius: 6px;
+    box-shadow: var(--shadow-sm);
+}
+
+.slide-comparison .pres-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 15px;
+}
+
+.slide-comparison .pres-kpi-item {
+    background: rgba(59, 130, 246, 0.04);
+    border: 1px solid rgba(59, 130, 246, 0.15);
+    border-left: 3px solid var(--primary-color);
+    padding: 10px 14px;
+    border-radius: 6px;
+    text-align: left;
+}
+
+.slide-comparison .pres-kpi-label {
+    display: block;
+    font-size: 9px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.slide-comparison .pres-kpi-number {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.text-danger-delta {
+    color: var(--danger-color) !important;
+}
+.text-success-delta {
+    color: var(--success-color) !important;
+}
+.text-neutral-delta {
+    color: var(--text-secondary) !important;
 }
 
 

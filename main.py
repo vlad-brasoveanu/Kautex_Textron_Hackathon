@@ -2920,9 +2920,34 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
     if action_result:
         return action_result
 
-    # Check for reset/clear filters first
+    # Check for grouping commands first
     q_clean = q_lower.replace("rate higher than", "rate >").replace("rate lower than", "rate <").replace("hourly rate >", "rate >").replace("hourly rate <", "rate <").replace("rate above", "rate >").replace("rate below", "rate <").replace("rate more than", "rate >").replace("rate less than", "rate <")
     
+    if "group by" in q_clean or "grouped by" in q_clean or "group rows by" in q_clean:
+        group_target = "none"
+        group_label = "default"
+        if "team" in q_clean:
+            group_target = "team"
+            group_label = "Team"
+        elif "location" in q_clean or "country" in q_clean or "region" in q_clean:
+            group_target = "location"
+            group_label = "Country (Location)"
+        elif "topic" in q_clean or "project" in q_clean or "initiative" in q_clean:
+            group_target = "topic"
+            group_label = "Primary Topic"
+            
+        if group_target != "none":
+            return {
+                "answer": prefix + f"I have updated the allocation matrix to group rows by <strong>{group_label}</strong>.",
+                "grouping": group_target
+            }
+            
+    if "ungroup" in q_clean or "no grouping" in q_clean or "remove grouping" in q_clean:
+        return {
+            "answer": prefix + "I have removed all row grouping from the allocation matrix.",
+            "grouping": "none"
+        }
+
     if "clear filter" in q_clean or "reset filter" in q_clean or "show all" in q_clean:
         return {
             "answer": prefix + "I have reset all matrix filters to display the full dataset.",

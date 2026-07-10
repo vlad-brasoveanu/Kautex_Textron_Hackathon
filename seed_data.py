@@ -149,116 +149,56 @@ TOPICS = [
 
 # employee_name -> [(topic_name, percentage, comment), ...]
 ALLOCATION_PLAN = {
-    "Markus Weber": [("Non bookable - Other", 10, "Standard admin time."),
-                      ("bookable 1 - Consulting Global", 10, "Advisory for US engineering team."),
-                      ("Agentic AI and LLM - Enterprise Solutions", 50, "Lead dashboard backend developer."),
-                      ("Fuel Project", 10, "Review fuel cell structural simulations."),
-                      ("Method Development Pentatonic", 20, "Pentatonic crash simulation setup.")],
-    "Sofia Rossi": [("Non bookable - Other", 10, "Standard admin time."),
-                     ("Method Development Pentatonic", 40, "Structural durability validation."),
-                     ("Lightweight Materials Research", 30, "Composite panel feasibility testing."),
-                     ("Fuel Project", 20, "Durability review for fuel cell housing.")],
-    "Hans Becker": [("Non bookable - Other", 10, "Standard admin time."),
-                     ("Electric Powertrain Integration", 50, "NVH validation for e-powertrain housing."),
-                     ("Method Development Pentatonic", 30, "NVH simulation support."),
-                     ("bookable 1 - Consulting Global", 10, "NVH advisory to Test Bonn.")],
-    "Priya Sharma": [("Non bookable - Other", 10, "Regular admin tasks."),
-                       ("bookable 1 - Consulting Global", 10, "Mesh automation support."),
-                       ("Agentic AI and LLM - Enterprise Solutions", 50, "Data ingestion and parsing development."),
-                       ("Fuel Project", 10, "Basic structural meshing for Fuel Project.")],
-    "Ravi Patel": [("Non bookable - Other", 20, "Onboarding and ramp-up training."),
-                    ("Agentic AI and LLM - Enterprise Solutions", 30, "Junior support on data pipeline."),
-                    ("Lightweight Materials Research", 30, "Assisting materials feasibility testing.")],
-    "Carlos Hernández": [("Non bookable - Other", 10, "Admin and locale support."),
-                           ("Agentic AI and LLM - Enterprise Solutions", 50, "Model testing and scenarios design."),
-                           ("Method Development Pentatonic", 30, "Pentatonic crash simulations assistance.")],
-    "Diego Alvarez": [("Non bookable - Other", 10, "Admin and locale support."),
-                        ("Electric Powertrain Integration", 60, "Crash safety lead for e-powertrain housing."),
-                        ("Fuel Project", 20, "Crash compliance review.")],
-    "Andreea Ionescu": [("Non bookable - Other", 20, "Extended training and administrative duties."),
-                          ("bookable 1 - Consulting Global", 10, "Consulting for German hub."),
-                          ("Agentic AI and LLM - Enterprise Solutions", 20, "SQL engine testing."),
-                          ("Fuel Project", 30, "Thermal modeling for Fuel Project."),
-                          ("Method Development Pentatonic", 20, "Pentatonic thermal validation.")],
-    "Elena Popa": [("Non bookable - Other", 10, "Standard admin time."),
-                    ("Lightweight Materials Research", 50, "Composite materials analysis lead."),
-                    ("Method Development Pentatonic", 40, "Composite panel crash validation.")],
-    "Katarzyna Nowak": [("Non bookable - Other", 10, "Standard admin time."),
-                          ("Method Development Pentatonic", 50, "Fatigue and durability CAE lead."),
-                          ("Electric Powertrain Integration", 40, "Durability validation for housing.")],
-    "Lukas Fischer": [("Non bookable - Other", 10, "Required lab compliance training."),
-                        ("bookable 1 - Consulting Global", 10, "Bonn lab consulting requests."),
-                        ("Agentic AI and LLM - Enterprise Solutions", 40, "Front-end UI tester and advisor."),
-                        ("Fuel Project", 20, "Physical test rig supervisor."),
-                        ("Creation of Test Standards", 40, "Drafting new global validation guidelines.")],
-    "Julia Schmidt": [("Non bookable - Other", 10, "Standard admin time."),
-                        ("Creation of Test Standards", 50, "Environmental test lab standardization."),
-                        ("Electric Powertrain Integration", 30, "Environmental validation for housing.")],
-    "Arjun Mehta": [("Non bookable - Other", 10, "Standard admin time."),
-                      ("bookable 1 - Consulting Global", 10, "Local test support."),
-                      ("Agentic AI and LLM - Enterprise Solutions", 50, "Testing visual charts and exporting."),
-                      ("Fuel Project", 10, "Test run operations."),
-                      ("Creation of Test Standards", 30, "Helping standardise India lab procedures.")],
-    "Neha Verma": [("Non bookable - Other", 10, "Standard admin time."),
-                     ("Predictive Maintenance Analytics", 40, "Sensor data labeling for durability tests."),
-                     ("Creation of Test Standards", 40, "Durability test protocol documentation.")],
-    "Ana Martínez": [("Non bookable - Other", 10, "Local compliance check."),
-                       ("Fuel Project", 50, "Primary test rig support."),
-                       ("Creation of Test Standards", 30, "Aligning Mexico lab specs.")],
-    "Roberto Silva": [("Non bookable - Other", 10, "Standard admin time."),
-                        ("Electric Powertrain Integration", 50, "Fixture design for e-powertrain testing."),
-                        ("Creation of Test Standards", 30, "Fixture standardization documentation.")],
-    "Mihai Dumitrescu": [("Non bookable - Other", 10, "Required safety checks."),
-                           ("bookable 1 - Consulting Global", 10, "Test consulting."),
-                           ("Agentic AI and LLM - Enterprise Solutions", 40, "QA verification."),
-                           ("Fuel Project", 20, "Validation lead for Fuel Project Romania."),
-                           ("Creation of Test Standards", 15, "Reviewing Romanian translation of ISO guidelines.")],
-    "Michael Johnson": [("Non bookable - Other", 10, "Standard administrative tasks."),
-                          ("Fuel Project", 70, "Primary customer liaison validator in the US.")],
-    "Tom Anderson": [("Non bookable - Other", 10, "Standard admin time."),
-                       ("Electric Powertrain Integration", 60, "Powertrain test lead for e-powertrain platform."),
-                       ("Customer Field Support - APAC", 20, "Remote support for APAC field issues.")],
-    "Wei Zhang": [("Non bookable - Other", 10, "Compliance safety meeting."),
-                   ("Creation of Test Standards", 80, "Harmonising China lab testing metrics.")],
-    "Sarah Chen": [("Non bookable - Other", 10, "Executive administrative duties."),
-                    ("Program Governance & Reporting", 60, "Global program director oversight."),
-                    ("Fuel Project", 20, "Executive sponsor check-ins.")],
-    "Thomas Wagner": [("Non bookable - Other", 10, "Standard admin time."),
-                        ("Program Governance & Reporting", 50, "European program tracking."),
-                        ("Electric Powertrain Integration", 30, "Program oversight for e-powertrain milestones.")],
-    "Fatima Al-Rashid": [("Non bookable - Other", 10, "Standard admin time."),
-                           ("Program Governance & Reporting", 30, "Portfolio reporting support."),
-                           ("Fuel Project", 60, "Dedicated customer program manager.")],
-    "Bogdan Constantin": [("Non bookable - Other", 10, "Standard admin time."),
-                            ("Program Governance & Reporting", 60, "Regional coordination and reporting."),
-                            ("Method Development Pentatonic", 20, "Program tracking for Pentatonic milestones.")],
-    "Chen Li": [("Non bookable - Other", 10, "Standard admin time."),
-                 ("Program Governance & Reporting", 40, "APAC portfolio reporting."),
-                 ("Customer Field Support - APAC", 50, "APAC program liaison lead.")],
-    "Miguel Torres": [("Non bookable - Other", 10, "Standard admin time."),
-                        ("Manufacturing Line Digitalization", 70, "Production line integration lead."),
-                        ("Method Development Pentatonic", 20, "Manufacturability review for Pentatonic frame.")],
-    "Ionut Marin": [("Non bookable - Other", 10, "Standard admin time."),
-                      ("Manufacturing Line Digitalization", 60, "Tooling and fixtures digitalization."),
-                      ("Program Governance & Reporting", 20, "Manufacturing status reporting.")],
-    "Laura Fernandez": [("Non bookable - Other", 10, "Standard admin time."),
-                          ("Manufacturing Line Digitalization", 60, "Process automation rollout."),
-                          ("Predictive Maintenance Analytics", 20, "Line sensor integration support.")],
-    "Klaus Richter": [("Non bookable - Other", 10, "Standard admin time."),
-                        ("Manufacturing Line Digitalization", 50, "Digital twin manufacturing lead."),
-                        ("Predictive Maintenance Analytics", 40, "Digital twin sensor model integration.")],
-    "Anjali Nair": [("Non bookable - Other", 10, "Standard admin time."),
-                      ("Supplier Quality Audit Program", 60, "Supplier audit execution - India region."),
-                      ("Creation of Test Standards", 20, "Quality input on test standardization.")],
-    "Jennifer Brooks": [("Non bookable - Other", 10, "Standard admin time."),
-                          ("Supplier Quality Audit Program", 50, "Quality systems program ownership."),
-                          ("Program Governance & Reporting", 20, "Quality status reporting.")],
-    "Sunita Rao": [("Non bookable - Other", 20, "Transfer onboarding and training."),
-                     ("Supplier Quality Audit Program", 40, "Supplier audit execution - India region."),
-                     ("Creation of Test Standards", 30, "Quality input on test standardization.")],
-    "Robert Klein": [("Non bookable - Other", 10, "Standard admin time."),
-                       ("Supplier Quality Audit Program", 50, "Customer-facing quality liaison."),
-                       ("Fuel Project", 50, "Quality sign-off for Fuel Project milestones.")],
+    "Markus Weber": [
+        ("Non bookable - Other", 10, "Standard admin time."),
+        ("bookable 1 - Consulting Global", 20, "Advisory for US engineering team."),
+        ("Agentic AI and LLM - Enterprise Solutions", 40, "Lead dashboard backend developer."),
+        ("Method Development Pentatonic", 50, "Pentatonic crash simulation setup.")
+    ],
+    "Priya Sharma": [
+        ("Non bookable - Other", 10, "Regular admin tasks."),
+        ("bookable 1 - Consulting Global", 10, "Mesh automation support."),
+        ("Agentic AI and LLM - Enterprise Solutions", 30, "Data ingestion and parsing development.")
+    ],
+    "Carlos Hernández": [
+        ("Non bookable - Other", 10, "Admin and locale support."),
+        ("bookable 1 - Consulting Global", 10, "Local consulting support."),
+        ("Agentic AI and LLM - Enterprise Solutions", 30, "Model testing and scenarios design.")
+    ],
+    "Andreea Ionescu": [
+        ("Non bookable - Other", 10, "Extended training and administrative duties."),
+        ("bookable 1 - Consulting Global", 10, "Consulting for German hub."),
+        ("Fuel Project", 30, "Thermal modeling for Fuel Project."),
+        ("Method Development Pentatonic", 40, "Pentatonic thermal validation.")
+    ],
+    "Lukas Fischer": [
+        ("Non bookable - Other", 20, "Required lab compliance training."),
+        ("bookable 1 - Consulting Global", 40, "Bonn lab consulting requests."),
+        ("Creation of Test Standards", 50, "Drafting new global validation guidelines.")
+    ],
+    "Arjun Mehta": [
+        ("Non bookable - Other", 10, "Standard admin time."),
+        ("bookable 1 - Consulting Global", 10, "Local test support."),
+        ("Creation of Test Standards", 25, "Helping standardise India lab procedures.")
+    ],
+    "Ana Martínez": [
+        ("Non bookable - Other", 10, "Local compliance check."),
+        ("Fuel Project", 20, "Primary test rig support."),
+        ("Creation of Test Standards", 25, "Aligning Mexico lab specs.")
+    ],
+    "Mihai Dumitrescu": [
+        ("Non bookable - Other", 10, "Required safety checks."),
+        ("Fuel Project", 25, "Validation lead for Fuel Project Romania.")
+    ],
+    "Michael Johnson": [
+        ("Non bookable - Other", 5, "Standard administrative tasks."),
+        ("Fuel Project", 25, "Primary customer liaison validator in the US."),
+        ("Program Governance & Reporting", 20, "US test program reporting.")
+    ],
+    "Sarah Chen": [
+        ("Non bookable - Other", 5, "Executive administrative duties."),
+        ("Program Governance & Reporting", 80, "Global program director oversight.")
+    ]
 }
 
 ADDITIONAL_COSTS = [
@@ -401,16 +341,30 @@ def seed():
     ]
 
     stretch_allocation_plan = {k: list(v) for k, v in ALLOCATION_PLAN.items()}
-    stretch_allocation_plan["Michael Johnson"] = [("Non bookable - Other", 10, "Standard administrative tasks."),
-                                                    ("Fuel Project", 50, "Fuel Project winding down toward completion.")]
-    stretch_allocation_plan["Fatima Al-Rashid"] = [("Non bookable - Other", 10, "Standard admin time."),
-                                                     ("Program Governance & Reporting", 40, "Portfolio reporting support."),
-                                                     ("Fuel Project", 40, "Fuel Project winding down toward completion.")]
-    stretch_allocation_plan["Yuki Tanaka"] = [("Non bookable - Other", 10, "Onboarding and ramp-up training."),
-                                                ("Creation of Test Standards", 40, "APAC test capacity expansion."),
-                                                ("Customer Field Support - APAC", 30, "Supporting APAC field escalations.")]
-    stretch_allocation_plan["Isabella Costa"] = [("Non bookable - Other", 20, "Onboarding and ramp-up training."),
-                                                   ("Manufacturing Line Digitalization", 60, "Supporting Mexico plant rollout.")]
+    stretch_allocation_plan["Michael Johnson"] = [
+        ("Non bookable - Other", 10, "Standard administrative tasks."),
+        ("Fuel Project", 50, "Fuel Project winding down toward completion."),
+        ("Program Governance & Reporting", 20, "US test program reporting.")
+    ]
+    stretch_allocation_plan["Andreea Ionescu"] = [
+        ("Non bookable - Other", 10, "Extended training and administrative duties."),
+        ("bookable 1 - Consulting Global", 10, "Consulting for German hub."),
+        ("Fuel Project", 5, "Thermal modeling for Fuel Project."),
+        ("Method Development Pentatonic", 40, "Pentatonic thermal validation.")
+    ]
+    stretch_allocation_plan["Lukas Fischer"] = [
+        ("Non bookable - Other", 20, "Required lab compliance training."),
+        ("bookable 1 - Consulting Global", 40, "Bonn lab consulting requests."),
+        ("Creation of Test Standards", 10, "Drafting new global validation guidelines.")
+    ]
+    stretch_allocation_plan["Yuki Tanaka"] = [
+        ("Non bookable - Other", 10, "Onboarding and ramp-up training."),
+        ("Creation of Test Standards", 40, "APAC test capacity expansion.")
+    ]
+    stretch_allocation_plan["Isabella Costa"] = [
+        ("Non bookable - Other", 20, "Onboarding and ramp-up training."),
+        ("Manufacturing Line Digitalization", 60, "Supporting Mexico plant rollout.")
+    ]
 
     _populate_scenario(db, stretch, stretch_employees, stretch_allocation_plan, stretch_topic_id_map)
     db.commit()

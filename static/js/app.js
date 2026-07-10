@@ -100,6 +100,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // Allocation Matrix column sort state (null = insertion order)
     let matrixSortField = null;
     let matrixSortOrder = 1;
+    let matrixGrouping = "none";
+    let slideTableOverrides = {};
 
     // Management Panel CRUD states
     let empSearch = "";
@@ -664,24 +666,87 @@ document.addEventListener("DOMContentLoaded", () => {
         thead.appendChild(headerRow);
         table.appendChild(thead);
 
-        // Apply the active sort (if any) to a copy of the filtered employee
-        // list, used for row rendering below.
+        // Helper to get group value for an employee
+        function getEmployeePrimaryTopic(emp) {
+            let maxPct = -1;
+            let primaryTopicName = "Unassigned / No Allocations";
+            filteredTopics.forEach(t => {
+                const key = `${emp.id}_${t.id}`;
+                const pct = allocMap[key] ? allocMap[key].percentage : 0.0;
+                if (pct > maxPct && pct > 0.0) {
+                    maxPct = pct;
+                    primaryTopicName = t.name;
+                }
+            });
+            return primaryTopicName;
+        }
+
+        function getGroupValue(emp) {
+            if (matrixGrouping === "team") return emp.team;
+            if (matrixGrouping === "location") return emp.location;
+            if (matrixGrouping === "topic") return getEmployeePrimaryTopic(emp);
+            return "";
+        }
+
+        // Apply sorting (incorporates hierarchical grouping sorting)
         const sortedEmployees = [...filteredEmployees];
-        if (matrixSortField) {
-            sortedEmployees.sort((a, b) => {
+        sortedEmployees.sort((a, b) => {
+            if (matrixGrouping !== "none") {
+                const gA = getGroupValue(a);
+                const gB = getGroupValue(b);
+                const comp = gA.localeCompare(gB);
+                if (comp !== 0) return comp;
+            }
+            if (matrixSortField) {
                 const va = matrixSortValue(a, matrixSortField);
                 const vb = matrixSortValue(b, matrixSortField);
                 if (typeof va === "string") {
                     return va.localeCompare(vb) * matrixSortOrder;
                 }
                 return (va - vb) * matrixSortOrder;
-            });
-        }
+            }
+            return 0;
+        });
 
         // --- BODY ROWS (EMPLOYEES) ---
         const tbody = document.createElement("tbody");
         
+        let lastGroup = null;
         sortedEmployees.forEach(emp => {
+            if (matrixGrouping !== "none") {
+                const currentGroup = getGroupValue(emp);
+                if (currentGroup !== lastGroup) {
+                    lastGroup = currentGroup;
+                    
+                    const groupTr = document.createElement("tr");
+                    groupTr.className = "matrix-group-header-row";
+                    
+                    const groupEmps = filteredEmployees.filter(e => getGroupValue(e) === currentGroup);
+                    const headcount = groupEmps.length;
+                    
+                    let totalCost = 0;
+                    let totalUtil = 0;
+                    groupEmps.forEach(e => {
+                        const stats = trueEmpStats[e.id] || { util: 0, cost: 0 };
+                        totalCost += stats.cost;
+                        totalUtil += stats.util;
+                    });
+                    const avgUtil = headcount > 0 ? (totalUtil / headcount) : 0;
+                    
+                    const groupTd = document.createElement("td");
+                    groupTd.colSpan = 6 + filteredTopics.length;
+                    
+                    groupTd.innerHTML = `
+                        <i class="fa-solid fa-folder-open" style="color: var(--accent-color); margin-right: 4px;"></i> <span style="font-weight:700; color: var(--text-primary);">${currentGroup}</span> 
+                        <span style="font-size: 11px; color: var(--text-secondary); font-weight: normal; margin-left: 12px;">
+                            (Headcount: <strong>${headcount}</strong> | Avg Util: <strong>${avgUtil.toFixed(1)}%</strong> | Group Annual Cost: <strong>$${totalCost.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</strong>)
+                        </span>
+                    `;
+                    groupTr.appendChild(groupTd);
+                    tbody.appendChild(groupTr);
+                }
+            }
+
             const tr = document.createElement("tr");
 
             // Meta cells
@@ -2388,9 +2453,9 @@ document.addEventListener("DOMContentLoaded", () => {
                                                 <tr>
                                                     <td><strong>${t.team_name || ""}</strong></td>
                                                     <td style="text-align: right;">${t.member_count || 0} Staff</td>
-                                                    <td style="text-align: right;">${(t.average_utilization || 0).toFixed(1)}%</td>
+                                                    <td style="text-align: right; outline: none; border-bottom: 1px dashed var(--accent-color); cursor: pointer;" contenteditable="true" class="pres-editable-cell" data-type="team-util" data-team-name="${t.team_name}">${(t.average_utilization || 0).toFixed(1)}%</td>
                                                     <td style="text-align: right;">${t.overloaded_count || 0} overloaded</td>
-                                                    <td style="text-align: right;"><strong>$${(t.total_cost || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}</strong></td>
+                                                    <td style="text-align: right; font-weight: bold; outline: none; border-bottom: 1px dashed var(--accent-color); cursor: pointer;" contenteditable="true" class="pres-editable-cell" data-type="team-cost" data-team-name="${t.team_name}">$${(t.total_cost || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
                                                 </tr>
                                             `).join("")}
                                         </tbody>
@@ -2445,8 +2510,8 @@ document.addEventListener("DOMContentLoaded", () => {
                                                     <td><strong>${r.name || ""}</strong></td>
                                                     <td>${r.team || ""}</td>
                                                     <td>${r.location || ""}</td>
-                                                    <td style="text-align: right;">${(r.util || 0).toFixed(1)}%</td>
-                                                    <td style="text-align: right;"><strong>$${(r.cost || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}</strong></td>
+                                                    <td style="text-align: right; outline: none; border-bottom: 1px dashed var(--accent-color); cursor: pointer;" contenteditable="true" class="pres-editable-cell" data-type="emp-util" data-emp-name="${r.name}">${(r.util || 0).toFixed(1)}%</td>
+                                                    <td style="text-align: right; font-weight: bold; outline: none; border-bottom: 1px dashed var(--accent-color); cursor: pointer;" contenteditable="true" class="pres-editable-cell" data-type="emp-cost" data-emp-name="${r.name}">$${(r.cost || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
                                                 </tr>
                                             `).join("")}
                                         </tbody>
@@ -2734,15 +2799,130 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         
         const interactiveData = computeInteractiveDashboardData(filteredEmps, filteredAllocs);
+        const data = JSON.parse(JSON.stringify(interactiveData || dashboardData));
+        
+        // Apply slides table overrides dynamically
+        if (data.topic_summaries) {
+            data.topic_summaries.forEach(t => {
+                if (slideTableOverrides[`topic_cost_${t.id}`] !== undefined) {
+                    const newCost = slideTableOverrides[`topic_cost_${t.id}`];
+                    t.total_cost = newCost;
+                    if (data.highest_cost_topics) {
+                        const h = data.highest_cost_topics.find(x => x.name === t.name);
+                        if (h) h.total_cost = newCost;
+                    }
+                }
+            });
+        }
+        
+        if (data.team_summaries) {
+            data.team_summaries.forEach(t => {
+                if (slideTableOverrides[`team_cost_${t.team_name}`] !== undefined) {
+                    const newCost = slideTableOverrides[`team_cost_${t.team_name}`];
+                    t.total_cost = newCost;
+                    if (data.cost_by_team) data.cost_by_team[t.team_name] = newCost;
+                }
+                if (slideTableOverrides[`team_util_${t.team_name}`] !== undefined) {
+                    t.average_utilization = slideTableOverrides[`team_util_${t.team_name}`];
+                }
+            });
+        }
+        
+        if (data.cost_by_team && data.team_summaries) {
+            const locCosts = {};
+            data.team_summaries.forEach(t => {
+                const emp = employees.find(e => e.team === t.team_name);
+                const loc = emp ? emp.location : "Other";
+                locCosts[loc] = (locCosts[loc] || 0) + t.total_cost;
+            });
+            data.cost_by_location = locCosts;
+            
+            let totalAnnual = 0;
+            data.team_summaries.forEach(t => totalAnnual += t.total_cost);
+            data.total_annual_planning_cost = totalAnnual;
+        }
         
         return { 
-            dashboardData: interactiveData || dashboardData, 
+            dashboardData: data, 
             employees: filteredEmps, 
             topics, 
             allocations: filteredAllocs, 
             activeScenario, 
             aiPredictionsData 
         };
+    }
+
+    function getCustomSlideHTML(cfg, ctx) {
+        const slideId = cfg.id;
+        if (slideId.startsWith("custom_memo_")) {
+            const data = ctx.dashboardData;
+            const headcount = data ? (data.total_headcount || 0) : 0;
+            const cost = data ? (data.total_annual_planning_cost || 0) : 0;
+            const overloads = data ? (data.overloaded_employees ? data.overloaded_employees.length : 0) : 0;
+            
+            return {
+                wrapperClass: "slide-memo",
+                bodyHTML: `
+                    <div class="slide-title-bar">
+                        <h3 contenteditable="true" data-slide-id="${slideId}" data-edit-key="title-text">${getSlideText(slideId, "title-text", "Executive Strategic Memo")}</h3>
+                        <span class="confidential-small">CONFIDENTIAL</span>
+                    </div>
+                    <div class="slide-content-split" style="margin-top: 15px; max-height: calc(100% - 40px); align-items: stretch; gap: 20px;">
+                        <div class="slide-col-left" style="width: 32%; display: flex; flex-direction: column; gap: 10px; flex-shrink: 0;">
+                            <div class="pres-kpi-item" style="padding: 10px 14px; border-left: 3px solid var(--accent-color); background: rgba(59, 130, 246, 0.04); border-radius: 6px;">
+                                <span style="display: block; font-size: 9px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Scenario Headcount</span>
+                                <span style="font-size: 15px; font-weight: 700; color: var(--text-primary);">${headcount} Active Staff</span>
+                            </div>
+                            <div class="pres-kpi-item" style="padding: 10px 14px; border-left: 3px solid var(--success-color); background: rgba(16, 185, 129, 0.04); border-radius: 6px;">
+                                <span style="display: block; font-size: 9px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Net Planning Cost</span>
+                                <span style="font-size: 15px; font-weight: 700; color: var(--text-primary);">$${cost.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
+                            </div>
+                            <div class="pres-kpi-item" style="padding: 10px 14px; border-left: 3px solid ${overloads > 0 ? "var(--danger-color)" : "var(--success-color)"}; background: rgba(239, 68, 68, 0.04); border-radius: 6px;">
+                                <span style="display: block; font-size: 9px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Overloaded Alerts</span>
+                                <span style="font-size: 15px; font-weight: 700; color: var(--text-primary);">${overloads} Alert${overloads === 1 ? "" : "s"}</span>
+                            </div>
+                        </div>
+                        <div class="slide-col-right" style="width: 65%; flex: 1; padding: 14px 18px; border: 1px solid var(--glass-border); border-radius: 8px; background: rgba(255, 255, 255, 0.02); text-align: left; overflow-y: auto;">
+                            <div contenteditable="true" data-slide-id="${slideId}" data-edit-key="body-text" style="line-height: 1.6; font-size: 12.5px; outline: none; min-height: 160px; color: var(--text-primary);">
+                                ${getSlideText(slideId, "body-text", "<p>Write strategic executive insights here...</p>")}
+                            </div>
+                        </div>
+                    </div>
+                `
+            };
+        } else if (slideId.startsWith("custom_sim_")) {
+            return {
+                wrapperClass: "slide-comparison",
+                bodyHTML: `
+                    <div class="slide-title-bar">
+                        <h3 contenteditable="true" data-slide-id="${slideId}" data-edit-key="title-text">${getSlideText(slideId, "title-text", "Simulation Comparison Analysis")}</h3>
+                        <span class="confidential-small">CONFIDENTIAL</span>
+                    </div>
+                    <div class="slide-content-split" style="flex-direction: column; align-items: stretch; margin-top: 15px; max-height: calc(100% - 40px); overflow-y: auto;">
+                        <div style="line-height: 1.4; font-size: 11.5px; outline: none; padding-right: 5px;">
+                            ${getSlideText(slideId, "body-text", "Comparison content...")}
+                        </div>
+                    </div>
+                `
+            };
+        } else {
+            return {
+                wrapperClass: "slide-custom",
+                bodyHTML: `
+                    <div class="slide-title-bar">
+                        <h3 contenteditable="true" data-slide-id="${slideId}" data-edit-key="title-text">${getSlideText(slideId, "title-text", "Custom Slide Title")}</h3>
+                        <span class="confidential-small">CONFIDENTIAL</span>
+                    </div>
+                    <div class="slide-content-split" style="flex-direction: column; align-items: stretch; margin-top: 15px;">
+                        <div class="slide-col-full" style="flex: 1; min-height: 180px; padding: 16px; border: 1px dashed var(--glass-border); border-radius: 8px; background: rgba(255, 255, 255, 0.01); text-align: left;">
+                            <div contenteditable="true" data-slide-id="${slideId}" data-edit-key="body-text" style="line-height: 1.6; font-size: 13px; outline: none; min-height: 160px;">
+                                ${getSlideText(slideId, "body-text", "Click here to type custom content for this slide. You can write bullet points, lists, or text paragraphs.")}
+                            </div>
+                        </div>
+                    </div>
+                `
+            };
+        }
     }
 
     let activePhysicalSlides = [];
@@ -2755,23 +2935,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         included.forEach(cfg => {
             if (cfg.isCustom) {
-                const slideId = cfg.id;
                 activePhysicalSlides.push({
-                    slideId: slideId,
-                    wrapperClass: "slide-custom",
-                    bodyHTML: `
-                        <div class="slide-title-bar">
-                            <h3 contenteditable="true" data-slide-id="${slideId}" data-edit-key="title-text">${getSlideText(slideId, "title-text", "Custom Slide Title")}</h3>
-                            <span class="confidential-small">CONFIDENTIAL</span>
-                        </div>
-                        <div class="slide-content-split" style="flex-direction: column; align-items: stretch; margin-top: 15px;">
-                            <div class="slide-col-full" style="flex: 1; min-height: 180px; padding: 16px; border: 1px dashed var(--glass-border); border-radius: 8px; background: rgba(255, 255, 255, 0.01); text-align: left;">
-                                <div contenteditable="true" data-slide-id="${slideId}" data-edit-key="body-text" style="line-height: 1.6; font-size: 13px; outline: none; min-height: 160px;">
-                                    ${getSlideText(slideId, "body-text", "Click here to type custom content for this slide. You can write bullet points, lists, or text paragraphs.")}
-                                </div>
-                            </div>
-                        </div>
-                    `
+                    slideId: cfg.id,
+                    ...getCustomSlideHTML(cfg, ctx)
                 });
             } else {
                 const template = SLIDE_TEMPLATES[cfg.id];
@@ -2865,22 +3031,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const allPages = [];
         included.forEach(cfg => {
             if (cfg.isCustom) {
-                const slideId = cfg.id;
                 allPages.push({
-                    wrapperClass: "slide-custom",
-                    bodyHTML: `
-                        <div class="slide-title-bar">
-                            <h3 contenteditable="true" data-slide-id="${slideId}" data-edit-key="title-text">${getSlideText(slideId, "title-text", "Custom Slide Title")}</h3>
-                            <span class="confidential-small">CONFIDENTIAL</span>
-                        </div>
-                        <div class="slide-content-split" style="flex-direction: column; align-items: stretch; margin-top: 15px;">
-                            <div class="slide-col-full" style="flex: 1; min-height: 180px; padding: 16px; border: 1px dashed var(--glass-border); border-radius: 8px; background: rgba(255, 255, 255, 0.01); text-align: left;">
-                                <div contenteditable="true" data-slide-id="${slideId}" data-edit-key="body-text" style="line-height: 1.6; font-size: 13px; outline: none; min-height: 160px;">
-                                    ${getSlideText(slideId, "body-text", "Click here to type custom content for this slide. You can write bullet points, lists, or text paragraphs.")}
-                                </div>
-                            </div>
-                        </div>
-                    `
+                    slideId: cfg.id,
+                    ...getCustomSlideHTML(cfg, ctx)
                 });
             } else {
                 const template = SLIDE_TEMPLATES[cfg.id];
@@ -4072,6 +4225,43 @@ document.addEventListener("DOMContentLoaded", () => {
         if (btnPresentDeck) {
             btnPresentDeck.addEventListener("click", enterPresentationMode);
         }
+
+        // Focusout listener to capture editable presentation table cell edits
+        document.addEventListener("focusout", (e) => {
+            if (e.target.classList.contains("pres-editable-cell")) {
+                const type = e.target.dataset.type;
+                const valueText = e.target.innerText.replace(/[$,%\s]/g, "");
+                const val = parseFloat(valueText);
+                if (isNaN(val)) return;
+                
+                if (type === "topic-cost") {
+                    const topicId = parseInt(e.target.dataset.topicId);
+                    slideTableOverrides[`topic_cost_${topicId}`] = val;
+                } else if (type === "team-cost") {
+                    const teamName = e.target.dataset.teamName;
+                    slideTableOverrides[`team_cost_${teamName}`] = val;
+                } else if (type === "team-util") {
+                    const teamName = e.target.dataset.teamName;
+                    slideTableOverrides[`team_util_${teamName}`] = val;
+                } else if (type === "emp-cost") {
+                    const empName = e.target.dataset.empName;
+                    slideTableOverrides[`emp_cost_${empName}`] = val;
+                } else if (type === "emp-util") {
+                    const empName = e.target.dataset.empName;
+                    slideTableOverrides[`emp_util_${empName}`] = val;
+                }
+                
+                // Re-render the deck slide previews and recompute charts
+                renderPresentationDeck();
+                
+                // If currently presenting, update active physical slide
+                const overlay = document.getElementById("presentation-overlay");
+                if (overlay && overlay.classList.contains("active")) {
+                    rebuildPhysicalSlides();
+                    renderPresentationOverlaySlide();
+                }
+            }
+        });
 
         const presBtnPrev = document.getElementById("pres-btn-prev");
         if (presBtnPrev) {
@@ -5438,11 +5628,14 @@ document.addEventListener("DOMContentLoaded", () => {
                     .replace(/\*(.*?)\*/g, "<em>$1</em>")
                     .replace(/\n/g, "<br>");
                 
-                if (resData.filters) {
+                 if (resData.filters) {
                     const actionId = "ai-actions-" + Date.now();
+                    const isReset = resData.filters.location === "" && resData.filters.team === "" && resData.filters.department === "" && resData.filters.category === "" && resData.filters.minRate === 0;
+                    const btnLabel = isReset ? "Confirm Reset" : "Apply Filters";
+                    const btnClass = isReset ? "btn-danger" : "btn-primary";
                     formatted += `
                         <div id="${actionId}" class="ai-chat-actions" style="margin-top: 12px; display: flex; gap: 8px;">
-                            <button class="btn btn-primary btn-sm apply-btn" style="padding: 4px 10px; font-size: 11px;">Apply Filters</button>
+                            <button class="btn ${btnClass} btn-sm apply-btn" style="padding: 4px 10px; font-size: 11px;">${btnLabel}</button>
                             <button class="btn btn-secondary btn-sm cancel-btn" style="padding: 4px 10px; font-size: 11px;">Cancel</button>
                         </div>
                     `;
@@ -5539,6 +5732,15 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 } else {
                     bubble.innerHTML = formatted;
+                }
+                
+                if (resData.grouping !== undefined) {
+                    matrixGrouping = resData.grouping;
+                    const groupingSelect = document.getElementById("matrix-grouping-select");
+                    if (groupingSelect) {
+                        groupingSelect.value = resData.grouping;
+                    }
+                    renderAllocationMatrix();
                 }
                 saveChatHistory();
             }
@@ -6626,33 +6828,52 @@ document.addEventListener("DOMContentLoaded", () => {
             const costA = reportA.cost_by_team[team] || 0;
             const costB = reportB.cost_by_team[team] || 0;
             const delta = costB - costA;
-            return `<tr><td>${team}</td><td>${money(costA)}</td><td>${money(costB)}</td><td>${delta > 0 ? "+" : ""}${money(delta)}</td><td>${utilText(teamUtilA[team] || 0)} &rarr; ${utilText(teamUtilB[team] || 0)}</td></tr>`;
+            const deltaPct = costA !== 0 ? (delta / costA) * 100 : (costB !== 0 ? 100 : 0);
+            
+            let deltaClass = "text-neutral-delta";
+            if (delta > 0) deltaClass = "text-danger-delta";
+            else if (delta < 0) deltaClass = "text-success-delta";
+            
+            const costDeltaStr = delta === 0 ? "$0" : `${delta > 0 ? "+" : ""}${money(delta)} (${delta > 0 ? "+" : ""}${deltaPct.toFixed(1)}%)`;
+            
+            return `
+                <tr>
+                    <td><strong>${team}</strong></td>
+                    <td>${money(costA)}</td>
+                    <td>${money(costB)}</td>
+                    <td class="${deltaClass}" style="font-weight:600;">${costDeltaStr}</td>
+                    <td>${utilText(teamUtilA[team] || 0)} &rarr; ${utilText(teamUtilB[team] || 0)}</td>
+                </tr>
+            `;
         }).join("");
 
+        const costDeltaClass = costDelta > 0 ? "text-danger-delta" : costDelta < 0 ? "text-success-delta" : "";
+        const overloadedDeltaClass = overloadedDelta > 0 ? "text-danger-delta" : overloadedDelta < 0 ? "text-success-delta" : "";
+
         return `
-            <p style="font-weight: 600; margin-bottom: 10px;">Simulation Comparison: ${reportA.scenario_name} vs ${reportB.scenario_name}</p>
+            <p style="font-weight: 600; margin-top: 0; margin-bottom: 12px; font-size: 13px; color: var(--accent-color);">Comparison: ${reportA.scenario_name} vs ${reportB.scenario_name}</p>
             <div class="pres-kpi-grid">
-                <div class="pres-kpi-item">
+                <div class="pres-kpi-item" style="border-left-color: var(--accent-color);">
                     <span class="pres-kpi-label">Headcount</span>
                     <span class="pres-kpi-number">${reportA.total_headcount} &rarr; ${reportB.total_headcount}</span>
                 </div>
-                <div class="pres-kpi-item">
-                    <span class="pres-kpi-label">Total Annual Cost</span>
-                    <span class="pres-kpi-number">${money(costDelta)} ${costDelta >= 0 ? "increase" : "decrease"}</span>
+                <div class="pres-kpi-item" style="border-left-color: ${costDelta > 0 ? "var(--danger-color)" : "var(--success-color)"};">
+                    <span class="pres-kpi-label">Cost Shift</span>
+                    <span class="pres-kpi-number ${costDeltaClass}">${costDelta === 0 ? "$0" : `${costDelta > 0 ? "+" : ""}${money(costDelta)}`}</span>
                 </div>
-                <div class="pres-kpi-item">
-                    <span class="pres-kpi-label">Average Utilization</span>
+                <div class="pres-kpi-item" style="border-left-color: var(--warning-color);">
+                    <span class="pres-kpi-label">Avg Utilization</span>
                     <span class="pres-kpi-number">${utilA.toFixed(1)}% &rarr; ${utilB.toFixed(1)}%</span>
                 </div>
-                <div class="pres-kpi-item">
-                    <span class="pres-kpi-label">Overloaded Employees</span>
-                    <span class="pres-kpi-number">${reportA.overloaded_employees.length} &rarr; ${reportB.overloaded_employees.length} (${overloadedDelta > 0 ? "+" : ""}${overloadedDelta})</span>
+                <div class="pres-kpi-item" style="border-left-color: ${overloadedDelta > 0 ? "var(--danger-color)" : "var(--success-color)"};">
+                    <span class="pres-kpi-label">Overloads Shift</span>
+                    <span class="pres-kpi-number ${overloadedDeltaClass}">${reportA.overloaded_employees.length} &rarr; ${reportB.overloaded_employees.length} (${overloadedDelta > 0 ? "+" : ""}${overloadedDelta})</span>
                 </div>
             </div>
             <div class="pres-table-wrapper" style="margin-top: 14px;">
                 <table class="pres-table">
                     <thead>
-                        <tr><th>Team</th><th>${reportA.scenario_name}</th><th>${reportB.scenario_name}</th><th>&Delta; Cost</th><th>Utilization</th></tr>
+                        <tr><th>Team</th><th>${reportA.scenario_name}</th><th>${reportB.scenario_name}</th><th>Cost Delta (%)</th><th>Avg Util Shift</th></tr>
                     </thead>
                     <tbody>${teamRows || "<tr><td colspan='5'>No teams to compare.</td></tr>"}</tbody>
                 </table>
