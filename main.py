@@ -3361,7 +3361,7 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
                                    f"* *Internal Staff Cost*: ${emp_cost:,.2f} USD\n"
                                    f"* *Additional Internal Cost*: ${add_int:,.2f} USD\n"
                                    f"* *External Cost*: ${ext_cost:,.2f} USD\n"
-                                   f"* *Cost Recovery*: -${topic.recovery:,.2f} USD"
+                                   f"* *Cost Recovery*: +${topic.recovery:,.2f} USD"
             }
 
     # Match overloaded employees
@@ -3525,7 +3525,7 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
             "answer": prefix + f"Here is the summary for topic **{topic.name}**:\n"
                                f"* *Category/Area*: {topic.category} / {topic.area}\n"
                                f"* *Internal Staff Cost*: ${emp_cost:,.2f} USD\n"
-                               f"* *Recovery/Savings*: -${topic.recovery:,.2f} USD\n"
+                               f"* *Recovery/Savings*: +${topic.recovery:,.2f} USD\n"
                                f"* *Description*: {topic.description or 'No description'}"
         }
 

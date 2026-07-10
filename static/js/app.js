@@ -1103,7 +1103,7 @@ document.addEventListener("DOMContentLoaded", () => {
         
         filteredTopics.forEach(t => {
             const tdVal = document.createElement("td");
-            tdVal.innerText = t.recovery > 0 ? `-$${t.recovery.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : "-";
+            tdVal.innerText = t.recovery > 0 ? `+$${t.recovery.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : "-";
             tdVal.className = "text-green";
             trRecovery.appendChild(tdVal);
         });
@@ -1151,7 +1151,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("kpi-internal-cost").innerText = `$${dashboardData.total_internal_employee_cost.toLocaleString(undefined, {maximumFractionDigits: 0})}`;
         document.getElementById("kpi-add-cost").innerText = `$${dashboardData.total_additional_internal_cost.toLocaleString(undefined, {maximumFractionDigits: 0})}`;
         document.getElementById("kpi-external-cost").innerText = `$${dashboardData.total_external_cost.toLocaleString(undefined, {maximumFractionDigits: 0})}`;
-        document.getElementById("kpi-recovery").innerText = `-$${dashboardData.total_recovery_cost.toLocaleString(undefined, {maximumFractionDigits: 0})}`;
+        document.getElementById("kpi-recovery").innerText = `+$${dashboardData.total_recovery_cost.toLocaleString(undefined, {maximumFractionDigits: 0})}`;
         document.getElementById("kpi-net-cost").innerText = `$${dashboardData.total_annual_planning_cost.toLocaleString(undefined, {maximumFractionDigits: 0})}`;
 
         // Render charts
@@ -1675,7 +1675,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     <p><strong>Internal Effort Cost:</strong> $${summary.employee_cost.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
                     <p><strong>Additional Internal:</strong> $${summary.additional_internal_cost.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
                     <p><strong>External Cost:</strong> $${summary.external_cost.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
-                    <p><strong>Cost Recovery:</strong> -$${summary.recovery.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                    <p><strong>Cost Recovery:</strong> +$${summary.recovery.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
                     <p style="margin-top:8px; font-weight:bold; color:var(--primary-color);"><strong>Total Net Cost:</strong> $${summary.total_cost.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
                 </div>
             </div>
@@ -2172,7 +2172,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                                         <td style="text-align: right;">${(t.total_hours || 0).toLocaleString()} hrs</td>
                                                         <td style="text-align: right;">$${(t.internal_cost || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
                                                         <td style="text-align: right;">$${((t.additional_internal_cost || 0) + (t.external_cost || 0)).toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
-                                                        <td style="text-align: right;" class="text-green">${t.recovery > 0 ? `-$${t.recovery.toLocaleString(undefined, {maximumFractionDigits: 0})}` : '$0'}</td>
+                                                        <td style="text-align: right;" class="text-green">${t.recovery > 0 ? `+$${t.recovery.toLocaleString(undefined, {maximumFractionDigits: 0})}` : '$0'}</td>
                                                         <td style="text-align: right;"><strong>$${netVal.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong></td>
                                                     </tr>
                                                 `;
