@@ -27,42 +27,17 @@ USERS = [
 EMPLOYEES = [
     # CAE
     ("Markus Weber", "GV CAE Germany", "CAE", "Germany", 1600.0, 150.0, "Dr. Müller", "Lead CAE expert in crash simulations.", "Active"),
-    ("Sofia Rossi", "GV CAE Germany", "CAE", "Germany", 1600.0, 140.0, "Dr. Müller", "Structural durability specialist.", "Active"),
-    ("Hans Becker", "GV CAE Germany", "CAE", "Germany", 1600.0, 135.0, "Dr. Müller", "NVH simulation engineer.", "Active"),
     ("Priya Sharma", "GV CAE India", "CAE", "India", 1800.0, 49.55, "Rajesh Kumar", "Mesh generation specialist.", "Active"),
-    ("Ravi Patel", "GV CAE India", "CAE", "India", 1800.0, 47.0, "Rajesh Kumar", "Junior CAE analyst, onboarded this quarter.", "New Position"),
     ("Carlos Hernández", "GV CAE Mexico", "CAE", "Mexico", 1800.0, 40.0, "Sofia Gomez", "FEA analyst.", "Active"),
-    ("Diego Alvarez", "GV CAE Mexico", "CAE", "Mexico", 1800.0, 44.0, "Sofia Gomez", "Crash safety lead.", "Active"),
     ("Andreea Ionescu", "GV CAE Romania", "CAE", "Romania", 1768.0, 71.77, "Andrei Popescu", "Thermal simulation expert.", "Active"),
-    ("Elena Popa", "GV CAE Romania", "CAE", "Romania", 1768.0, 68.0, "Andrei Popescu", "Composite materials analyst.", "Active"),
-    ("Katarzyna Nowak", "GV CAE Poland", "CAE", "Poland", 1720.0, 60.0, "Andrei Popescu", "Fatigue and durability CAE lead.", "Active"),
     # Test
     ("Lukas Fischer", "GV Test Bonn", "Test", "Germany", 1600.0, 120.0, "Dr. Müller", "Senior validation engineer.", "Active"),
-    ("Julia Schmidt", "GV Test Bonn", "Test", "Germany", 1600.0, 115.0, "Dr. Müller", "Environmental test lab lead.", "Active"),
     ("Arjun Mehta", "GV Test India", "Test", "India", 1800.0, 45.0, "Rajesh Kumar", "Test rig operator.", "Active"),
-    ("Neha Verma", "GV Test India", "Test", "India", 1800.0, 43.0, "Rajesh Kumar", "Durability test technician.", "Active"),
     ("Ana Martínez", "GV Test Mexico", "Test", "Mexico", 1800.0, 38.0, "Sofia Gomez", "Physical durability testing.", "Active"),
-    ("Roberto Silva", "GV Test Mexico", "Test", "Mexico", 1800.0, 39.0, "Sofia Gomez", "Test fixture designer.", "Active"),
     ("Mihai Dumitrescu", "GV Test Romania", "Test", "Romania", 1768.0, 65.0, "Andrei Popescu", "Electronics validation lead.", "Active"),
     ("Michael Johnson", "GV Test Troy", "Test", "USA", 1800.0, 130.0, "John Smith", "Customer liaison validation lead.", "Active"),
-    ("Tom Anderson", "GV Test Troy", "Test", "USA", 1800.0, 125.0, "John Smith", "Powertrain test engineer.", "Active"),
-    ("Wei Zhang", "GV Test Pinghu", "Test", "China", 1800.0, 52.0, "Li Wei", "Environmental chamber validator.", "Active"),
     # Program Management
     ("Sarah Chen", "Program Management", "Program Management", "USA", 1800.0, 145.0, "John Smith", "Global program director.", "Active"),
-    ("Thomas Wagner", "Program Management", "Program Management", "Germany", 1600.0, 138.0, "Dr. Müller", "European program manager.", "Active"),
-    ("Fatima Al-Rashid", "Program Management", "Program Management", "USA", 1800.0, 132.0, "John Smith", "Customer program manager - Fuel Project.", "Active"),
-    ("Bogdan Constantin", "Program Management", "Program Management", "Romania", 1768.0, 70.0, "Andrei Popescu", "Regional program coordinator.", "Active"),
-    ("Chen Li", "Program Management", "Program Management", "China", 1800.0, 58.0, "Li Wei", "APAC program liaison.", "Active"),
-    # Manufacturing Engineering
-    ("Miguel Torres", "Manufacturing Engineering", "Manufacturing Engineering", "Mexico", 1800.0, 42.0, "Sofia Gomez", "Production line integration engineer.", "Active"),
-    ("Ionut Marin", "Manufacturing Engineering", "Manufacturing Engineering", "Romania", 1768.0, 62.0, "Andrei Popescu", "Tooling and fixtures lead.", "Active"),
-    ("Laura Fernandez", "Manufacturing Engineering", "Manufacturing Engineering", "Mexico", 1800.0, 41.0, "Sofia Gomez", "Process automation engineer.", "Active"),
-    ("Klaus Richter", "Manufacturing Engineering", "Manufacturing Engineering", "Germany", 1600.0, 128.0, "Dr. Müller", "Digital twin manufacturing lead.", "Active"),
-    # Quality
-    ("Anjali Nair", "Quality", "Quality", "India", 1800.0, 46.0, "Rajesh Kumar", "Supplier quality engineer.", "Active"),
-    ("Jennifer Brooks", "Quality", "Quality", "USA", 1800.0, 118.0, "John Smith", "Quality systems manager.", "Active"),
-    ("Sunita Rao", "Quality", "Quality", "India", 1800.0, 44.0, "Rajesh Kumar", "Quality audit specialist, recently transferred.", "New Position"),
-    ("Robert Klein", "Quality", "Quality", "USA", 1800.0, 122.0, "John Smith", "Customer quality liaison.", "Active"),
 ]
 
 # (name, category, area, description, objective, deliverables, justification, comments, notes, recovery)
