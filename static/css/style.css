@@ -3196,6 +3196,7 @@ body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport 
     }
     
     .app-main {
+        grid-column: 1 !important;
         padding: 16px !important;
         overflow-y: visible !important;
     }
