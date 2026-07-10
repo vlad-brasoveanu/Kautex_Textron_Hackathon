@@ -123,7 +123,7 @@ def _apply_ai_allocation(db: Session, employee_id: int, topic_id: int, percentag
         db.add(db_alloc)
     db.commit()
 
-AI_ACTION_PREFIX = "[Local Heuristic Engine Fallback] "
+AI_ACTION_PREFIX = ""
 
 def try_execute_ai_action(q_lower: str, employees: list, topics: list, alloc_map: dict, db: Session, current_user: models.User) -> Optional[dict]:
     emp_part = topic_part = pct_part = None
@@ -381,7 +381,7 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
         alloc_map[(a.employee_id, a.topic_id)] = a.percentage
         emp_alloc_sums[a.employee_id] = emp_alloc_sums.get(a.employee_id, 0.0) + a.percentage
         
-    prefix = "[Local Heuristic Engine Fallback] "
+    prefix = ""
 
     simulation_result = try_execute_ai_simulation(q_lower, query, employees, topics, alloc_map, db, current_user, active_scenario)
     if simulation_result:

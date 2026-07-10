@@ -323,17 +323,51 @@ body:not(.theme-light) .login-logo-image {
 .control-group {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     background: rgba(255, 255, 255, 0.03);
-    padding: 6px 12px;
+    padding: 5px 10px;
     border-radius: 8px;
     border: 1px solid var(--glass-border);
 }
 
 .control-group label {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-secondary);
     font-weight: 500;
+    white-space: nowrap;
+}
+
+/* Denser header controls: the top bar packs a lot of widgets
+   (planning version + its 5 action buttons, language, theme,
+   user profile, logout) side by side, so everything in it runs
+   smaller than the same components used elsewhere in the app. */
+.app-header {
+    padding: 0 20px;
+}
+
+.header-controls {
+    gap: 10px;
+}
+
+.app-header .scenario-dropdown,
+.app-header .theme-dropdown {
+    padding: 5px 8px;
+    font-size: 11px;
+    min-width: 140px;
+}
+
+.app-header .btn {
+    padding: 5px 10px;
+    font-size: 11px;
+    gap: 4px;
+}
+
+.app-header .btn-icon-only {
+    padding: 5px 7px;
+}
+
+.app-header .user-display-name {
+    font-size: 12px !important;
 }
 
 .scenario-dropdown, .control-dropdown, .filter-dropdown {
@@ -3291,14 +3325,19 @@ body #presentation-overlay.theme-dark-presentation .presentation-slide-viewport 
         border-radius: 3px;
     }
     
-    /* Full-screen AI chat drawer on small mobile */
+    /* Full-screen AI chat drawer on small mobile.
+       right must stay off-screen (-100%, matching the full-width override)
+       until .active is applied, otherwise the close button can't hide it. */
     @media (max-width: 480px) {
         .ai-drawer {
             width: 100% !important;
             max-width: 100% !important;
-            right: 0 !important;
+            right: -100% !important;
             border-left: none !important;
             border-radius: 0 !important;
+        }
+        .ai-drawer.active {
+            right: 0 !important;
         }
     }
     
