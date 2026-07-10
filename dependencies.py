@@ -258,16 +258,23 @@ def query_local_ollama(prompt: str) -> Optional[str]:
         if main_mod.query_local_ollama is not query_local_ollama:
             return main_mod.query_local_ollama(prompt)
 
-    url = "http://127.0.0.1:11434/api/generate"
+    # Both overridable via env var since the actually-pulled model name
+    # (`ollama list`) varies per machine - hardcoding "llama3" here meant
+    # this silently never fired on any machine that only had llama3.1
+    # pulled (a plain "llama3 not found" error from Ollama, swallowed by
+    # the except below), permanently falling back to the heuristic engine
+    # even when Ollama was installed and running.
+    url = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434/api/generate")
+    model = os.environ.get("OLLAMA_MODEL", "llama3.1")
     data = json.dumps({
-        "model": "llama3",
+        "model": model,
         "prompt": prompt,
         "stream": False,
         "options": {
             "temperature": 0.2
         }
     }).encode("utf-8")
-    
+
     req = urllib.request.Request(
         url,
         data=data,
@@ -275,8 +282,15 @@ def query_local_ollama(prompt: str) -> Optional[str]:
         method="POST"
     )
     try:
-        with urllib.request.urlopen(req, timeout=8.0) as response:
+        # Local CPU inference on a full RAG-context prompt (all employees/
+        # topics/allocations/costs) routinely takes well past 8s - that
+        # timeout was short enough to make Ollama fail silently on most
+        # real queries, not just unreachable-server cases.
+        with urllib.request.urlopen(req, timeout=30.0) as response:
             resp_data = json.loads(response.read().decode("utf-8"))
+            if "error" in resp_data:
+                print(f"Ollama error for model '{model}': {resp_data['error']}")
+                return None
             return resp_data.get("response")
     except Exception as e:
         print(f"Ollama local connection fallback active: {e}")
