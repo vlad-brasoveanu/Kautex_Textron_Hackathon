@@ -565,7 +565,7 @@ export function initPresentation() {
                             <h3 contenteditable="true" data-slide-id="${slideId}" data-edit-key="title-text-${i}">${getSlideText(slideId, `title-text-${i}`, `Resource Allocations & Overload Alerts${pageSuffix(i + 1, pages.length)}`)}</h3>
                             <span class="confidential-small">CONFIDENTIAL</span>
                         </div>
-                        <div class="slide-content-split" style="flex-direction: column;">
+                        <div class="slide-content-split" style="flex-direction: column; height: 100%; display: flex;">
                             <div class="slide-col-full" style="width: 100%;">
                                 <h4 class="risk-title" contenteditable="true" data-slide-id="${slideId}" data-edit-key="risk-title-left"><i class="fa-solid fa-triangle-exclamation"></i> ${getSlideText(slideId, "risk-title-left", "Overloaded Resources (>100% Allocation)")}</h4>
                                 <ul class="risk-list" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
@@ -579,9 +579,9 @@ export function initPresentation() {
                                                     </li>`}
                                 </ul>
                             </div>
-                            <div class="slide-col-full" style="width: 100%; margin-top: auto; padding-top: 15px;">
+                            <div class="slide-col-full" style="width: 100%; padding-top: 15px; flex: 1; display: flex; flex-direction: column;">
                                 <h4 class="risk-title" contenteditable="true" data-slide-id="${slideId}" data-edit-key="risk-title-right"><i class="fa-solid fa-list-check"></i> ${getSlideText(slideId, "risk-title-right", "Management Comments & Strategic Notes")}</h4>
-                                <div class="pres-notes-box">
+                                <div class="pres-notes-box" style="flex: 1;">
                                     <p contenteditable="true" data-slide-id="${slideId}" data-edit-key="notes-text">${getSlideText(slideId, "notes-text", "Planning Version Summary: Initial draft of resources for engineering hubs. High effort is currently allocated on the Agentic AI prototype development which has an external funding recovery mapped. Key project delivery for Customer Requests (Fuel) requires resource reallocations to cover India testing overload risk.")}</p>
                                 </div>
                             </div>
@@ -943,8 +943,12 @@ export function initPresentation() {
                     return p && typeof p === "object" && p.id && (p.isCustom || knownIds.includes(p.id));
                 });
                 if (isValid) {
-                    // Automatically filter out old separate simulation overview/table slides to clean up user session
-                    const migrated = parsed.filter(item => !item.id.startsWith("custom_sim_overview_") && !item.id.startsWith("custom_sim_table_"));
+                    // Automatically filter out old simulation slides to clean up user session
+                    const migrated = parsed.filter(item => {
+                        if (item.id.startsWith("custom_sim_overview_") || item.id.startsWith("custom_sim_table_")) return false;
+                        if (item.id.startsWith("custom_sim_") && item.overrides && item.overrides["body-text"] && item.overrides["body-text"].includes("detail-card")) return false;
+                        return true;
+                    });
                     deckConfig = migrated;
                     if (migrated.length !== parsed.length) {
                         saveDeckConfig();
