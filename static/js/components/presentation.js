@@ -668,15 +668,18 @@ export function initPresentation() {
             buildPages: (ctx, slideId) => {
                 const sorted = [...(ctx.dashboardData ? (ctx.dashboardData.team_summaries || []) : [])].sort((a, b) => (b.total_cost || 0) - (a.total_cost || 0));
                 const pages = chunkRows(sorted, ROWS_PER_SLIDE);
-                return pages.map((rows, i) => ({
-                    wrapperClass: "",
-                    bodyHTML: `
+                return pages.map((rows, i) => {
+                    const costKey = t => `team-cost-${t.team_name}`;
+                    const utilKey = t => `team-util-${t.team_name}`;
+                    return {
+                        wrapperClass: "",
+                        bodyHTML: `
                         <div class="slide-title-bar">
                             <h3 contenteditable="true" data-slide-id="${slideId}" data-edit-key="title-text-${i}">${getSlideText(slideId, `title-text-${i}`, `Team Resourcing & Cost Breakdown${pageSuffix(i + 1, pages.length)}`)}</h3>
                             <span class="confidential-small">CONFIDENTIAL</span>
                         </div>
                         <div class="slide-content-split">
-                            <div class="slide-col-full">
+                            <div class="slide-col-left" style="flex: 1.15;">
                                 <div class="pres-table-wrapper">
                                     <table class="pres-table">
                                         <thead>
@@ -693,18 +696,38 @@ export function initPresentation() {
                                                 <tr>
                                                     <td><strong>${t.team_name || ""}</strong></td>
                                                     <td style="text-align: right;">${t.member_count || 0} Staff</td>
-                                                    <td style="text-align: right; outline: none; border-bottom: 1px dashed var(--accent-color); cursor: pointer;" contenteditable="true" class="pres-editable-cell" data-type="team-util" data-team-name="${t.team_name}">${(t.average_utilization || 0).toFixed(1)}%</td>
+                                                    <td style="text-align: right; outline: none; border-bottom: 1px dashed var(--accent-color); cursor: pointer;" contenteditable="true" class="pres-editable-cell" data-slide-id="${slideId}" data-edit-key="${utilKey(t)}" data-chart-page="${i}">${getSlideText(slideId, utilKey(t), `${(t.average_utilization || 0).toFixed(1)}%`)}</td>
                                                     <td style="text-align: right;">${t.overloaded_count || 0} overloaded</td>
-                                                    <td style="text-align: right; font-weight: bold; outline: none; border-bottom: 1px dashed var(--accent-color); cursor: pointer;" contenteditable="true" class="pres-editable-cell" data-type="team-cost" data-team-name="${t.team_name}">$${(t.total_cost || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+                                                    <td style="text-align: right; font-weight: bold; outline: none; border-bottom: 1px dashed var(--accent-color); cursor: pointer;" contenteditable="true" class="pres-editable-cell" data-slide-id="${slideId}" data-edit-key="${costKey(t)}" data-chart-page="${i}">${getSlideText(slideId, costKey(t), `$${(t.total_cost || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}`)}</td>
                                                 </tr>
                                             `).join("")}
                                         </tbody>
                                     </table>
                                 </div>
                             </div>
+                            <div class="slide-col-right" style="flex: 0.85;">
+                                <div class="pres-chart-box" style="padding: 12px; height: 100%; flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-height: 240px; box-sizing: border-box;">
+                                    <h4 style="margin-top: 0; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Total Cost by Team</h4>
+                                    <div class="canvas-wrap" style="position: relative; flex: 1; width: 100%; height: 100%; min-height: 200px; display: flex; align-items: center; justify-content: center;"><canvas id="pres-chart-teams-canvas-${i}" data-slide-id="${slideId}" data-page="${i}"></canvas></div>
+                                </div>
+                            </div>
                         </div>
                     `
-                }));
+                    };
+                });
+            },
+            postRender: (ctx, parentEl) => {
+                const root = parentEl || document;
+                root.querySelectorAll('canvas[id^="pres-chart-teams-canvas-"]').forEach(canvas => {
+                    const slideId = canvas.getAttribute("data-slide-id");
+                    const page = canvas.getAttribute("data-page");
+                    const rows = [...(ctx.dashboardData ? (ctx.dashboardData.team_summaries || []) : [])]
+                        .sort((a, b) => (b.total_cost || 0) - (a.total_cost || 0));
+                    const pageRows = chunkRows(rows, ROWS_PER_SLIDE)[parseInt(page, 10)] || [];
+                    const labels = pageRows.map(t => t.team_name || "");
+                    const data = pageRows.map(t => parseMoneyOrPercent(getSlideText(slideId, `team-cost-${t.team_name}`, `${t.total_cost || 0}`)));
+                    renderEditableBarChart(canvas, labels, data, "#3b82f6");
+                });
             },
             csv: (ctx) => {
                 const lines = ["=== Team Resourcing & Cost Breakdown ===", "Team,Members,Avg Utilization %,Overloaded,Total Cost"];
@@ -724,15 +747,18 @@ export function initPresentation() {
                     return { name: emp.name, team: emp.team, location: emp.location, util, cost };
                 }).sort((a, b) => b.cost - a.cost);
                 const pages = chunkRows(sorted, ROWS_PER_SLIDE);
-                return pages.map((rows, i) => ({
-                    wrapperClass: "",
-                    bodyHTML: `
+                return pages.map((rows, i) => {
+                    const costKey = r => `emp-cost-${r.name}`;
+                    const utilKey = r => `emp-util-${r.name}`;
+                    return {
+                        wrapperClass: "",
+                        bodyHTML: `
                         <div class="slide-title-bar">
                             <h3 contenteditable="true" data-slide-id="${slideId}" data-edit-key="title-text-${i}">${getSlideText(slideId, `title-text-${i}`, `Individual Employee Breakdown${pageSuffix(i + 1, pages.length)}`)}</h3>
                             <span class="confidential-small">CONFIDENTIAL</span>
                         </div>
                         <div class="slide-content-split">
-                            <div class="slide-col-full">
+                            <div class="slide-col-left" style="flex: 1.15;">
                                 <div class="pres-table-wrapper">
                                     <table class="pres-table">
                                         <thead>
@@ -750,17 +776,40 @@ export function initPresentation() {
                                                     <td><strong>${r.name || ""}</strong></td>
                                                     <td>${r.team || ""}</td>
                                                     <td>${r.location || ""}</td>
-                                                    <td style="text-align: right; outline: none; border-bottom: 1px dashed var(--accent-color); cursor: pointer;" contenteditable="true" class="pres-editable-cell" data-type="emp-util" data-emp-name="${r.name}">${(r.util || 0).toFixed(1)}%</td>
-                                                    <td style="text-align: right; font-weight: bold; outline: none; border-bottom: 1px dashed var(--accent-color); cursor: pointer;" contenteditable="true" class="pres-editable-cell" data-type="emp-cost" data-emp-name="${r.name}">$${(r.cost || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+                                                    <td style="text-align: right; outline: none; border-bottom: 1px dashed var(--accent-color); cursor: pointer;" contenteditable="true" class="pres-editable-cell" data-slide-id="${slideId}" data-edit-key="${utilKey(r)}">${getSlideText(slideId, utilKey(r), `${(r.util || 0).toFixed(1)}%`)}</td>
+                                                    <td style="text-align: right; font-weight: bold; outline: none; border-bottom: 1px dashed var(--accent-color); cursor: pointer;" contenteditable="true" class="pres-editable-cell" data-slide-id="${slideId}" data-edit-key="${costKey(r)}">${getSlideText(slideId, costKey(r), `$${(r.cost || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}`)}</td>
                                                 </tr>
                                             `).join("")}
                                         </tbody>
                                     </table>
                                 </div>
                             </div>
+                            <div class="slide-col-right" style="flex: 0.85;">
+                                <div class="pres-chart-box" style="padding: 12px; height: 100%; flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-height: 240px; box-sizing: border-box;">
+                                    <h4 style="margin-top: 0; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Total Cost by Employee</h4>
+                                    <div class="canvas-wrap" style="position: relative; flex: 1; width: 100%; height: 100%; min-height: 200px; display: flex; align-items: center; justify-content: center;"><canvas id="pres-chart-employees-canvas-${i}" data-slide-id="${slideId}" data-page="${i}"></canvas></div>
+                                </div>
+                            </div>
                         </div>
                     `
-                }));
+                    };
+                });
+            },
+            postRender: (ctx, parentEl) => {
+                const root = parentEl || document;
+                root.querySelectorAll('canvas[id^="pres-chart-employees-canvas-"]').forEach(canvas => {
+                    const slideId = canvas.getAttribute("data-slide-id");
+                    const page = canvas.getAttribute("data-page");
+                    const sorted = (ctx.employees || []).map(emp => {
+                        const util = (ctx.allocations || []).filter(a => a.employee_id === emp.id).reduce((acc, a) => acc + a.percentage, 0.0);
+                        const cost = emp.available_hours * emp.hourly_rate * (util / 100.0);
+                        return { name: emp.name, cost };
+                    }).sort((a, b) => b.cost - a.cost);
+                    const pageRows = chunkRows(sorted, ROWS_PER_SLIDE)[parseInt(page, 10)] || [];
+                    const labels = pageRows.map(r => r.name || "");
+                    const data = pageRows.map(r => parseMoneyOrPercent(getSlideText(slideId, `emp-cost-${r.name}`, `${r.cost || 0}`)));
+                    renderEditableBarChart(canvas, labels, data, "#f59e0b");
+                });
             },
             csv: (ctx) => {
                 const lines = ["=== Individual Employee Breakdown ===", "Employee,Team,Location,Utilization %,Total Cost"];
@@ -795,6 +844,43 @@ export function initPresentation() {
 
     window.pageSuffix = function(pageNum, pageCount) {
         return pageCount > 1 ? ` (Page ${pageNum} of ${pageCount})` : "";
+    }
+
+    // Strips $ , % from an editable table cell's current text (which may be
+    // the original computed value or a user-typed override saved via
+    // handleSlideEdit) so table-driving charts can plot whatever the cell
+    // actually displays right now.
+    window.parseMoneyOrPercent = function(str) {
+        const cleaned = String(str ?? "").replace(/[$,%]/g, "").trim();
+        const n = parseFloat(cleaned);
+        return isNaN(n) ? 0 : n;
+    }
+
+    // Shared bar-chart renderer for the editable-table slides (teams,
+    // employees): destroys any prior Chart.js instance bound to this
+    // canvas first, since re-render replaces the deck's HTML wholesale.
+    window.renderEditableBarChart = function(canvas, labels, data, color) {
+        if (!canvas || typeof Chart === "undefined") return;
+        const existing = Chart.getChart(canvas);
+        if (existing) existing.destroy();
+        const isLight = canvas.closest("#presentation-overlay")
+            ? canvas.closest("#presentation-overlay").classList.contains("theme-light-presentation")
+            : document.body.classList.contains("theme-light");
+        const textColor = isLight ? "#0f172a" : "#e2e8f0";
+        new Chart(canvas.getContext("2d"), {
+            type: "bar",
+            data: { labels, datasets: [{ label: "Value", data, backgroundColor: color, borderWidth: 1 }] },
+            options: {
+                indexAxis: "y",
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { ticks: { color: textColor, font: { family: "Outfit", size: 9 } }, grid: { color: "rgba(255, 255, 255, 0.08)" } },
+                    y: { ticks: { color: textColor, font: { family: "Outfit", size: 9 } }, grid: { display: false } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
     }
 
     window.getDefaultDeckConfig = function() {
@@ -1413,10 +1499,16 @@ export function initPresentation() {
                 }
                 configItem.overrides[editKey] = htmlValue;
                 saveDeckConfig();
-                
-                // If presentation overlay is open, synchronize slide changes, else update dashboard presentation tab view
+
+                // If presentation overlay is open, synchronize slide changes, else update dashboard presentation tab view.
+                // rebuildPhysicalSlides() must run first here: activePhysicalSlides caches each
+                // slide's bodyHTML as a plain string from the last time presentation mode was
+                // entered, so re-rendering from that stale cache without rebuilding it first
+                // would silently revert this exact edit (and any chart driven by it) back to
+                // its pre-edit value.
                 const overlay = document.getElementById("presentation-overlay");
                 if (overlay && overlay.classList.contains("active")) {
+                    rebuildPhysicalSlides();
                     renderPresentationOverlaySlide();
                 } else {
                     renderPresentationDeck();

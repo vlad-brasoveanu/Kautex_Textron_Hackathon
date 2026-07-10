@@ -1,15 +1,20 @@
 // Component: main (application entrypoint)
-import { state, DECK_CONFIG_STORAGE_KEY } from "./state.js";
-import { api } from "./api.js";
-import { showToast, applyTranslations, t, markApiRequestStart, markApiRequestEnd } from "./utils.js";
-import { initAuth } from "./components/auth.js";
-import { initAi } from "./components/ai.js";
-import { initScenarios } from "./components/scenarios.js";
-import { initMatrix } from "./components/matrix.js";
-import { initReports } from "./components/reports.js";
-import { initDashboards } from "./components/dashboards.js";
-import { initPresentation } from "./components/presentation.js";
-import { initModals } from "./components/modals.js";
+// Versioned like the script tags in index.html (bump both together) - ES
+// module imports are fetched via the browser's normal HTTP cache same as
+// any other resource, so without a cache-busting query param here, editing
+// a component file can silently keep executing a stale cached copy even
+// after main.js itself has been freshly reloaded.
+import { state, DECK_CONFIG_STORAGE_KEY } from "./state.js?v=mobile9";
+import { api } from "./api.js?v=mobile9";
+import { showToast, applyTranslations, t, markApiRequestStart, markApiRequestEnd } from "./utils.js?v=mobile9";
+import { initAuth } from "./components/auth.js?v=mobile9";
+import { initAi } from "./components/ai.js?v=mobile9";
+import { initScenarios } from "./components/scenarios.js?v=mobile9";
+import { initMatrix } from "./components/matrix.js?v=mobile9";
+import { initReports } from "./components/reports.js?v=mobile9";
+import { initDashboards } from "./components/dashboards.js?v=mobile9";
+import { initPresentation } from "./components/presentation.js?v=mobile9";
+import { initModals } from "./components/modals.js?v=mobile9";
 
 document.addEventListener("DOMContentLoaded", () => {
     // DOM Elements - bound onto `window` (not local consts) so every component
