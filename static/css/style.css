@@ -3990,4 +3990,112 @@ body.theme-dark .matrix-group-header-row td {
     margin-top: 4px;
 }
 
+/* ==========================================================
+   DESKTOP GRID & UPLOAD TAB OPTIMIZATIONS
+   ========================================================== */
+@media (min-width: 769px) {
+    .matrix-wrapper {
+        max-height: none !important;
+        overflow-y: visible !important;
+    }
+    .upload-container {
+        max-width: 1050px !important; /* Wider by 50% (700px * 1.5) */
+    }
+}
+
+/* ==========================================================
+   MOBILE SCROLLING, MODALS & AI DRAWER POLISH
+   ========================================================== */
+@media (max-width: 768px) {
+    html, body {
+        overflow: auto !important;
+        height: auto !important;
+    }
+    
+    .control-divider {
+        display: none !important; /* Hide the grey line before the user widget */
+    }
+
+    .header-controls {
+        border-top: none !important; /* Remove grey border line */
+        padding-top: 5px !important;
+        gap: 6px !important;
+    }
+
+    .user-profile-widget {
+        margin-top: 0 !important;
+        padding-top: 8px !important;
+        gap: 10px !important;
+    }
+
+    /* Modals centering instead of bottom sheets */
+    .modal {
+        display: none;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 16px !important;
+        overflow-y: auto !important;
+    }
+    .modal.active {
+        display: flex !important;
+    }
+    .modal-content {
+        position: relative !important;
+        bottom: auto !important;
+        left: auto !important;
+        right: auto !important;
+        width: 100% !important;
+        max-width: 480px !important;
+        margin: 20px auto !important;
+        border-radius: 16px !important;
+        transform: none !important;
+        max-height: 85vh !important;
+        overflow-y: auto !important;
+        padding: 20px !important;
+        box-shadow: var(--card-shadow) !important;
+        animation: modalPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;
+    }
+
+    /* AI Assistant Drawer mobile viewport fixes */
+    .ai-drawer {
+        z-index: 9999 !important;
+        height: 100dvh !important; /* Lock to dynamic viewport height */
+        max-height: 100dvh !important;
+    }
+
+    .ai-drawer-header {
+        padding: 12px 16px !important;
+        gap: 8px !important;
+        align-items: center !important;
+    }
+    .ai-drawer-header h3 span {
+        display: none !important; /* Hide long title text to prevent close btn wrapping */
+    }
+    .ai-drawer-header h3::after {
+        content: " AI Assistant" !important;
+    }
+    .local-pill {
+        display: none !important; /* Hide local pill to make room */
+    }
+    .btn-close {
+        padding: 8px 12px !important;
+        font-size: 22px !important;
+        margin-left: auto !important;
+    }
+}
+
+/* AI Assistant Drawer Backdrop overlay */
+.ai-drawer-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    z-index: 9998;
+}
+
+
 

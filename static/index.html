@@ -175,7 +175,7 @@
                 <div class="section-header" style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
                         <h2><i class="fa-solid fa-table-cells"></i> <span data-i18n="matrix.title">Resource Allocation Matrix</span></h2>
-                        <p class="section-desc" data-i18n="matrix.desc">Double-click any cell or column header to edit. Use the row/column controls to add or remove employees and topics. Switch to User mode to prevent changes.</p>
+                        <p class="section-desc" data-i18n="matrix.desc">Double-click any cell or column header to edit. Use the row/column controls to add or remove employees and topics.</p>
                     </div>
                     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                         <div id="matrix-view-toggle-container" class="mobile-only-flex" style="display: none; gap: 4px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); padding: 4px; border-radius: 8px; align-items: center;">
@@ -203,7 +203,7 @@
                         <!-- Matrix Grid will be rendered dynamically -->
                         <div id="allocation-matrix-container"></div>
                     </div>
-                    <div id="matrix-filters-panel" class="matrix-filters-panel" style="width: 280px; flex-shrink: 0; background: var(--glass-bg); backdrop-filter: blur(10px); border: 1px solid var(--glass-border); padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm); max-height: calc(100vh - 180px); overflow-y: auto;">
+                    <div id="matrix-filters-panel" class="matrix-filters-panel" style="width: 280px; flex-shrink: 0; background: var(--glass-bg); backdrop-filter: blur(10px); border: 1px solid var(--glass-border); padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm);">
                         <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px; color: var(--text-primary);"><i class="fa-solid fa-filter"></i> <span data-i18n="matrix.filtersTitle">Matrix Filters</span></h3>
                         <div id="dynamic-filters-container">
                             <!-- Dynamic filters will be rendered here based on columns/rows -->
@@ -1201,6 +1201,9 @@
             <div class="comment-popover-arrow"></div>
             <p id="comment-popover-text"></p>
         </div>
+
+        <!-- AI Assistant Drawer Backdrop Overlay -->
+        <div id="ai-drawer-backdrop" class="ai-drawer-backdrop" style="display: none;"></div>
 
         <!-- AI Assistant Drawer Slide Out -->
         <div id="ai-drawer" class="ai-drawer">

@@ -432,7 +432,9 @@ def test_scenario_lifecycle_audit_logging(setup_database):
     assert "sandbox, not activated" in clone_log["details"]
 
 
-def test_local_ai_query_assistant(setup_database):
+def test_local_ai_query_assistant(setup_database, monkeypatch):
+    import routers.ai
+    monkeypatch.setattr(routers.ai, "query_local_ollama", lambda prompt: None)
     db = setup_database
     scenario = db.query(models.Scenario).filter(models.Scenario.is_active == True).first()
     

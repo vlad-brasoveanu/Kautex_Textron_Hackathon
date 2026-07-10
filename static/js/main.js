@@ -44,6 +44,7 @@ document.addEventListener("DOMContentLoaded", () => {
     window.btnToggleAI = document.getElementById("btn-toggle-ai");
     window.btnCloseAI = document.getElementById("btn-close-ai");
     window.aiDrawer = document.getElementById("ai-drawer");
+    window.aiDrawerBackdrop = document.getElementById("ai-drawer-backdrop");
     window.aiChatBody = document.getElementById("ai-chat-body");
     window.aiChatInput = document.getElementById("ai-chat-input");
     window.btnSendAI = document.getElementById("btn-send-ai");
@@ -1425,12 +1426,24 @@ document.addEventListener("DOMContentLoaded", () => {
         // AI Chat Drawer Toggle Actions
         btnToggleAI.addEventListener("click", () => {
             aiDrawer.classList.add("active");
+            if (aiDrawerBackdrop) {
+                aiDrawerBackdrop.style.display = "block";
+            }
             aiChatInput.focus();
         });
 
-        btnCloseAI.addEventListener("click", () => {
+        const closeAIDrawer = () => {
             aiDrawer.classList.remove("active");
-        });
+            if (aiDrawerBackdrop) {
+                aiDrawerBackdrop.style.display = "none";
+            }
+        };
+
+        btnCloseAI.addEventListener("click", closeAIDrawer);
+
+        if (aiDrawerBackdrop) {
+            aiDrawerBackdrop.addEventListener("click", closeAIDrawer);
+        }
 
         const btnClearChat = document.getElementById("btn-clear-chat");
         if (btnClearChat) {

@@ -33,7 +33,7 @@ const TRANSLATIONS = {
         "nav.users": "User Settings (Admin)", "nav.aiChat": "Confidential AI Chat",
 
         "matrix.title": "Resource Allocation Matrix",
-        "matrix.desc": "Double-click any cell or column header to edit. Use the row/column controls to add or remove employees and topics. Switch to User mode to prevent changes.",
+        "matrix.desc": "Double-click any cell or column header to edit. Use the row/column controls to add or remove employees and topics.",
         "matrix.addRow": "Add Row", "matrix.addColumn": "Add Column", "matrix.exportCsv": "Export CSV", "matrix.exportExcel": "Export Excel",
         "matrix.filtersTitle": "Matrix Filters", "matrix.groupBy": "Group Rows By", "matrix.groupNone": "Default (No Grouping)",
         "matrix.groupTeam": "Team", "matrix.groupLocation": "Country (Location)", "matrix.groupTopic": "Primary Topic",
@@ -149,7 +149,7 @@ const TRANSLATIONS = {
         "nav.users": "Utilizatori (Admin)", "nav.aiChat": "Chat AI Confidențial",
 
         "matrix.title": "Matrice de Alocare a Resurselor",
-        "matrix.desc": "Dublu-click pe orice celulă sau antet de coloană pentru editare. Folosește comenzile de rând/coloană pentru a adăuga sau elimina angajați și topicuri. Comută în modul Utilizator pentru a preveni modificările.",
+        "matrix.desc": "Dublu-click pe orice celulă sau antet de coloană pentru editare. Folosește comenzile de rând/coloană pentru a adăuga sau elimina angajați și topicuri.",
         "matrix.addRow": "Adaugă Rând", "matrix.addColumn": "Adaugă Coloană", "matrix.exportCsv": "Exportă CSV", "matrix.exportExcel": "Exportă Excel",
         "matrix.filtersTitle": "Filtre Matrice", "matrix.groupBy": "Grupează Rândurile După", "matrix.groupNone": "Implicit (Fără Grupare)",
         "matrix.groupTeam": "Echipă", "matrix.groupLocation": "Țară (Locație)", "matrix.groupTopic": "Topic Principal",
@@ -260,7 +260,7 @@ const TRANSLATIONS = {
         "nav.users": "Benutzereinstellungen (Admin)", "nav.aiChat": "Vertraulicher KI-Chat",
 
         "matrix.title": "Ressourcen-Zuteilungsmatrix",
-        "matrix.desc": "Doppelklicken Sie auf eine Zelle oder Spaltenüberschrift, um sie zu bearbeiten. Nutzen Sie die Zeilen-/Spaltensteuerung, um Mitarbeiter und Themen hinzuzufügen oder zu entfernen. Wechseln Sie in den Benutzermodus, um Änderungen zu verhindern.",
+        "matrix.desc": "Doppelklicken Sie auf eine Zelle oder Spaltenüberschrift, um sie zu bearbeiten. Nutzen Sie die Zeilen-/Spaltensteuerung, um Mitarbeiter und Themen hinzuzufügen oder zu entfernen.",
         "matrix.addRow": "Zeile Hinzufügen", "matrix.addColumn": "Spalte Hinzufügen", "matrix.exportCsv": "CSV Exportieren", "matrix.exportExcel": "Excel Exportieren",
         "matrix.filtersTitle": "Matrixfilter", "matrix.groupBy": "Zeilen Gruppieren Nach", "matrix.groupNone": "Standard (Keine Gruppierung)",
         "matrix.groupTeam": "Team", "matrix.groupLocation": "Land (Standort)", "matrix.groupTopic": "Hauptthema",
@@ -371,7 +371,7 @@ const TRANSLATIONS = {
         "nav.users": "Ajustes de Usuario (Admin)", "nav.aiChat": "Chat de IA Confidencial",
 
         "matrix.title": "Matriz de Asignación de Recursos",
-        "matrix.desc": "Haz doble clic en cualquier celda o encabezado de columna para editar. Usa los controles de fila/columna para añadir o quitar empleados y temas. Cambia al modo Usuario para evitar cambios.",
+        "matrix.desc": "Haz doble clic en cualquier celda o encabezado de columna para editar. Usa los controles de fila/columna para añadir o quitar empleados y temas.",
         "matrix.addRow": "Añadir Fila", "matrix.addColumn": "Añadir Columna", "matrix.exportCsv": "Exportar CSV", "matrix.exportExcel": "Exportar Excel",
         "matrix.filtersTitle": "Filtros de la Matriz", "matrix.groupBy": "Agrupar Filas Por", "matrix.groupNone": "Predeterminado (Sin Agrupar)",
         "matrix.groupTeam": "Equipo", "matrix.groupLocation": "País (Ubicación)", "matrix.groupTopic": "Tema Principal",
@@ -482,7 +482,7 @@ const TRANSLATIONS = {
         "nav.users": "用户设置（管理员）", "nav.aiChat": "机密 AI 聊天",
 
         "matrix.title": "资源分配矩阵",
-        "matrix.desc": "双击任意单元格或列标题即可编辑。使用行/列控件添加或删除员工和主题。切换到用户模式可防止更改。",
+        "matrix.desc": "双击任意单元格或列标题即可编辑。使用行/列控件添加或删除员工和主题。",
         "matrix.addRow": "添加行", "matrix.addColumn": "添加列", "matrix.exportCsv": "导出 CSV", "matrix.exportExcel": "导出 Excel",
         "matrix.filtersTitle": "矩阵筛选", "matrix.groupBy": "行分组依据", "matrix.groupNone": "默认（不分组）",
         "matrix.groupTeam": "团队", "matrix.groupLocation": "国家（地点）", "matrix.groupTopic": "主要主题",
@@ -593,7 +593,7 @@ const TRANSLATIONS = {
         "nav.users": "ユーザー設定（管理者）", "nav.aiChat": "機密 AI チャット",
 
         "matrix.title": "リソース配分マトリクス",
-        "matrix.desc": "セルまたは列見出しをダブルクリックすると編集できます。行/列コントロールを使用して従業員やトピックの追加・削除ができます。変更を防ぐにはユーザーモードに切り替えてください。",
+        "matrix.desc": "セルまたは列見出しをダブルクリックすると編集できます。行/列コントロールを使用して従業員やトピックの追加・削除ができます。",
         "matrix.addRow": "行を追加", "matrix.addColumn": "列を追加", "matrix.exportCsv": "CSVをエクスポート", "matrix.exportExcel": "Excelをエクスポート",
         "matrix.filtersTitle": "マトリクスフィルター", "matrix.groupBy": "行のグループ化基準", "matrix.groupNone": "デフォルト（グループ化なし）",
         "matrix.groupTeam": "チーム", "matrix.groupLocation": "国（拠点）", "matrix.groupTopic": "主要トピック",
