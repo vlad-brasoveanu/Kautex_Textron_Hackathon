@@ -58,17 +58,6 @@ A state-of-the-art, secure, and confidential resource planning platform built fo
    ```
    Open **[http://127.0.0.1:8000](http://127.0.0.1:8000)** in your web browser.
 
----
-
-## 🔑 Default Authentication Accounts
-
-Use the following credentials to access the platform:
-
-| Role | Username | Password | Access Privileges |
-| :--- | :--- | :--- | :--- |
-| **Master Admin** | `master` | `master123` | Everything Admin can do, plus create/delete Admin and User accounts, edit any account's role, and permanently purge Trash / Audit Logs / Upload History. The account itself is protected and cannot be deleted or have its role changed. |
-| **Admin** | `admin` | `admin123` | Can edit the matrix, view AI insights, import/export CSV & Excel, view audit logs, create/delete User accounts, and edit Admin/User account details (but not roles, and not the Master Admin's account) |
-| **User** | `user` | `user123` | Read-only matrix, no import/export, no audit logs, no account management |
 
 ---
 
