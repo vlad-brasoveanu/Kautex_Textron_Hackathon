@@ -1526,20 +1526,10 @@ tr.overview-row:hover td {
     border-radius: 8px;
     background: color-mix(in srgb, var(--accent, var(--glass-border)) 6%, var(--glass-bg));
     border: 1px solid color-mix(in srgb, var(--accent, var(--glass-border)) 22%, var(--glass-border));
-    padding: 10px 12px 10px 18px;
+    padding: 10px 12px;
 }
 
-.ai-insight-list .ai-insight-item::before {
-    content: "";
-    position: absolute;
-    left: 7px;
-    top: 10px;
-    bottom: 10px;
-    width: 3px;
-    border-radius: 3px;
-    background: var(--accent, var(--glass-border));
-    opacity: 0.85;
-}
+/* Removed ::before pseudo element which caused left red border */
 
 .ai-insight-list .ai-insight-item + .ai-insight-item {
     margin-top: 10px;
@@ -2544,7 +2534,8 @@ th.sortable-emp:hover, th.sortable-topic:hover {
     gap: 10px;
     padding: 10px 14px;
     border-radius: 8px;
-    background: rgba(255, 255, 255, 0.03);
+    background: color-mix(in srgb, var(--accent, var(--glass-border)) 6%, var(--glass-bg));
+    border: 1px solid color-mix(in srgb, var(--accent, var(--glass-border)) 20%, transparent);
     border-left: 3px solid var(--danger-color);
 }
 .ai-insight-list-pres .ai-insight-item.ai-insight-item-suggestion {

@@ -1182,7 +1182,7 @@ window.renderPlanningVersionTab = async function() {
         });
 
         const tableHTML = differenceRows.length > 0 ? `
-            <div class="pres-table-wrapper" style="margin-top: 15px;">
+            <div class="pres-table-wrapper" style="margin-top: 8px;">
                 <table class="pres-table" style="font-size: 10px;">
                     <thead>
                         <tr><th>Team</th><th>${reportA.scenario_name}</th><th>${reportB.scenario_name}</th><th>Cost Delta (%)</th><th>Avg Util Shift</th></tr>
@@ -1202,7 +1202,7 @@ window.renderPlanningVersionTab = async function() {
                 <i class="fa-solid fa-arrow-right-long"></i>
                 <span class="sim-compare-scenario-pill sim-compare-target">${reportB.scenario_name}</span>
             </div>
-            <div class="pres-kpi-grid" style="margin-top: 10px; margin-bottom: 10px; grid-template-columns: repeat(4, 1fr);">
+            <div class="pres-kpi-grid" style="margin-top: 5px; margin-bottom: 5px; grid-template-columns: repeat(4, 1fr);">
                 <div class="pres-kpi-item">
                     <span class="pres-kpi-label"><i class="fa-solid fa-users"></i> Headcount</span>
                     <span class="pres-kpi-number" style="font-size: 14px;">${reportA.total_headcount} &rarr; ${reportB.total_headcount}</span>

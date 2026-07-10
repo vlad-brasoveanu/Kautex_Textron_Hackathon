@@ -95,8 +95,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const appMain = document.querySelector(".app-main");
         if (appMain) {
             appMain.scrollTop = 0;
+            setTimeout(() => { appMain.scrollTop = 0; }, 10);
         }
         window.scrollTo(0, 0);
+        setTimeout(() => { window.scrollTo(0, 0); }, 10);
 
         updateSidebarFiltersVisibility();
 
@@ -524,6 +526,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 activeDashTab = tab.getAttribute("data-tab");
                 document.querySelectorAll(".dash-tab-content").forEach(tc => tc.classList.remove("active"));
                 document.getElementById(activeDashTab).classList.add("active");
+
+                const appMain = document.querySelector(".app-main");
+                if (appMain) {
+                    appMain.scrollTop = 0;
+                    setTimeout(() => { appMain.scrollTop = 0; }, 10);
+                }
+                window.scrollTo(0, 0);
+                setTimeout(() => { window.scrollTo(0, 0); }, 10);
             });
         });
 

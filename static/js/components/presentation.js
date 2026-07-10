@@ -565,21 +565,21 @@ export function initPresentation() {
                             <h3 contenteditable="true" data-slide-id="${slideId}" data-edit-key="title-text-${i}">${getSlideText(slideId, `title-text-${i}`, `Resource Allocations & Overload Alerts${pageSuffix(i + 1, pages.length)}`)}</h3>
                             <span class="confidential-small">CONFIDENTIAL</span>
                         </div>
-                        <div class="slide-content-split">
-                            <div class="slide-col-left">
+                        <div class="slide-content-split" style="flex-direction: column;">
+                            <div class="slide-col-full" style="width: 100%;">
                                 <h4 class="risk-title" contenteditable="true" data-slide-id="${slideId}" data-edit-key="risk-title-left"><i class="fa-solid fa-triangle-exclamation"></i> ${getSlideText(slideId, "risk-title-left", "Overloaded Resources (>100% Allocation)")}</h4>
-                                <ul class="risk-list">
+                                <ul class="risk-list" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                                     ${rows.map(emp => `
-                                        <li style="padding: 8px 12px; border-radius: 6px; background: rgba(239, 68, 68, 0.08); border-left: 3px solid var(--danger-color); margin-bottom: 6px; font-size: 11px;">
+                                        <li style="padding: 8px 12px; border-radius: 6px; background: rgba(239, 68, 68, 0.08); border-left: 3px solid var(--danger-color); margin-bottom: 0px; font-size: 11px;">
                                             <i class="fa-solid fa-triangle-exclamation" style="color: var(--danger-color); margin-right: 6px;"></i>
                                             <strong>${emp.name || ""}</strong> (${emp.team || ""}) planned utilization is at <span style="color: var(--danger-color); font-weight: 700;">${(emp.utilization || 0).toFixed(1)}%</span>.
                                         </li>
-                                    `).join("") || `<li style="padding: 8px 12px; border-radius: 6px; background: rgba(16, 185, 129, 0.08); border-left: 3px solid var(--success-color); font-size: 11px; color: var(--success-color);">
+                                    `).join("") || `<li style="padding: 8px 12px; grid-column: 1 / -1; border-radius: 6px; background: rgba(16, 185, 129, 0.08); border-left: 3px solid var(--success-color); font-size: 11px; color: var(--success-color);">
                                                         <i class="fa-solid fa-circle-check" style="margin-right: 6px;"></i> No overloaded planning risks detected in this scenario.
                                                     </li>`}
                                 </ul>
                             </div>
-                            <div class="slide-col-right">
+                            <div class="slide-col-full" style="width: 100%; margin-top: auto; padding-top: 15px;">
                                 <h4 class="risk-title" contenteditable="true" data-slide-id="${slideId}" data-edit-key="risk-title-right"><i class="fa-solid fa-list-check"></i> ${getSlideText(slideId, "risk-title-right", "Management Comments & Strategic Notes")}</h4>
                                 <div class="pres-notes-box">
                                     <p contenteditable="true" data-slide-id="${slideId}" data-edit-key="notes-text">${getSlideText(slideId, "notes-text", "Planning Version Summary: Initial draft of resources for engineering hubs. High effort is currently allocated on the Agentic AI prototype development which has an external funding recovery mapped. Key project delivery for Customer Requests (Fuel) requires resource reallocations to cover India testing overload risk.")}</p>
