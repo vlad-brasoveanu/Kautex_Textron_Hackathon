@@ -4,17 +4,17 @@
 // any other resource, so without a cache-busting query param here, editing
 // a component file can silently keep executing a stale cached copy even
 // after main.js itself has been freshly reloaded.
-import { state, DECK_CONFIG_STORAGE_KEY } from "./state.js?v=mobile18";
-import { api } from "./api.js?v=mobile18";
-import { showToast, applyTranslations, t, markApiRequestStart, markApiRequestEnd } from "./utils.js?v=mobile18";
-import { initAuth } from "./components/auth.js?v=mobile18";
-import { initAi } from "./components/ai.js?v=mobile18";
-import { initScenarios } from "./components/scenarios.js?v=mobile18";
-import { initMatrix } from "./components/matrix.js?v=mobile18";
-import { initReports } from "./components/reports.js?v=mobile18";
-import { initDashboards } from "./components/dashboards.js?v=mobile18";
-import { initPresentation } from "./components/presentation.js?v=mobile18";
-import { initModals } from "./components/modals.js?v=mobile18";
+import { state, DECK_CONFIG_STORAGE_KEY } from "./state.js?v=mobile19";
+import { api } from "./api.js?v=mobile19";
+import { showToast, applyTranslations, t, markApiRequestStart, markApiRequestEnd } from "./utils.js?v=mobile19";
+import { initAuth } from "./components/auth.js?v=mobile19";
+import { initAi } from "./components/ai.js?v=mobile19";
+import { initScenarios } from "./components/scenarios.js?v=mobile19";
+import { initMatrix } from "./components/matrix.js?v=mobile19";
+import { initReports } from "./components/reports.js?v=mobile19";
+import { initDashboards } from "./components/dashboards.js?v=mobile19";
+import { initPresentation } from "./components/presentation.js?v=mobile19";
+import { initModals } from "./components/modals.js?v=mobile19";
 
 document.addEventListener("DOMContentLoaded", () => {
     // DOM Elements - bound onto `window` (not local consts) so every component

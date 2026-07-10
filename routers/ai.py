@@ -348,10 +348,47 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
     if not query:
         raise HTTPException(status_code=400, detail="Query is empty")
         
-    out_of_scope_keywords = ["recipe", "capital of", "weather", "translate", "how to build a", "write a code", "python script", "javascript script", "history of", "who is the president", "poem", "joke"]
-    planning_words = ["cost", "employee", "topic", "project", "allocat", "team", "recovery", "utiliz", "hour", "rate", "overload", "justif", "area", "cae", "test", "where", "who", "what", "budget"]
-    
     q_lower = query.lower()
+
+    # Meta/self-referential and greeting questions ("are you real?", "who are
+    # you?", "hi") are legitimate first-turn questions but contain none of
+    # planning_words below, so without this check they'd be caught by the
+    # out-of-scope gate and get the generic deflection instead of an honest
+    # answer about how this assistant actually works.
+    meta_patterns = [
+        r"\bare you (a |an )?(real|human|chatgpt|gpt|claude|bot|robot|(local )?ai)\b",
+        r"\bis this (a |an )?(real|actual) (ai|llm|assistant|chatbot|bot)\b",
+        r"\bwho are you\b", r"\bwhat are you\b",
+        r"\bwhat (can|do) you (do|help|know)\b", r"\bwhat can i ask\b",
+        r"\bhow (can|do) i (use|talk to) you\b", r"\bhow do you work\b",
+        r"\bwhat data do you have\b", r"\bwhat (kind of )?(questions|info)\b.*\b(support|handle|answer)\b",
+        r"^help$", r"^help me$", r"^\?+$",
+    ]
+    if any(re.search(p, q_lower) for p in meta_patterns):
+        return {
+            "answer": "Yes, I'm a real assistant, just scoped differently than something like ChatGPT: when a local LLM "
+                      "(Ollama) is reachable on this server, I generate open-ended answers grounded in this scenario's live "
+                      "employee, cost, and allocation data. When it isn't reachable, I fall back to a deterministic rules "
+                      "engine that covers the most common planning questions - which is what answered this message.\n\n"
+                      "I'm intentionally limited to this app's planning data - not a general-purpose chatbot. Things I can help with:\n"
+                      "* **Who/where**: *'Who is working in Romania?'*, *'List overloaded employees'*\n"
+                      "* **Costs**: *'What is the cost of the Fuel project?'*, *'Cost of team GV CAE Germany'*\n"
+                      "* **Filters & grouping**: *'Filter by location Germany'*, *'Group rows by team'*, *'Remove filters'*\n"
+                      "* **What-if simulations** (admin): *'What if we move 10% of X's time to Y?'*\n"
+                      "* **Direct edits** (admin): *'Set X's allocation on Y to 30%'*"
+        }
+
+    greeting_patterns = [r"^(hi|hello|hey|yo|sup)[\s!.,]*$", r"^good (morning|afternoon|evening)[\s!.,]*$"]
+    if any(re.search(p, q_lower) for p in greeting_patterns):
+        return {
+            "answer": "Hi! I'm the confidential planning assistant for this app - ask me about employees, costs, "
+                      "allocations, or projects in the active scenario. For example: *'Who is working on the Fuel project?'* "
+                      "or *'What is the total cost for team GV CAE Germany?'*"
+        }
+
+    out_of_scope_keywords = ["recipe", "capital of", "weather", "translate", "how to build a", "write a code", "python script", "javascript script", "history of", "who is the president", "poem", "joke"]
+    planning_words = ["cost", "employee", "topic", "project", "allocat", "team", "recovery", "utiliz", "hour", "rate", "overload", "justif", "area", "cae", "test", "where", "who", "what", "budget", "filter", "group", "matrix", "location", "staff", "people", "headcount", "simulat", "scenario"]
+
     is_out_of_scope = any(keyword in q_lower for keyword in out_of_scope_keywords)
     
     has_no_planning_terms = False
@@ -418,7 +455,7 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
             "grouping": "none"
         }
 
-    if "clear filter" in q_clean or "reset filter" in q_clean or "show all" in q_clean:
+    if re.search(r"\b(clear|reset|remove|delete)\b.*\bfilters?\b", q_clean) or "no filter" in q_clean or "show all" in q_clean:
         return {
             "answer": prefix + "I have reset all matrix filters to display the full dataset.",
             "filters": {
@@ -566,6 +603,41 @@ def local_ai_query(payload: dict, db: Session = Depends(get_db), current_user: m
             "answer": answer_text,
             "filters": filters_to_apply
         }
+
+    # Whole-scenario aggregate questions ("total cost", "how many employees")
+    # with no specific team/location/topic named - previously unhandled,
+    # since every cost/count handler below requires a matched entity to
+    # anchor on. These are broad enough to check for explicitly rather than
+    # via entity fuzzy-matching, which would find nothing to match against.
+    has_specific_entity = any(
+        e.location.lower() in q_clean or e.team.lower() in q_clean for e in employees
+    ) or any(t.name.lower() in q_clean for t in topics)
+
+    if not has_specific_entity:
+        if re.search(r"\btotal (cost|budget|spend)\b|\boverall cost\b|\bhow much does (everything|the plan|this) cost\b", q_clean):
+            total_cost = sum(
+                emp.available_hours * emp.hourly_rate * (alloc_map.get((emp.id, t.id), 0.0) / 100.0)
+                for emp in employees for t in topics
+            )
+            total_recovery = sum(t.recovery for t in topics)
+            return {
+                "answer": prefix + f"The total planning cost across the active scenario is **${total_cost:,.2f} USD** "
+                                   f"(before **${total_recovery:,.2f} USD** in recovery/savings across {len(topics)} topics)."
+            }
+
+        if re.search(r"\b(total headcount|how many employees|how many people|number of employees|number of staff)\b", q_clean):
+            return {"answer": prefix + f"There are **{len(employees)}** employees planned in the active scenario."}
+
+        if re.search(r"\b(how many (topics|projects)|number of (topics|projects)|total (topics|projects))\b", q_clean):
+            return {"answer": prefix + f"There are **{len(topics)}** topics/projects in the active scenario."}
+
+        if re.search(r"\baverage (hourly )?rate\b", q_clean):
+            avg_rate = sum(e.hourly_rate for e in employees) / len(employees) if employees else 0.0
+            return {"answer": prefix + f"The average hourly rate across all {len(employees)} employees is **${avg_rate:,.2f} USD/hr**."}
+
+        if re.search(r"\baverage utili[sz]ation\b", q_clean):
+            avg_util = sum(emp_alloc_sums.values()) / len(employees) if employees else 0.0
+            return {"answer": prefix + f"The average utilization across all {len(employees)} employees is **{avg_util:.1f}%**."}
 
     if history:
         last_assistant_msg = ""
