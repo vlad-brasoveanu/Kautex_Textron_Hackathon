@@ -2602,6 +2602,7 @@ th.sortable-emp:hover, th.sortable-topic:hover {
     /* No internal scroll: list item counts are paginated in JS so content
        always fits without clipping or scrolling. */
     overflow: visible;
+    flex-grow: 1 !important;
 }
 
 .risk-list li {
@@ -2620,6 +2621,15 @@ th.sortable-emp:hover, th.sortable-topic:hover {
     line-height: 1.6;
     color: var(--text-secondary);
     height: 100%;
+    flex-grow: 1 !important;
+    display: flex;
+    flex-direction: column;
+}
+
+.pres-notes-box p {
+    flex-grow: 1 !important;
+    margin: 0;
+    outline: none;
 }
 
 /* ==========================================================
@@ -3999,7 +4009,7 @@ body.theme-dark .matrix-group-header-row td {
         overflow-y: visible !important;
     }
     .upload-container {
-        max-width: 1050px !important; /* Wider by 50% (700px * 1.5) */
+        max-width: 100% !important; /* Full width so it fits all contents without scroll */
     }
 }
 
