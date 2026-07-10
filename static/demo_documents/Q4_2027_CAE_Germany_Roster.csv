@@ -1,0 +1,5 @@
+Employee,Team,Location,Hours/Year,Hourly Rate,Department,Manager,Status,Notes,Non bookable - Other,bookable 1 - Consulting Global,Fuel Project,Method Development Pentatonic
+Dr. Markus Weber,GV CAE Germany,Germany,1600,155.0,CAE,Dr. Müller,Active,Lead crash simulation specialist.,10%,20%,20%,50%
+Sofia Rossi,GV CAE Germany,Germany,1600,140.0,CAE,Dr. Müller,Active,Structural durability lead.,10%,10%,40%,40%
+Hans Becker,GV CAE Germany,Germany,1600,135.0,CAE,Dr. Müller,Active,NVH simulation expert.,15%,15%,35%,35%
+Christian Wolf,GV CAE Germany,Germany,1600,120.0,CAE,Markus Weber,Temporary,Contractor for Pentatonic meshing.,5%,5%,0%,90%

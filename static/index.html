@@ -15,7 +15,7 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="css/style.css?v=mobile6">
+    <link rel="stylesheet" href="css/style.css?v=mobile7">
 </head>
 <body>
 
@@ -932,6 +932,34 @@
                             <!-- Status results populated dynamically -->
                         </div>
 
+                        <!-- Downloadable sample files: each demonstrates a different
+                             supported import pattern (missing/extra columns, additional
+                             costs, team-grouped rows) using data that's close to but not
+                             identical to the live dataset, so importing one back in has
+                             a visible before/after effect. -->
+                        <div class="upload-instructions" style="margin-bottom: 20px;">
+                            <h3><i class="fa-solid fa-file-arrow-down"></i> <span data-i18n="upload.samplesTitle">Sample Files to Try</span></h3>
+                            <p data-i18n="upload.samplesDesc">Download one of these and upload it back in to see the import behavior in action - each showcases a different pattern.</p>
+                            <div class="sample-files-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-top: 14px;">
+                                <a class="sample-file-card" href="demo_documents/Q4_2027_CAE_Germany_Roster.csv" download style="display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 10px; text-decoration: none; color: var(--text-primary);">
+                                    <strong style="font-size: 13px;"><i class="fa-solid fa-file-csv" style="color: var(--primary-color);"></i> Q4_2027_CAE_Germany_Roster.csv</strong>
+                                    <span style="font-size: 11px; color: var(--text-secondary);" data-i18n="upload.sample1Desc">Extra Department/Manager/Status/Notes columns beyond the standard layout.</span>
+                                </a>
+                                <a class="sample-file-card" href="demo_documents/Q1_2028_US_Team_Roster.csv" download style="display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 10px; text-decoration: none; color: var(--text-primary);">
+                                    <strong style="font-size: 13px;"><i class="fa-solid fa-file-csv" style="color: var(--primary-color);"></i> Q1_2028_US_Team_Roster.csv</strong>
+                                    <span style="font-size: 11px; color: var(--text-secondary);" data-i18n="upload.sample2Desc">Fewer topic columns than the live sheet, plus a New Position hire row.</span>
+                                </a>
+                                <a class="sample-file-card" href="demo_documents/CAD_and_Tooling_Additional_Costs.csv" download style="display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 10px; text-decoration: none; color: var(--text-primary);">
+                                    <strong style="font-size: 13px;"><i class="fa-solid fa-file-csv" style="color: var(--primary-color);"></i> CAD_and_Tooling_Additional_Costs.csv</strong>
+                                    <span style="font-size: 11px; color: var(--text-secondary);" data-i18n="upload.sample3Desc">Cost-only rows (CAD, Tooling, Supplier Support, Recovery) with no employees.</span>
+                                </a>
+                                <a class="sample-file-card" href="demo_documents/Q2_2028_CAE_Romania_Grouped_Import.xlsx" download style="display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 10px; text-decoration: none; color: var(--text-primary);">
+                                    <strong style="font-size: 13px;"><i class="fa-solid fa-file-excel" style="color: #107c41;"></i> Q2_2028_CAE_Romania_Grouped_Import.xlsx</strong>
+                                    <span style="font-size: 11px; color: var(--text-secondary);" data-i18n="upload.sample4Desc">Team name on its own row with blank Team/Location cells below it, plus a brand-new topic column.</span>
+                                </a>
+                            </div>
+                        </div>
+
                         <!-- Instructions and Sample Layout -->
                         <div class="upload-instructions">
                             <h3><i class="fa-solid fa-circle-info"></i> <span data-i18n="upload.instructionsTitle">CSV / Excel Layout Format Instructions</span></h3>
@@ -1599,7 +1627,7 @@
     </div>
 
     <!-- Custom Script -->
-    <script src="js/translations.js?v=mobile6"></script>
-    <script type="module" src="js/main.js?v=mobile6"></script>
+    <script src="js/translations.js?v=mobile7"></script>
+    <script type="module" src="js/main.js?v=mobile7"></script>
 </body>
 </html>
